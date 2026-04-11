@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>KPZ Draw</title>
+  <script src="https://unpkg.com/ag-psd@30.1.0/dist/bundle.js"></script>
+  <style>
+    html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#1a1a1a;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#e8e8e8}
+    #kpz-root{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center}
+    .kpz-loading{text-align:center;color:#ff7a45}
+    .kpz-loading .spin{display:inline-block;width:32px;height:32px;border:3px solid #333;
+      border-top-color:#ff7a45;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <div id="kpz-root">
+    <div class="kpz-loading"><div class="spin"></div><div>Loading KPZ Draw…</div></div>
+  </div>
+
+  <script type="module">
+    // Version pin — change only when deploying a new release
+    const VERSION = 'v3.5.0';
+    const REPO    = 'indalkp/kpz-draw';
+    const BASE    = `https://cdn.jsdelivr.net/gh/${REPO}@${VERSION}/src`;
+
+    try {
+      const mod = await import(`${BASE}/main.js`);
+      await mod.init('#kpz-root', { baseUrl: BASE, version: VERSION });
+    } catch (err) {
+      document.getElementById('kpz-root').innerHTML =
+        '<div style="color:#fff;padding:40px;max-width:500px">' +
+          '<h2 style="color:#e55353">Failed to load KPZ Draw</h2>' +
+          '<p>Version: <code>' + VERSION + '</code></p>' +
+          '<p>Error: <code>' + (err?.message || String(err)) + '</code></p>' +
+          '<p style="color:#9a9a9a;font-size:13px">' +
+            'Check that the version tag exists in the GitHub repo, ' +
+            'and that jsDelivr has cached it (usually takes &lt;2 min after a push).' +
+          '</p>' +
+        '</div>';
+      console.error('KPZ Draw load failed:', err);
+    }
+  </script>
+</body>
+</html>
