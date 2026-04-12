@@ -13,7 +13,7 @@
 
 import { App } from '../core/state.js';
 import { updateAuthUI, updateSaveStatus } from '../ui/topbar.js';
-import { toast } from './toast-bridge.js';
+import { toast } from '../ui/toast.js';
 import { renderProjectsList } from '../ui/projects-panel.js';
 
 export function initWixBridge() {
