@@ -14,8 +14,6 @@ import { App, curPanel } from '../core/state.js';
 import { $ } from '../utils/dom-helpers.js';
 import { setTool } from '../ui/toolrail.js';
 
-// Lazy DOM refs — looked up on first use so this module can be imported
-// before the DOM is built by core/dom.js.
 let display, dctx, canvasWrap, canvasArea;
 function ensureDom() {
   if (display) return;
@@ -25,25 +23,13 @@ function ensureDom() {
   canvasArea = $('canvasArea');
 }
 
-// ----------------------------------------------------------------------------
-//  View transform
-// ----------------------------------------------------------------------------
-
-/** Apply the current App.view transform to the canvas wrapper. */
 export function applyView() {
   ensureDom();
-  // v3.5: transform-origin is center center, so we translate(-50%,-50%) first
-  // to offset the wrapper's top-left pivot, THEN apply the user pan/zoom.
   canvasWrap.style.transform =
     `translate(-50%,-50%) translate(${App.view.x}px,${App.view.y}px) scale(${App.view.scale})`;
   $('zoomInfo').textContent = Math.round(App.view.scale * 100) + '%';
 }
 
-/**
- * Fit the canvas to the viewport.
- * @param {'width'|'height'|undefined} mode - 'width' fits horizontally,
- *   'height' fits vertically, undefined (default) fits whole image.
- */
 export function fitView(mode) {
   ensureDom();
   const pad = 40;
@@ -59,10 +45,6 @@ export function fitView(mode) {
   applyView();
 }
 
-/**
- * Set zoom level, optionally pivoting around a client-space point (cx, cy).
- * When cx/cy provided, the point under the cursor stays stationary during zoom.
- */
 export function setZoom(s, cx, cy) {
   ensureDom();
   const old = App.view.scale;
@@ -78,11 +60,6 @@ export function setZoom(s, cx, cy) {
   applyView();
 }
 
-// ----------------------------------------------------------------------------
-//  Display canvas rendering
-// ----------------------------------------------------------------------------
-
-/** Re-composite all visible layers of the active panel onto the display canvas. */
 export function renderDisplay() {
   ensureDom();
   const p = App.project;
@@ -101,35 +78,26 @@ export function renderDisplay() {
   $('canvasInfo').textContent = `${p.width} × ${p.height}`;
 }
 
-// ----------------------------------------------------------------------------
-//  Pointer → canvas-space coordinate mapping
-// ----------------------------------------------------------------------------
-
 /**
  * Convert a pointer event to canvas-space {x, y, pressure}.
- * Uses getBoundingClientRect so it's correct under any view transform.
- * Normalizes pressure: if the device reports 0.5 (the default for non-pressure
- * devices) we treat mouse events as full pressure (1) and touch as 0.5.
+ *
+ * v3.5.1 FIX (big-dot bug):
+ * Previous version forced mouse pressure to 1.0, which combined with
+ * presSize=1 made every mouse stamp the full brush diameter — causing
+ * the "big dot" / bloated stroke regression. v3.4.1 just used the raw
+ * event pressure (browser reports 0.5 for mouse by default). Restored.
  */
 export function pointerToCanvas(e) {
   ensureDom();
   const rect = display.getBoundingClientRect();
   const x = (e.clientX - rect.left) / rect.width  * App.project.width;
   const y = (e.clientY - rect.top)  / rect.height * App.project.height;
-  const pressure = (e.pressure > 0 && e.pressure !== 0.5)
-    ? e.pressure
-    : (e.pointerType === 'mouse' ? 1 : 0.5);
+  // Use raw event pressure. Only fall back to 0.5 if the browser
+  // reports 0 or undefined (which shouldn't normally happen).
+  const pressure = (e.pressure != null && e.pressure > 0) ? e.pressure : 0.5;
   return { x, y, pressure };
 }
 
-// ----------------------------------------------------------------------------
-//  Eyedropper
-// ----------------------------------------------------------------------------
-
-/**
- * Sample a color from the composited display canvas at the pointer location.
- * Switches back to brush tool after sampling — matches v3.5 behavior.
- */
 export function pickColor(e) {
   ensureDom();
   const p = pointerToCanvas(e);
@@ -142,10 +110,6 @@ export function pickColor(e) {
   if (input) input.value = hex;
   setTool('brush');
 }
-
-// ----------------------------------------------------------------------------
-//  Pan state machine
-// ----------------------------------------------------------------------------
 
 export function startPan(e) {
   ensureDom();
@@ -170,14 +134,6 @@ export function endPan() {
   canvasArea.style.cursor = '';
 }
 
-// ----------------------------------------------------------------------------
-//  Layer thumbnail updates
-// ----------------------------------------------------------------------------
-
-/**
- * Redraw the mini-thumbnail for layer index `i` in the Layers panel.
- * Called after every stroke end and on layer visibility changes.
- */
 export function updateLayerThumb(i) {
   const c = document.querySelector(`#layersList canvas[data-thumb="${i}"]`);
   if (!c) return;
