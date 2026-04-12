@@ -55,6 +55,12 @@ export const App = {
   refView: { scale: 1, x: 0, y: 0 },
   refPickingMode: false,      // v3.5: color sampler mode
   refSampleCanvas: null,      // v3.5: offscreen canvas for pixel sampling
+
+  // Wix integration
+  inWix: false,               // detected at runtime by wix-bridge
+  member: null,               // { _id, nickname, avatar, slug } when logged in
+  saving: false,              // true while a cloud save is in progress
+  currentProjectId: null,     // ID of currently-loaded cloud project
 };
 
 // Convenience accessors
