@@ -65,19 +65,50 @@ function attachDropZone(el) {
 }
 
 export function addReference(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
+  // v3.5.4: compress on upload. Max 1600px long edge, JPEG quality 0.85.
+  // A typical 20MB phone photo becomes ~300-500KB. Prevents Wix save timeouts
+  // and keeps IndexedDB/memory use reasonable regardless of input size.
+  compressImageFile(file, 1600, 0.85).then(dataUrl => {
     if (!App.project) return;
     App.project.refs.push({
       id: 'R' + Math.random().toString(36).slice(2, 9),
-      data: e.target.result,
+      data: dataUrl,
       name: file.name,
     });
     renderRefs();
     persistRefs();
     App.dirty = true; updateSaveStatus();
-  };
-  reader.readAsDataURL(file);
+  }).catch(err => {
+    toast('Could not add reference: ' + err.message, 'error');
+  });
+}
+
+// v3.5.4: downscale + re-encode an image file to a data URL.
+// Uses canvas to resize; preserves aspect ratio; outputs JPEG (PNG alpha
+// isn't needed for reference images).
+function compressImageFile(file, maxEdge, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const longEdge = Math.max(img.width, img.height);
+        const scale = longEdge > maxEdge ? maxEdge / longEdge : 1;
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('Invalid image'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 export function renderRefs() {
