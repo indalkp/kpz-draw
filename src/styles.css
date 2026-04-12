@@ -367,3 +367,38 @@
     backdrop-filter:blur(10px)}
 
   input[type=file]{display:none}
+
+  /* ===== v3.5.2 additions ===== */
+
+  /* References header: export/import icon buttons */
+  .ref-header-actions{display:flex;gap:4px;align-items:center}
+  .btn.icon-btn{padding:0;width:26px;height:22px;font-size:13px;background:var(--panel2);border:1px solid var(--line)}
+  .btn.icon-btn:hover{background:var(--line);color:var(--accent)}
+
+  /* Drag-and-drop visual feedback */
+  #canvasArea.drag-over,#refList.drag-over,#leftPanel.drag-over{
+    outline:2px dashed var(--accent);outline-offset:-6px;background:rgba(255,122,69,.06)}
+  .ref-item.dragging{opacity:.4}
+  .ref-item.drop-target{outline:2px solid var(--accent);outline-offset:-2px}
+
+  /* Script list (docs panel) */
+  #scriptList{display:flex;flex-direction:column;gap:4px;padding:0 2px;max-height:160px;overflow-y:auto;
+    margin-bottom:4px}
+  .script-item{display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:6px;cursor:pointer;transition:border-color .15s}
+  .script-item:hover{border-color:var(--accent)}
+  .script-item.active{border-color:var(--accent);background:#3a2820}
+  .script-label{flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .script-del{background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px 6px;
+    border-radius:4px;font-size:12px}
+  .script-del:hover{background:var(--danger);color:#fff}
+
+  /* Panel nav redesign — breathing room + filled + button */
+  #panelNav{padding:6px 10px;gap:6px}
+  #panelNav .panel-thumb{width:54px;height:40px;border-radius:6px}
+  #panelNav .panel-add-btn{width:40px;height:40px;border-radius:50%;background:var(--accent);
+    border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;padding:0;transition:background .15s,transform .1s}
+  #panelNav .panel-add-btn:hover{background:var(--accent2)}
+  #panelNav .panel-add-btn:active{transform:scale(.92)}
+  #panelNav .panel-add-btn svg{display:block}

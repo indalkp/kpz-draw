@@ -46,7 +46,11 @@ export function buildAppDom(root) {
     <div id="leftPanel">
       <div class="panel-header">
         <span>References</span>
-        <button class="btn" id="btnAddRef">+ Add</button>
+        <div class="ref-header-actions">
+          <button class="btn icon-btn" id="btnImportRefs" title="Import refs from file">↓</button>
+          <button class="btn icon-btn" id="btnExportRefs" title="Export refs to file">↑</button>
+          <button class="btn" id="btnAddRef">+ Add</button>
+        </div>
       </div>
       <div class="ref-size-row">
         <label>Size</label>
@@ -152,20 +156,18 @@ export function buildAppDom(root) {
       </div>
       <div class="tab-content" data-tab="docs">
         <div id="docsPanel">
-          <p class="hint">Paste a Google Doc share link (Anyone with link can view).</p>
           <div class="docs-controls">
-            <input type="text" id="docUrl" placeholder="https://docs.google.com/document/d/...">
+            <button class="btn primary" id="btnDocAdd" style="flex:1">+ Add Script</button>
             <button class="expand-btn" id="btnDocExpand" title="Expand/collapse panel">
               <svg viewBox="0 0 24 24"><path d="M10 21v-2H6.41l4.5-4.5-1.41-1.41L5 17.59V14H3v7h7zm4-18v2h3.59l-4.5 4.5 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
             </button>
           </div>
+          <div id="scriptList"></div>
           <div class="docs-controls">
             <button class="zoom-btn" id="btnDocZoomOut" title="Smaller text">A−</button>
             <span class="zoom-val" id="docZoomVal">100%</span>
             <button class="zoom-btn" id="btnDocZoomIn" title="Larger text">A+</button>
             <button class="zoom-btn" id="btnDocZoomReset" title="Reset zoom" style="width:auto;padding:0 10px">Reset</button>
-            <div style="flex:1"></div>
-            <button class="zoom-btn" id="btnDocClear" title="Clear" style="width:auto;padding:0 10px">×</button>
           </div>
           <div id="docsIframeWrap">
             <iframe id="docFrame" src="about:blank"></iframe>
@@ -295,6 +297,7 @@ export function buildAppDom(root) {
 
 <input type="file" id="fileInput">
 <input type="file" id="refFileInput" multiple accept="image/*">
+<input type="file" id="refImportInput" accept="application/json">
 <div id="toast"></div>
 `;
 }

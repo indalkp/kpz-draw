@@ -1,6 +1,5 @@
 // src/ui/panel-nav.js
-// Storyboard panel thumbnail strip at the bottom of the canvas area.
-
+// v3.5.2: redesigned + button (filled circle, not dashed), better thumb spacing.
 import { App } from '../core/state.js';
 import { $ } from '../utils/dom-helpers.js';
 import { createPanel } from '../drawing/panels.js';
@@ -9,9 +8,7 @@ import { renderLayersUI } from './layers-panel.js';
 import { updateSaveStatus } from './topbar.js';
 import { toast } from './toast.js';
 
-export function initPanelNav() {
-  // initPanelNav is called from main.js; panel nav is rendered via renderPanelNav()
-}
+export function initPanelNav() {}
 
 export function renderPanelNav() {
   const nav = $('panelNav');
@@ -22,8 +19,6 @@ export function renderPanelNav() {
     const t = document.createElement('div');
     t.className = 'panel-thumb' + (i === App.activePanelIdx ? ' active' : '');
     t.innerHTML = `<span class="num">${i + 1}</span><button class="panel-del" title="Delete panel">×</button>`;
-
-    // Render thumbnail
     const tc = document.createElement('canvas');
     tc.width = 54; tc.height = 40;
     const tctx = tc.getContext('2d');
@@ -34,7 +29,6 @@ export function renderPanelNav() {
     }
     tctx.globalAlpha = 1;
     t.style.backgroundImage = `url(${tc.toDataURL()})`;
-
     t.addEventListener('click', e => {
       if (e.target.classList.contains('panel-del')) {
         e.stopPropagation();
@@ -52,10 +46,11 @@ export function renderPanelNav() {
     nav.appendChild(t);
   });
 
+  // v3.5.2: redesigned + button — solid filled circle, matches thumb height
   const addBtn = document.createElement('button');
   addBtn.className = 'panel-add-btn';
   addBtn.title = 'Add new panel';
-  addBtn.innerHTML = '+';
+  addBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>`;
   addBtn.addEventListener('click', addPanel);
   nav.appendChild(addBtn);
 
