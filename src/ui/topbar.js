@@ -23,8 +23,27 @@ export function initTopbar() {
   $('helpOverlay')?.addEventListener('click', e => {
     if (e.target.id === 'helpOverlay') $('helpOverlay').classList.remove('open');
   });
-  $('authBox')?.addEventListener('click', () => {
-    if (!App.isLoggedIn) requestLogin();
+  $('authBox')?.addEventListener('click', (e) => {
+    if (!App.isLoggedIn) { requestLogin(); return; }
+    $('profileMenu')?.classList.toggle('open');
+    e.stopPropagation();
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#authBox') && !e.target.closest('#profileMenu')) {
+      $('profileMenu')?.classList.remove('open');
+    }
+  });
+  $('pmDashboard')?.addEventListener('click', () => {
+    if (App.inWix) window.parent.postMessage({ type: 'nav-dashboard' }, '*');
+    $('profileMenu')?.classList.remove('open');
+  });
+  $('pmMyWork')?.addEventListener('click', () => {
+    document.querySelector('.tab-btn[data-tab="projects"]')?.click();
+    $('profileMenu')?.classList.remove('open');
+  });
+  $('pmLogout')?.addEventListener('click', () => {
+    if (App.inWix) window.parent.postMessage({ type: 'request-logout' }, '*');
+    $('profileMenu')?.classList.remove('open');
   });
 
   // Mobile panel toggles

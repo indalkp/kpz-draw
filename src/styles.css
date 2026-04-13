@@ -402,3 +402,17 @@
   #panelNav .panel-add-btn:hover{background:var(--accent2)}
   #panelNav .panel-add-btn:active{transform:scale(.92)}
   #panelNav .panel-add-btn svg{display:block}
+
+  /* ===== v3.6.0 profile dropdown ===== */
+  #authBox{position:relative}
+  #authCaret{opacity:.6;margin-left:2px;transition:transform .15s;color:currentColor}
+  #authBox.logged-out #authCaret{display:none}
+  #profileMenu{display:none;position:absolute;top:36px;right:8px;z-index:60;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,.6);min-width:180px;padding:4px;overflow:hidden}
+  #profileMenu.open{display:block}
+  #profileMenu button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;
+    background:transparent;border:none;color:var(--text);cursor:pointer;border-radius:5px;
+    font-size:13px;text-align:left}
+  #profileMenu button:hover{background:var(--panel2);color:var(--accent)}
+  #profileMenu button span{font-size:15px;width:20px;text-align:center}

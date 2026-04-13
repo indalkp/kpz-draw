@@ -121,6 +121,9 @@ function endStroke(e) {
     drawDot(ctx, App.strokeStart);
   }
 
+  // v3.6.0: count every completed stroke (moved stroke OR tap-to-dot)
+  App.strokeCount = (App.strokeCount || 0) + 1;
+
   App.lastPoint   = null;
   App.strokeStart = null;
   renderDisplay();

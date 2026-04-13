@@ -33,9 +33,15 @@ export function buildAppDom(root) {
     </div>
     <div style="flex:1"></div>
     <div class="tb-group" style="border-right:none">
-      <div id="authBox" class="logged-out" title="Click to log in">
+      <div id="authBox" class="logged-out" title="Click for menu">
         <div id="authAvatar"></div>
         <div id="authName" class="prompt">Log in to save</div>
+        <svg id="authCaret" width="10" height="10" viewBox="0 0 10 10"><path fill="currentColor" d="M1 3l4 4 4-4z"/></svg>
+      </div>
+      <div id="profileMenu">
+        <button id="pmDashboard"><span>📊</span> My Dashboard</button>
+        <button id="pmMyWork"><span>🎨</span> My Work</button>
+        <button id="pmLogout"><span>↩</span> Log out</button>
       </div>
     </div>
   </div>

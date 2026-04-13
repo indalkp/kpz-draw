@@ -36,6 +36,9 @@ export const App = {
   strokeHasMoved: false,      // v3.5: did pointer actually move during stroke
   panStart: null,
 
+  // Stroke counter (v3.6.0) — per-project, reset on new/load
+  strokeCount: 0,
+
   // History per-panel
   history: [],                // array of arrays of snapshot entries
   historyIdx: [],

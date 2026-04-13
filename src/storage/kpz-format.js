@@ -15,7 +15,9 @@ import { toast } from '../ui/toast.js';
 export async function serializeKpz() {
   const meta = {
     name: App.project.name, width: App.project.width, height: App.project.height,
-    version: 3, refs: App.project.refs,
+    version: 3,
+    strokeCount: App.strokeCount || 0,
+    refs: App.project.refs,
     panels: App.project.panels.map(p => ({
       activeLayer: p.activeLayer,
       layers: p.layers.map(l => ({
@@ -64,6 +66,7 @@ export async function deserializeKpz(blob) {
 
   const project = createProject(meta.name, meta.width, meta.height);
   project.refs = meta.refs || [];
+  project.strokeCount = meta.strokeCount || 0;
   project.panels = [];
   for (const pmeta of meta.panels) {
     const panel = { activeLayer: pmeta.activeLayer || 0, layers: [] };
@@ -92,6 +95,7 @@ export async function loadKpzBlob(blob) {
   try {
     const project = await deserializeKpz(blob);
     App.project = project;
+    App.strokeCount = project.strokeCount || 0;
     App.activePanelIdx = 0;
     App.history = []; App.historyIdx = [];
     const disp = document.getElementById('displayCanvas');

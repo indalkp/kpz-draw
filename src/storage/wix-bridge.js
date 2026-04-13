@@ -115,6 +115,7 @@ export async function saveToWix() {
       height:     App.project.height,
       panelCount: App.project.panels.length,
       layerCount: App.project.panels.reduce((n, p) => n + p.layers.length, 0),
+      strokeCount: App.strokeCount || 0,
     };
 
     window.parent.postMessage({ type: 'save-project', payload }, '*');
