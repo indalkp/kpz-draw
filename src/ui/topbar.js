@@ -6,12 +6,21 @@ import { $, $$ } from '../utils/dom-helpers.js';
 import { undo, redo } from '../drawing/history.js';
 import { fitView, applyView } from '../drawing/view.js';
 import { addPanel, deletePanel } from './panel-nav.js';
+import { confirmLeaveIfDirty } from './confirm-leave.js';
 
 export function initTopbar() {
   $('btnUndo')?.addEventListener('click', undo);
   $('btnRedo')?.addEventListener('click', redo);
-  $('btnNew')?.addEventListener('click', () => $('newModal')?.classList.add('open'));
-  $('btnOpen')?.addEventListener('click', () => $('fileInput')?.click());
+  $('btnNew')?.addEventListener('click', async () => {
+    // v3.6.2: creating a new project replaces the current one — dirty-check first
+    if (!(await confirmLeaveIfDirty({ context: 'new project' }))) return;
+    $('newModal')?.classList.add('open');
+  });
+  $('btnOpen')?.addEventListener('click', async () => {
+    // v3.6.2: opening a file replaces the current project — dirty-check first
+    if (!(await confirmLeaveIfDirty({ context: 'opening another file' }))) return;
+    $('fileInput')?.click();
+  });
   $('btnSave')?.addEventListener('click', () => $('saveModal')?.classList.add('open'));
   $('btnAddPanel')?.addEventListener('click', addPanel);
   $('btnDelPanel')?.addEventListener('click', deletePanel);
@@ -33,17 +42,22 @@ export function initTopbar() {
       $('profileMenu')?.classList.remove('open');
     }
   });
-  $('pmDashboard')?.addEventListener('click', () => {
-    if (App.inWix) window.parent.postMessage({ type: 'nav-dashboard' }, '*');
+  $('pmDashboard')?.addEventListener('click', async () => {
     $('profileMenu')?.classList.remove('open');
+    // v3.6.2: prompt before losing unsaved work on navigation
+    if (!(await confirmLeaveIfDirty({ context: 'dashboard' }))) return;
+    if (App.inWix) window.parent.postMessage({ type: 'nav-dashboard' }, '*');
   });
   $('pmMyWork')?.addEventListener('click', () => {
+    // Tab switch — doesn't leave the page or discard work, no dirty-check needed
     document.querySelector('.tab-btn[data-tab="projects"]')?.click();
     $('profileMenu')?.classList.remove('open');
   });
-  $('pmLogout')?.addEventListener('click', () => {
-    if (App.inWix) window.parent.postMessage({ type: 'request-logout' }, '*');
+  $('pmLogout')?.addEventListener('click', async () => {
     $('profileMenu')?.classList.remove('open');
+    // v3.6.2: logging out without saving would lose work on next load
+    if (!(await confirmLeaveIfDirty({ context: 'logout' }))) return;
+    if (App.inWix) window.parent.postMessage({ type: 'request-logout' }, '*');
   });
 
   // Mobile panel toggles

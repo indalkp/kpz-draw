@@ -7,7 +7,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.6.1</small></div>
+    <div class="brand">KPZ Draw <small>v3.6.2</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -325,6 +325,36 @@ export function buildAppDom(root) {
       <div style="flex:1"></div>
       <button class="btn" id="refLibraryCancel">Cancel</button>
       <button class="btn primary" id="refLibraryImport" style="display:none" disabled>Select refs to import</button>
+    </div>
+  </div>
+</div>
+
+<!-- v3.6.2: Confirm-leave modal (asks before discarding unsaved changes) -->
+<div class="modal-bg" id="confirmLeaveModal">
+  <div class="modal">
+    <h2>Unsaved changes</h2>
+    <p id="confirmLeaveMsg">You have unsaved changes in this project. What would you like to do before leaving?</p>
+    <div class="modal-actions" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <button class="btn" id="clCancel">Cancel</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn danger" id="clDiscard">Discard &amp; go</button>
+        <button class="btn primary" id="clSave">Save &amp; go</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- v3.6.2: Stale-write modal (another tab/session updated this project) -->
+<div class="modal-bg" id="staleWriteModal">
+  <div class="modal">
+    <h2>Project updated elsewhere</h2>
+    <p id="staleWriteMsg">This project was updated in another tab, window, or device since you opened it. Saving now would overwrite those changes.</p>
+    <div class="modal-actions" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <button class="btn" id="swCancel">Keep working (don't save)</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn" id="swReload">Reload latest (lose my changes)</button>
+        <button class="btn danger" id="swOverwrite">Overwrite anyway</button>
+      </div>
     </div>
   </div>
 </div>

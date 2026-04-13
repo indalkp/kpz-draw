@@ -64,6 +64,13 @@ export const App = {
   member: null,               // { _id, nickname, avatar, slug } when logged in
   saving: false,              // true while a cloud save is in progress
   currentProjectId: null,     // ID of currently-loaded cloud project
+
+  // v3.6.2: stale-write detection (two-tab protection)
+  // Stores project._updatedDate from when we loaded the project.
+  // On save, backend compares this to the CMS record's current _updatedDate.
+  // If different, another session modified the project after we loaded —
+  // backend returns a stale error so we can show a "reload/overwrite" modal.
+  projectLoadedAt: null,
 };
 
 // Convenience accessors

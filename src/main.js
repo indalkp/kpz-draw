@@ -28,6 +28,7 @@ import { initDocsPanel } from './ui/docs-panel.js';
 import { initPanelNav, renderPanelNav } from './ui/panel-nav.js';
 import { initModals } from './ui/modals.js';
 import { initLibraryModal } from './ui/library-modal.js';
+import { initConfirmLeave } from './ui/confirm-leave.js';
 
 import { initWixBridge } from './storage/wix-bridge.js';
 import { tryRestoreAutosave } from './storage/autosave.js';
@@ -67,6 +68,7 @@ export async function init(rootSelector, opts = {}) {
   initPanelNav();         // storyboard strip with +/- buttons
   initModals();           // new/save/open dialogs
   initLibraryModal();     // v3.6.1: reference library (per-project ref buckets)
+  initConfirmLeave();     // v3.6.2: dirty-check modal + stale-write modal listeners
   initDrawing();          // canvas pointer event handlers
   wireGlobalEvents();     // keyboard shortcuts, window resize, etc.
 
