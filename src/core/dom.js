@@ -7,7 +7,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.5</small></div>
+    <div class="brand">KPZ Draw <small>v3.6.1</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -53,6 +53,7 @@ export function buildAppDom(root) {
       <div class="panel-header">
         <span>References</span>
         <div class="ref-header-actions">
+          <button class="btn icon-btn" id="btnRefLibrary" title="Import refs from past projects">📁</button>
           <button class="btn icon-btn" id="btnImportRefs" title="Import refs from file">↓</button>
           <button class="btn icon-btn" id="btnExportRefs" title="Export refs to file">↑</button>
           <button class="btn" id="btnAddRef">+ Add</button>
@@ -305,5 +306,27 @@ export function buildAppDom(root) {
 <input type="file" id="refFileInput" multiple accept="image/*">
 <input type="file" id="refImportInput" accept="application/json">
 <div id="toast"></div>
+
+<!-- v3.6.1: Reference Library modal -->
+<div class="modal-bg" id="refLibraryModal">
+  <div class="modal lib-modal">
+    <div class="lib-header">
+      <button class="btn icon-btn" id="refLibraryBack" title="Back to list" style="display:none">‹</button>
+      <h2 id="refLibraryTitle">Reference Library</h2>
+      <button class="btn icon-btn" id="refLibraryClose" title="Close">✕</button>
+    </div>
+    <div class="lib-body">
+      <div id="refLibraryBuckets"></div>
+      <div id="refLibraryRefs" style="display:none"></div>
+    </div>
+    <div class="lib-footer">
+      <button class="btn" id="refLibrarySelectAll" style="display:none">Select all</button>
+      <button class="btn danger" id="refLibraryDelete" style="display:none" title="Remove this set from the library">🗑 Delete set</button>
+      <div style="flex:1"></div>
+      <button class="btn" id="refLibraryCancel">Cancel</button>
+      <button class="btn primary" id="refLibraryImport" style="display:none" disabled>Select refs to import</button>
+    </div>
+  </div>
+</div>
 `;
 }

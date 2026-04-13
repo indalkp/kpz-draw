@@ -1,6 +1,11 @@
 // src/ui/references.js
-// v3.5.2: fixes drag-and-drop (now works on list itself, not just canvas),
-// adds reordering by drag, adds export/import to move refs between devices.
+//
+// v3.6.1: project-scoped persistence (see storage/persistent-refs.js).
+//         Adds a "📁 Library" button that opens library-modal.js so the user
+//         can pull refs from past projects into the current one.
+//
+// v3.5.2 history: drag-and-drop, reorder, export/import JSON.
+// v3.5.4 history: image compression on add (max 1600px, JPEG q=0.85).
 
 import { App } from '../core/state.js';
 import { $, escapeHtml } from '../utils/dom-helpers.js';
@@ -8,11 +13,19 @@ import { openRefViewer } from './ref-viewer.js';
 import { idbSet } from '../utils/idb.js';
 import { updateSaveStatus } from './topbar.js';
 import { toast } from './toast.js';
+import { openLibraryModal } from './library-modal.js';
+import {
+  currentRefsKey,
+  currentProjectKey,
+  updateRefIndexEntry,
+} from '../storage/persistent-refs.js';
 
 export function initReferences() {
   $('btnAddRef')?.addEventListener('click', () => $('refFileInput')?.click());
   $('btnExportRefs')?.addEventListener('click', exportRefs);
   $('btnImportRefs')?.addEventListener('click', () => $('refImportInput')?.click());
+  // v3.6.1: new Library button opens the past-project refs modal
+  $('btnRefLibrary')?.addEventListener('click', openLibraryModal);
 
   $('refFileInput')?.addEventListener('change', e => {
     for (const f of e.target.files) addReference(f);
@@ -37,8 +50,6 @@ export function initReferences() {
     if (slider) slider.value = savedRefSize;
   }
 
-  // v3.5.2: drag-and-drop now accepts drops on the references list itself
-  // AND on the canvas area. Previously only canvas worked.
   attachDropZone($('canvasArea'));
   attachDropZone($('refList'));
   attachDropZone($('leftPanel'));
@@ -65,9 +76,6 @@ function attachDropZone(el) {
 }
 
 export function addReference(file) {
-  // v3.5.4: compress on upload. Max 1600px long edge, JPEG quality 0.85.
-  // A typical 20MB phone photo becomes ~300-500KB. Prevents Wix save timeouts
-  // and keeps IndexedDB/memory use reasonable regardless of input size.
   compressImageFile(file, 1600, 0.85).then(dataUrl => {
     if (!App.project) return;
     App.project.refs.push({
@@ -83,9 +91,28 @@ export function addReference(file) {
   });
 }
 
-// v3.5.4: downscale + re-encode an image file to a data URL.
-// Uses canvas to resize; preserves aspect ratio; outputs JPEG (PNG alpha
-// isn't needed for reference images).
+// v3.6.1: external helper used by library-modal to append imported refs.
+// Pushes each ref (with a new id to avoid collisions) and persists.
+export function importRefsFromLibrary(refs) {
+  if (!App.project || !Array.isArray(refs) || refs.length === 0) return 0;
+  let added = 0;
+  for (const r of refs) {
+    if (!r || !r.data) continue;
+    App.project.refs.push({
+      id: 'R' + Math.random().toString(36).slice(2, 9),
+      data: r.data,
+      name: r.name || 'reference',
+    });
+    added++;
+  }
+  if (added > 0) {
+    renderRefs();
+    persistRefs();
+    App.dirty = true; updateSaveStatus();
+  }
+  return added;
+}
+
 function compressImageFile(file, maxEdge, quality) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -134,7 +161,6 @@ export function renderRefs() {
       openRefViewer(i);
     });
 
-    // v3.5.2: reorder by drag
     el.addEventListener('dragstart', e => {
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/kpz-ref-idx', String(i));
@@ -175,12 +201,27 @@ export function renderRefs() {
   });
 }
 
+/**
+ * v3.6.1: writes refs to the current project's scoped bucket and updates
+ * the ref index so the library modal can show this project's ref set.
+ */
 async function persistRefs() {
-  try { await idbSet('kpz_refs', App.project?.refs || []); }
-  catch (err) { console.warn('Failed to persist refs:', err); }
+  try {
+    const refs = App.project?.refs || [];
+    await idbSet(currentRefsKey(), refs);
+    await updateRefIndexEntry(currentProjectKey(), {
+      title: App.project?.name || 'Untitled',
+      count: refs.length,
+    });
+  } catch (err) {
+    console.warn('Failed to persist refs:', err);
+  }
 }
 
-// v3.5.2: export all refs to a single JSON file (move between devices)
+// Exposed for modules that mutate refs without going through addReference,
+// e.g. kpz-format.js after loading a project.
+export { persistRefs };
+
 function exportRefs() {
   const refs = App.project?.refs || [];
   if (refs.length === 0) { toast('No references to export', 'error'); return; }

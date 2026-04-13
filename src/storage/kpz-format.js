@@ -8,7 +8,7 @@ import { createLayer } from '../drawing/layers.js';
 import { fitView, renderDisplay } from '../drawing/view.js';
 import { renderLayersUI } from '../ui/layers-panel.js';
 import { renderPanelNav } from '../ui/panel-nav.js';
-import { renderRefs } from '../ui/references.js';
+import { renderRefs, persistRefs } from '../ui/references.js';
 import { updateSaveStatus } from '../ui/topbar.js';
 import { toast } from '../ui/toast.js';
 
@@ -101,6 +101,9 @@ export async function loadKpzBlob(blob) {
     const disp = document.getElementById('displayCanvas');
     if (disp) { disp.width = project.width; disp.height = project.height; }
     fitView(); renderDisplay(); renderLayersUI(); renderPanelNav(); renderRefs();
+    // v3.6.1: persist loaded refs into the current project's bucket so they
+    // show up in the library next time.
+    persistRefs();
     App.dirty = false; updateSaveStatus();
     toast('Project loaded', 'ok');
   } catch (err) { toast('Load failed: ' + err.message, 'error'); }

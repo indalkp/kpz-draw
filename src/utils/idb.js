@@ -44,3 +44,15 @@ export async function idbDelete(key) {
     tx.onerror = () => reject(tx.error);
   });
 }
+
+// v3.6.1: list all keys. Used by library-modal to find all ref buckets.
+// Returns an array of all keys in the store.
+export async function idbKeys() {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAllKeys();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}

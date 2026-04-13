@@ -27,6 +27,7 @@ import { initRefViewer } from './ui/ref-viewer.js';
 import { initDocsPanel } from './ui/docs-panel.js';
 import { initPanelNav, renderPanelNav } from './ui/panel-nav.js';
 import { initModals } from './ui/modals.js';
+import { initLibraryModal } from './ui/library-modal.js';
 
 import { initWixBridge } from './storage/wix-bridge.js';
 import { tryRestoreAutosave } from './storage/autosave.js';
@@ -65,6 +66,7 @@ export async function init(rootSelector, opts = {}) {
   initDocsPanel();        // right sidebar: Script (Google Docs) tab
   initPanelNav();         // storyboard strip with +/- buttons
   initModals();           // new/save/open dialogs
+  initLibraryModal();     // v3.6.1: reference library (per-project ref buckets)
   initDrawing();          // canvas pointer event handlers
   wireGlobalEvents();     // keyboard shortcuts, window resize, etc.
 
