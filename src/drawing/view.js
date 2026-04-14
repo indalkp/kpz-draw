@@ -67,12 +67,45 @@ export function renderDisplay() {
   if (display.height !== p.height) display.height = p.height;
   dctx.clearRect(0, 0, p.width, p.height);
   const panel = curPanel();
-  for (const layer of panel.layers) {
+
+  // v3.6.3: During an in-progress stroke, we need to show the stroke buffer
+  // on top of the active layer at the target opacity so the user sees what
+  // they're drawing. The buffer itself isn't flushed onto the layer until
+  // endStroke — that's how we get correct opacity (see canvas.js).
+  // Lazy-load getStrokeBuffer to avoid circular import at module init.
+  let strokeBuf = null;
+  if (App.isDrawing) {
+    // Dynamic require: canvas.js imports view.js, so we can't import the
+    // other direction at the top. Grab it off the global-ish window handle
+    // we already expose in state.js for debugging, or skip if not present.
+    try {
+      strokeBuf = window.__KPZ_strokeBuffer?.();
+    } catch (_) { /* noop */ }
+  }
+  const activeLayerIdx = panel.activeLayer;
+  const erasing = App.tool === 'eraser';
+
+  for (let i = 0; i < panel.layers.length; i++) {
+    const layer = panel.layers[i];
     if (!layer.visible) continue;
+
+    // Draw the layer itself
     dctx.globalAlpha = layer.opacity;
     dctx.globalCompositeOperation = layer.blend || 'source-over';
     dctx.drawImage(layer.canvas, 0, 0);
+
+    // v3.6.3: on the active layer only, overlay the in-progress stroke buffer.
+    // Brush: source-over at App.brush.opacity. Eraser: we can't live-preview
+    // a destination-out cleanly on the display canvas, so we draw nothing
+    // and the user sees the stamp vanish on stroke-end (matches behavior
+    // of most drawing apps — eraser previews are hard).
+    if (strokeBuf && i === activeLayerIdx && !erasing) {
+      dctx.globalAlpha = layer.opacity * App.brush.opacity;
+      dctx.globalCompositeOperation = 'source-over';
+      dctx.drawImage(strokeBuf, 0, 0);
+    }
   }
+
   dctx.globalAlpha = 1;
   dctx.globalCompositeOperation = 'source-over';
   $('canvasInfo').textContent = `${p.width} × ${p.height}`;

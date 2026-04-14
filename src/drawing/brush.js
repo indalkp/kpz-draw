@@ -1,12 +1,22 @@
 // src/drawing/brush.js
-// Brush rendering primitives — stamp, segment, and pressure helpers.
+//
+// v3.6.3: Krita-style per-stroke compositing.
+//   Before: every stamp drew directly on the layer with its own alpha.
+//   Stamps overlap heavily (15% spacing), so opacity 0.2 actually painted
+//   ~0.99 visual density over 20 stamps — strokes always looked opaque.
+//
+//   After: the stroke is drawn onto an offscreen buffer at alpha=1. The
+//   layer receives the entire stroke as ONE composite at the real target
+//   opacity. Result: opacity 0.2 looks like 20%, not 99%. Pressure→opacity
+//   still varies within the stroke but is no longer compounded by overlap.
+//
 // Pure rendering functions that operate on a given canvas 2D context.
 
 import { App } from '../core/state.js';
 import { hexToRgb } from '../utils/color.js';
 
 /**
- * Get the stamp size at a given pressure level.
+ * Stamp size at a given pressure level.
  */
 export function getStampSize(pressure) {
   const s = App.brush.size;
@@ -15,16 +25,24 @@ export function getStampSize(pressure) {
 }
 
 /**
- * Get the stamp alpha at a given pressure level.
+ * Stamp alpha (IN-STROKE — so pressure variation still works), independent
+ * of the target opacity. The target opacity is applied once when the buffer
+ * composites onto the layer (see flushStrokeBuffer in canvas.js).
  */
 export function getStampAlpha(pressure) {
-  const a = App.brush.opacity;
   const inf = App.brush.presOp;
-  return a * (1 - inf + inf * pressure);
+  // No opacity multiplier here — that's applied at composite time.
+  // Pressure still modulates in-stroke variation:
+  //   presOp=0   → every stamp fully opaque in the buffer (flat stroke)
+  //   presOp=1   → pressure 0 → fully transparent, pressure 1 → fully opaque
+  return 1 - inf + inf * pressure;
 }
 
 /**
  * Render a single radial-gradient stamp at (x, y) on the given context.
+ * Caller passes the appropriate ctx:
+ *   - stroke buffer (2d context of an offscreen canvas) for normal painting
+ *   - layer canvas directly for tap-to-dot fallback (single stamp, no overlap issue)
  */
 export function stamp(ctx, x, y, size, alpha) {
   const r = size / 2;
@@ -47,14 +65,18 @@ export function stamp(ctx, x, y, size, alpha) {
 }
 
 /**
- * Render a single dot stamp at point p (for tap-to-dot).
+ * Render a single dot at point p — used for tap-to-dot at end of a stroke
+ * that never moved. Draws on whichever ctx the caller passes (typically the
+ * stroke buffer, then the caller composites it onto the layer).
  */
 export function drawDot(ctx, p) {
+  // For tap-to-dot we want a *single* stamp at full stamp-alpha (no overlap)
+  // so that the target opacity faithfully reflects the slider.
   stamp(ctx, p.x, p.y, getStampSize(p.pressure), getStampAlpha(p.pressure));
 }
 
 /**
- * Render a series of stamps along the segment from point a to point b.
+ * Render a series of stamps along the segment from a → b onto ctx.
  */
 export function drawSegment(ctx, a, b) {
   const dx = b.x - a.x, dy = b.y - a.y;

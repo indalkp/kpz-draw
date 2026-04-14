@@ -7,7 +7,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.6.2</small></div>
+    <div class="brand">KPZ Draw <small>v3.6.3</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>

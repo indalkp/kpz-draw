@@ -1,6 +1,17 @@
 // src/drawing/canvas.js
-// Stroke state machine: pointer events → brush stamps on active layer canvas.
-// Implements the v3.5 tap-to-dot bug fix and sub-pixel noise filter.
+//
+// v3.6.3: Per-stroke compositing for correct opacity.
+//   Before: every stamp drew directly on the layer at (opacity*pressure).
+//   Stamps overlap heavily (spacing = size*0.15), so 20 overlapping stamps
+//   at opacity 0.2 produced ~99% visual density — strokes always looked
+//   opaque no matter how low you set the opacity slider.
+//
+//   After: a stroke is drawn onto an offscreen buffer at alpha 1. On stroke
+//   end, the entire buffer composites onto the layer ONCE at App.brush.opacity
+//   (or destination-out for eraser). Result: opacity 0.2 looks like 20%,
+//   pressure→opacity variation still works within the stroke.
+//
+// v3.5 fixes preserved: tap-to-dot, sub-pixel noise filter.
 
 import { App } from '../core/state.js';
 import { curLayer, curPanel } from './panels.js';
@@ -13,6 +24,10 @@ import { updateCursor, hideCursor } from '../ui/cursor-overlay.js';
 import { scheduleAutosave } from '../storage/autosave.js';
 import { toast } from '../ui/toast.js';
 import { $ } from '../utils/dom-helpers.js';
+
+// v3.6.3: per-stroke offscreen buffer
+let strokeBuffer = null;
+let strokeBufferCtx = null;
 
 export function initDrawing() {
   const disp = $('displayCanvas');
@@ -27,6 +42,61 @@ export function initDrawing() {
     if (App.isDrawing || App.isPanning) endStroke(e);
   });
   disp.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+/**
+ * v3.6.3: (re)allocate the stroke buffer to match the current layer.
+ * Called at stroke start. Same-sized buffer is reused across strokes;
+ * it's only resized if the layer size changed (panel switch etc.).
+ */
+function ensureStrokeBuffer() {
+  const layer = curLayer();
+  if (!layer) return null;
+  const w = layer.canvas.width;
+  const h = layer.canvas.height;
+  if (!strokeBuffer || strokeBuffer.width !== w || strokeBuffer.height !== h) {
+    strokeBuffer = document.createElement('canvas');
+    strokeBuffer.width = w;
+    strokeBuffer.height = h;
+    strokeBufferCtx = strokeBuffer.getContext('2d');
+  }
+  // Always clear — each stroke starts from empty
+  strokeBufferCtx.clearRect(0, 0, w, h);
+  return strokeBufferCtx;
+}
+
+/**
+ * v3.6.3: composite the buffer onto the active layer once, at target opacity.
+ * This is the crux of the opacity fix. Brushes honor App.brush.opacity here;
+ * eraser uses destination-out at alpha 1 (the buffer shape defines erasure).
+ */
+function flushStrokeBuffer() {
+  if (!strokeBuffer) return;
+  const layerCtx = curLayer().canvas.getContext('2d');
+  const erase = App.tool === 'eraser';
+  layerCtx.save();
+  if (erase) {
+    layerCtx.globalCompositeOperation = 'destination-out';
+    layerCtx.globalAlpha = 1;
+  } else {
+    layerCtx.globalCompositeOperation = 'source-over';
+    layerCtx.globalAlpha = App.brush.opacity;
+  }
+  layerCtx.drawImage(strokeBuffer, 0, 0);
+  layerCtx.restore();
+  strokeBufferCtx.clearRect(0, 0, strokeBuffer.width, strokeBuffer.height);
+}
+
+/** v3.6.3: exported so view.js can overlay the in-progress buffer during a live stroke. */
+export function getStrokeBuffer() {
+  return App.isDrawing ? strokeBuffer : null;
+}
+
+// v3.6.3: view.js imports this module indirectly (canvas → view), so to avoid
+// a circular import we expose getStrokeBuffer on a well-known window hook.
+// view.js's renderDisplay() calls window.__KPZ_strokeBuffer() when App.isDrawing.
+if (typeof window !== 'undefined') {
+  window.__KPZ_strokeBuffer = getStrokeBuffer;
 }
 
 function startStroke(e) {
@@ -56,6 +126,9 @@ function startStroke(e) {
   App.dirty = true;
   updateSaveStatus();
 
+  // v3.6.3: allocate fresh stroke buffer for this stroke
+  ensureStrokeBuffer();
+
   const p = pointerToCanvas(e);
   App.lastPoint     = { x: p.x, y: p.y, pressure: p.pressure };
   App.smoothPoint   = { x: p.x, y: p.y, pressure: p.pressure };
@@ -72,7 +145,9 @@ function moveStroke(e) {
   if (!App.isDrawing) return;
 
   const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
-  const ctx = curLayer().canvas.getContext('2d');
+  // v3.6.3: draw to the offscreen buffer instead of the layer directly
+  const ctx = strokeBufferCtx;
+  if (!ctx) return;
 
   for (const ev of events) {
     const p = pointerToCanvas(ev);
@@ -105,6 +180,7 @@ function moveStroke(e) {
     App.lastPoint = sp;
   }
 
+  // renderDisplay composes layer + in-progress stroke buffer (view.js patch)
   renderDisplay();
 }
 
@@ -114,12 +190,13 @@ function endStroke(e) {
   App.isDrawing = false;
 
   // v3.5 fix: tap-to-dot. If the pointer never moved during the stroke,
-  // stamp a single dot at the start position. If it did move, the segment
-  // stamps in moveStroke already covered that point.
-  if (!App.strokeHasMoved && App.strokeStart) {
-    const ctx = curLayer().canvas.getContext('2d');
-    drawDot(ctx, App.strokeStart);
+  // stamp a single dot into the buffer at the start position.
+  if (!App.strokeHasMoved && App.strokeStart && strokeBufferCtx) {
+    drawDot(strokeBufferCtx, App.strokeStart);
   }
+
+  // v3.6.3: composite the entire stroke onto the layer ONCE at target opacity
+  flushStrokeBuffer();
 
   // v3.6.0: count every completed stroke (moved stroke OR tap-to-dot)
   App.strokeCount = (App.strokeCount || 0) + 1;
