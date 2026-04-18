@@ -1,13 +1,17 @@
 // src/core/dom.js
 // Builds the entire application DOM structure and injects it into the root element.
 // All IDs used here must match the IDs referenced in the other modules.
+//
+// v3.8.0: added mobile chrome elements (topbar, brush dock, tool popover, color modal).
+// These are all children of #app, shown only below 1100px via CSS media query.
+// The existing desktop DOM is unchanged — no IDs moved, no modules need refactoring.
 
 export function buildAppDom(root) {
   root.innerHTML = `
 <div id="app">
-  <!-- ===== TOP BAR ===== -->
+  <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.7.0</small></div>
+    <div class="brand">KPZ Draw <small>v3.8.0</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -46,6 +50,34 @@ export function buildAppDom(root) {
     </div>
   </div>
 
+  <!-- ===== MOBILE TOPBAR (shown <1100px only) ===== -->
+  <!-- Stroke-fix + mobile redesign v3.8.0 — sits above #topbar in DOM so the -->
+  <!-- safe-area-inset top padding works, but CSS hides whichever one isn't in use. -->
+  <div id="mobileTopbar">
+    <button id="mtbGallery" class="mtb-btn" aria-label="Menu" title="Menu">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <button id="mtbUndo" class="mtb-btn" aria-label="Undo" title="Undo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h9a6 6 0 016 6v2"/></svg>
+    </button>
+    <button id="mtbRedo" class="mtb-btn" aria-label="Redo" title="Redo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l4-4-4-4"/><path d="M19 10h-9a6 6 0 00-6 6v2"/></svg>
+    </button>
+    <div class="mtb-spacer"></div>
+    <span class="mtb-project" id="mtbProjectName">Untitled</span>
+    <div class="mtb-spacer"></div>
+    <button id="mtbRefs" class="mtb-btn" aria-label="References" title="References">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    </button>
+    <button id="mtbTool" class="mtb-btn active" aria-label="Tool" title="Tool">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-6-6"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2" fill="currentColor"/></svg>
+    </button>
+    <button id="mtbColor" class="mtb-color-swatch" aria-label="Color" title="Color" style="background:#1a1a1a"></button>
+    <button id="mtbLayers" class="mtb-btn mtb-badge" aria-label="Layers" title="Layers" data-count="1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </button>
+  </div>
+
   <!-- ===== MAIN GRID ===== -->
   <div id="main">
     <!-- LEFT: REFERENCES -->
@@ -71,7 +103,7 @@ export function buildAppDom(root) {
 
     <div class="resize-handle" id="resizeLeft" title="Drag to resize"></div>
 
-    <!-- TOOL RAIL -->
+    <!-- TOOL RAIL (desktop) -->
     <div id="toolRail">
       <button class="tool-btn active" data-tool="brush" title="Brush (B)">
         <svg viewBox="0 0 24 24"><path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.37l-1.34-1.34a1 1 0 0 0-1.41 0L9 12.25 11.75 15l8.96-8.96a1 1 0 0 0 0-1.41z"/></svg>
@@ -103,6 +135,21 @@ export function buildAppDom(root) {
         <canvas id="displayCanvas"></canvas>
       </div>
       <div id="cursorOverlay"></div>
+
+      <!-- v3.8.0: mobile brush dock — vertical size/opacity sliders on left edge -->
+      <div id="brushDock" aria-hidden="true">
+        <div class="bd-track" data-kind="size">
+          <span class="bd-label">size</span>
+          <div class="bd-fill"></div>
+          <div class="bd-thumb">8</div>
+        </div>
+        <div class="bd-track" data-kind="opacity">
+          <span class="bd-label">opacity</span>
+          <div class="bd-fill"></div>
+          <div class="bd-thumb">100</div>
+        </div>
+      </div>
+
       <div id="panelNav"></div>
       <div id="mobileToggles">
         <button id="toggleLeft" title="References">
@@ -194,6 +241,59 @@ export function buildAppDom(root) {
     <div class="sep"></div>
     <span id="panelInfo">Panel 1 / 1</span>
     <button class="help-btn" id="btnHelp" title="Keyboard shortcuts (?)">? Help</button>
+  </div>
+
+  <!-- ===== v3.8.0 MOBILE POPOVERS & MODALS ===== -->
+
+  <!-- Mobile tool popover (shown when mtbTool is tapped) -->
+  <div id="mobileToolPopover" class="m-popover" aria-hidden="true">
+    <div class="mtp-grid">
+      <button class="mtp-item active" data-tool="brush">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-6-6M2 2l7.586 7.586"/></svg>
+        <span>Brush</span>
+      </button>
+      <button class="mtp-item" data-tool="eraser">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l7-7 4 4 7-7"/><path d="M17 7l4 4"/></svg>
+        <span>Eraser</span>
+      </button>
+      <button class="mtp-item" data-tool="eyedropper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-11 11H6v-4l11-11z"/><path d="M2 22l4-4"/></svg>
+        <span>Picker</span>
+      </button>
+      <button class="mtp-item" data-tool="hand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 00-4 0v5M14 10V4a2 2 0 00-4 0v6M10 10.5V6a2 2 0 00-4 0v8l1.5 3"/></svg>
+        <span>Hand</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile color modal (full-screen takeover for depth) -->
+  <div class="modal-bg" id="mobileColorModal">
+    <div class="modal m-color-modal">
+      <h2>Color</h2>
+      <div class="m-color-picker-row">
+        <input type="color" id="mColorPicker" value="#1a1a1a">
+        <span class="m-color-hex" id="mColorHex">#1A1A1A</span>
+      </div>
+      <div class="swatches" id="mColorSwatches"></div>
+      <div class="modal-actions">
+        <button class="btn primary" id="mColorDone">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile "more" menu (gallery button reuses this) -->
+  <div id="mobileMoreMenu" class="m-popover" aria-hidden="true">
+    <button class="mtp-item-row" data-action="new">New project</button>
+    <button class="mtp-item-row" data-action="open">Open file</button>
+    <button class="mtp-item-row" data-action="save">Save…</button>
+    <div class="mtp-divider"></div>
+    <button class="mtp-item-row" data-action="addPanel">+ Add panel</button>
+    <button class="mtp-item-row" data-action="delPanel">− Delete panel</button>
+    <div class="mtp-divider"></div>
+    <button class="mtp-item-row" data-action="fit">Fit to screen</button>
+    <button class="mtp-item-row" data-action="fullscreen">Immersive mode</button>
+    <button class="mtp-item-row" data-action="help">Keyboard shortcuts</button>
   </div>
 </div>
 

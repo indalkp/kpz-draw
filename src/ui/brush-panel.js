@@ -1,8 +1,13 @@
 // src/ui/brush-panel.js
 // Right panel Brush tab: size/opacity/hardness/smoothing sliders, color picker, swatches.
+//
+// v3.8.0: updateBrushUI now also refreshes the mobile brush dock so that
+// slider changes made in the desktop right panel instantly mirror on the
+// mobile vertical sliders (same App state, two visual representations).
 
 import { App } from '../core/state.js';
 import { $, $$ } from '../utils/dom-helpers.js';
+import { updateBrushDock } from './brush-dock.js';   // v3.8.0
 
 const SWATCH_COLORS = [
   '#000000','#1a1a1a','#4a4a4a','#888888','#cccccc','#ffffff','#ff7a45','#ffb088',
@@ -29,6 +34,9 @@ export function updateBrushUI() {
   set('smoothingVal', Math.round(App.brush.smoothing * 100) + '%');
   set('presSizeVal', Math.round(App.brush.presSize * 100) + '%');
   set('presOpVal', Math.round(App.brush.presOp * 100) + '%');
+
+  // v3.8.0: keep the mobile vertical dock in sync. No-op on desktop (dock hidden).
+  updateBrushDock();
 }
 
 function renderSwatches() {
