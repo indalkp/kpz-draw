@@ -1,48 +1,35 @@
 // src/drawing/brush.js
 //
-// v3.6.3: Krita-style per-stroke compositing.
-//   Before: every stamp drew directly on the layer with its own alpha.
-//   Stamps overlap heavily (15% spacing), so opacity 0.2 actually painted
-//   ~0.99 visual density over 20 stamps — strokes always looked opaque.
+// v3.7.0: Adds drawQuadSegment — lays stamps along a quadratic Bézier curve
+// instead of a straight line. Canvas.js uses it via the midpoint method so
+// that fast / sparse pointer samples render as smooth curves, not polylines.
+// The original drawSegment is kept for the tail-end of a stroke and for the
+// second-sample warm-up case (where we don't yet have a full Bézier).
 //
-//   After: the stroke is drawn onto an offscreen buffer at alpha=1. The
-//   layer receives the entire stroke as ONE composite at the real target
-//   opacity. Result: opacity 0.2 looks like 20%, not 99%. Pressure→opacity
-//   still varies within the stroke but is no longer compounded by overlap.
-//
-// Pure rendering functions that operate on a given canvas 2D context.
+// v3.6.3 compositing preserved: all stamps go to the offscreen stroke
+// buffer at alpha=1, and the buffer is composited onto the layer ONCE at
+// App.brush.opacity in flushStrokeBuffer (canvas.js). This is what keeps
+// opacity 0.2 actually looking like 20%.
 
 import { App } from '../core/state.js';
 import { hexToRgb } from '../utils/color.js';
 
-/**
- * Stamp size at a given pressure level.
- */
+/** Stamp diameter at a given pressure level. */
 export function getStampSize(pressure) {
   const s = App.brush.size;
   const inf = App.brush.presSize;
   return s * (1 - inf + inf * pressure);
 }
 
-/**
- * Stamp alpha (IN-STROKE — so pressure variation still works), independent
- * of the target opacity. The target opacity is applied once when the buffer
- * composites onto the layer (see flushStrokeBuffer in canvas.js).
- */
+/** In-stroke stamp alpha (target opacity is applied later at composite time). */
 export function getStampAlpha(pressure) {
   const inf = App.brush.presOp;
-  // No opacity multiplier here — that's applied at composite time.
-  // Pressure still modulates in-stroke variation:
-  //   presOp=0   → every stamp fully opaque in the buffer (flat stroke)
-  //   presOp=1   → pressure 0 → fully transparent, pressure 1 → fully opaque
   return 1 - inf + inf * pressure;
 }
 
 /**
  * Render a single radial-gradient stamp at (x, y) on the given context.
- * Caller passes the appropriate ctx:
- *   - stroke buffer (2d context of an offscreen canvas) for normal painting
- *   - layer canvas directly for tap-to-dot fallback (single stamp, no overlap issue)
+ * Unchanged from v3.6.3.
  */
 export function stamp(ctx, x, y, size, alpha) {
   const r = size / 2;
@@ -64,19 +51,16 @@ export function stamp(ctx, x, y, size, alpha) {
   ctx.globalCompositeOperation = 'source-over';
 }
 
-/**
- * Render a single dot at point p — used for tap-to-dot at end of a stroke
- * that never moved. Draws on whichever ctx the caller passes (typically the
- * stroke buffer, then the caller composites it onto the layer).
- */
+/** Tap-to-dot helper. Single stamp, no overlap. */
 export function drawDot(ctx, p) {
-  // For tap-to-dot we want a *single* stamp at full stamp-alpha (no overlap)
-  // so that the target opacity faithfully reflects the slider.
   stamp(ctx, p.x, p.y, getStampSize(p.pressure), getStampAlpha(p.pressure));
 }
 
 /**
- * Render a series of stamps along the segment from a → b onto ctx.
+ * Straight-line stamp segment from a → b.
+ * Kept for:
+ *   - the second sample of a stroke (not enough points for a curve yet)
+ *   - the stroke-end tail between the last midpoint and the final sample
  */
 export function drawSegment(ctx, a, b) {
   const dx = b.x - a.x, dy = b.y - a.y;
@@ -88,6 +72,42 @@ export function drawSegment(ctx, a, b) {
     const t = i / steps;
     const x = a.x + dx * t;
     const y = a.y + dy * t;
+    const pr = a.pressure + (b.pressure - a.pressure) * t;
+    stamp(ctx, x, y, getStampSize(pr), getStampAlpha(pr));
+  }
+}
+
+/**
+ * v3.7.0: Lay stamps along a quadratic Bézier curve from a → b with control cp.
+ * Used by canvas.js with the midpoint method:
+ *   a  = midpoint(prev,  last) — segment start
+ *   cp = last                  — control point (an actual sample)
+ *   b  = midpoint(last,  new)  — segment end
+ * Each sample point ends up being a smooth control, and the drawn path passes
+ * through the midpoints. Gives C1 continuity across segments — no visible
+ * kinks between successive pointer moves.
+ */
+export function drawQuadSegment(ctx, a, cp, b) {
+  // Estimate curve length via the control polygon (|a-cp| + |cp-b|). This is
+  // always >= the true curve length, so we slightly over-sample which is fine
+  // for stamp-based rendering — overlap is the point.
+  const dx1 = cp.x - a.x, dy1 = cp.y - a.y;
+  const dx2 = b.x - cp.x, dy2 = b.y - cp.y;
+  const chord = Math.sqrt(dx1 * dx1 + dy1 * dy1) + Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+  // Spacing matches the straight-line version so look is consistent.
+  const sizeA = getStampSize(a.pressure);
+  const spacing = Math.max(0.5, sizeA * 0.15);
+  const steps = Math.max(1, Math.ceil(chord / spacing));
+
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const u = 1 - t;
+    // Standard quadratic Bézier: B(t) = (1-t)^2·a + 2(1-t)t·cp + t^2·b
+    const x = u * u * a.x + 2 * u * t * cp.x + t * t * b.x;
+    const y = u * u * a.y + 2 * u * t * cp.y + t * t * b.y;
+    // Pressure interpolates linearly across the segment (cp.pressure isn't
+    // special to the user — it's just "last sample", same as a and b).
     const pr = a.pressure + (b.pressure - a.pressure) * t;
     stamp(ctx, x, y, getStampSize(pr), getStampAlpha(pr));
   }

@@ -1,6 +1,20 @@
 // src/core/events.js
 // Global keyboard shortcuts, window resize, and touch gesture wiring.
 // Called once from main.js after all subsystems are initialized.
+//
+// v3.7.0: Fixed iPad stroke-kill bug.
+//   The old setupCanvasTouch set `App.isDrawing = false` whenever a second
+//   touch arrived — which is EXACTLY what happens when your palm rests on
+//   iPad during pencil drawing. Stroke died instantly.
+//
+//   Fixes in this version:
+//   1. Bail from all touch-gesture logic while a pointer stroke is active.
+//      Pen stroke takes precedence; gestures resume after the stroke ends.
+//   2. Filter out touches where touchType === 'stylus' (iOS Apple Pencil
+//      reports this). Prevents the pencil from ever being counted in
+//      pinch / 3-finger undo / swipe gestures.
+//   3. 3-finger undo now requires all three touches to be fingers, not
+//      pencil + 2 palm points.
 
 import { App } from './state.js';
 import { undo, redo } from '../drawing/history.js';
@@ -11,20 +25,13 @@ import { closeRefViewer, showRef } from '../ui/ref-viewer.js';
 import { $ } from '../utils/dom-helpers.js';
 
 export function wireGlobalEvents() {
-  // ---- Keyboard ----
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
-
-  // ---- Window resize ----
   window.addEventListener('resize', () => { if (App.project) applyView(); });
 
-  // ---- Touch gestures on canvas area ----
   setupCanvasTouch();
-
-  // ---- Swipe to open mobile panels ----
   setupSwipe();
 
-  // ---- Canvas wheel zoom ----
   const canvasArea = $('canvasArea');
   canvasArea.addEventListener('wheel', e => {
     e.preventDefault();
@@ -33,7 +40,6 @@ export function wireGlobalEvents() {
     setZoom(App.view.scale * factor, e.clientX - rect.left, e.clientY - rect.top);
   }, { passive: false });
 
-  // ---- ResizeObserver for canvas area ----
   if (typeof ResizeObserver !== 'undefined') {
     let firstFit = true;
     const ro = new ResizeObserver(() => {
@@ -44,7 +50,6 @@ export function wireGlobalEvents() {
     ro.observe(canvasArea);
   }
 
-  // ---- beforeunload ----
   window.addEventListener('beforeunload', e => {
     if (App.dirty) { e.preventDefault(); e.returnValue = ''; }
   });
@@ -92,7 +97,6 @@ function handleKeyDown(e) {
     updateBrushUI();
   }
 
-  // Reference viewer navigation
   if ($('refViewer')?.classList.contains('open')) {
     if (e.key === 'ArrowLeft' && App.refViewerIdx > 0) showRef(App.refViewerIdx - 1);
     if (e.key === 'ArrowRight' && App.refViewerIdx < (App.project?.refs?.length ?? 0) - 1) showRef(App.refViewerIdx + 1);
@@ -111,26 +115,51 @@ function toggleFullscreen() {
   if (App.project) requestAnimationFrame(applyView);
 }
 
-// ---- Touch pinch/zoom on canvas ----
+// ============================================================================
+// Touch pinch/zoom on canvas — v3.7.0 hardened
+// ============================================================================
 let canvasTouchState = null;
 let lastTapTime = 0;
+
+/**
+ * v3.7.0 helper: return only the "real finger" touches from a TouchEvent.
+ * On iOS, Apple Pencil touches carry touchType === 'stylus'; fingers are
+ * 'direct'. Android doesn't set touchType, so we treat unset as finger.
+ */
+function fingerTouches(touchList) {
+  const out = [];
+  for (let i = 0; i < touchList.length; i++) {
+    const t = touchList[i];
+    // iOS: skip stylus. Other platforms: include everything.
+    if (t.touchType && t.touchType === 'stylus') continue;
+    out.push(t);
+  }
+  return out;
+}
 
 function setupCanvasTouch() {
   const canvasArea = $('canvasArea');
 
   canvasArea.addEventListener('touchstart', e => {
-    if (e.touches.length === 2) {
+    // v3.7.0: if a pointer stroke is already in progress, stay out of the way.
+    // The pen (or the active finger) owns the canvas until it lifts.
+    if (App.isDrawing) return;
+
+    // v3.7.0: ignore pencil touches entirely — they're handled via pointer
+    // events. Only fingers should ever trigger pinch / tap / 3-finger-undo.
+    const fingers = fingerTouches(e.touches);
+
+    if (fingers.length === 2) {
       e.preventDefault();
-      const [a, b] = e.touches;
+      const [a, b] = fingers;
       canvasTouchState = {
         d: Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY),
         cx: (a.clientX + b.clientX) / 2, cy: (a.clientY + b.clientY) / 2,
         vx: App.view.x, vy: App.view.y, scale: App.view.scale
       };
-      App.isDrawing = false;
-    } else if (e.touches.length === 3) {
+    } else if (fingers.length === 3) {
       undo(); canvasTouchState = 'undo';
-    } else if (e.touches.length === 1) {
+    } else if (fingers.length === 1) {
       const now = Date.now();
       if (now - lastTapTime < 320) { fitView(); e.preventDefault(); lastTapTime = 0; return; }
       lastTapTime = now;
@@ -138,9 +167,13 @@ function setupCanvasTouch() {
   }, { passive: false });
 
   canvasArea.addEventListener('touchmove', e => {
-    if (e.touches.length === 2 && canvasTouchState && canvasTouchState !== 'undo') {
+    // v3.7.0: drawing takes priority — don't pinch-zoom mid-stroke
+    if (App.isDrawing) return;
+
+    const fingers = fingerTouches(e.touches);
+    if (fingers.length === 2 && canvasTouchState && canvasTouchState !== 'undo') {
       e.preventDefault();
-      const [a, b] = e.touches;
+      const [a, b] = fingers;
       const d = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
       const cx = (a.clientX + b.clientX) / 2, cy = (a.clientY + b.clientY) / 2;
       const ratio = d / canvasTouchState.d;
@@ -151,7 +184,10 @@ function setupCanvasTouch() {
     }
   }, { passive: false });
 
-  canvasArea.addEventListener('touchend', e => { if (e.touches.length < 2) canvasTouchState = null; });
+  canvasArea.addEventListener('touchend', e => {
+    const fingers = fingerTouches(e.touches);
+    if (fingers.length < 2) canvasTouchState = null;
+  });
 }
 
 function setupSwipe() {
@@ -159,17 +195,23 @@ function setupSwipe() {
   let touchStartX = 0, touchStartY = 0, swipeHandled = false;
 
   canvasArea.addEventListener('touchstart', e => {
-    if (e.touches.length !== 1) return;
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
+    // v3.7.0: never start a swipe while a stroke is active, and only count
+    // finger touches (pencil shouldn't open panels).
+    if (App.isDrawing) return;
+    const fingers = fingerTouches(e.touches);
+    if (fingers.length !== 1) return;
+    touchStartX = fingers[0].clientX;
+    touchStartY = fingers[0].clientY;
     swipeHandled = false;
   }, { passive: true });
 
   canvasArea.addEventListener('touchend', e => {
     if (swipeHandled) return;
     if (window.innerWidth > 1100) return;
-    const dx = (e.changedTouches[0]?.clientX || 0) - touchStartX;
-    const dy = (e.changedTouches[0]?.clientY || 0) - touchStartY;
+    const changed = fingerTouches(e.changedTouches);
+    if (changed.length === 0) return;
+    const dx = changed[0].clientX - touchStartX;
+    const dy = changed[0].clientY - touchStartY;
     if (Math.abs(dx) < 60 || Math.abs(dy) > 80) return;
     if (dx > 0 && touchStartX < 40) {
       $('leftPanel')?.classList.add('open');
