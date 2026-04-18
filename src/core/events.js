@@ -41,11 +41,26 @@ export function wireGlobalEvents() {
   }, { passive: false });
 
   if (typeof ResizeObserver !== 'undefined') {
+    // v3.8.1: On mobile, the first ResizeObserver callback can arrive before
+    // the mobile CSS grid row stabilizes (address bar, 100dvh, safe-area
+    // insets), giving canvasArea a zero or tiny size. Previously firstFit
+    // burned on that useless 0x0 callback, scale floored to 0.05, and the
+    // canvas rendered invisibly small. Now we only consume firstFit once the
+    // container reports a real size (> 100px each axis). Also re-fit if the
+    // scale looks collapsed to the floor (sign of a prior failed fit).
     let firstFit = true;
-    const ro = new ResizeObserver(() => {
+    const ro = new ResizeObserver((entries) => {
       if (!App.project) return;
-      if (firstFit) { firstFit = false; fitView(); }
-      else applyView();
+      const rect = entries[0] && entries[0].contentRect;
+      const hasRealSize = rect && rect.width > 100 && rect.height > 100;
+      if (firstFit && hasRealSize) {
+        firstFit = false;
+        fitView();
+      } else if (hasRealSize && App.view.scale <= 0.06) {
+        fitView();
+      } else {
+        applyView();
+      }
     });
     ro.observe(canvasArea);
   }

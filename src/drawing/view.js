@@ -35,6 +35,13 @@ export function fitView(mode) {
   const pad = 40;
   const aw = canvasArea.clientWidth - pad * 2;
   const ah = canvasArea.clientHeight - pad * 2;
+  // v3.8.1: Guard against zero/negative canvasArea sizes (happens on mobile
+  // when fitView is called before the layout stabilizes, e.g. before the
+  // address bar settles or before 100dvh resolves). Without this guard,
+  // scale collapses to the 0.05 floor and the canvas renders ~64px wide,
+  // appearing invisible inside a black area. ResizeObserver will re-invoke
+  // fitView once the real size arrives.
+  if (aw <= 0 || ah <= 0) return;
   let s;
   if (mode === 'width')       s = aw / App.project.width;
   else if (mode === 'height') s = ah / App.project.height;
