@@ -190,6 +190,28 @@ function wireMoreMenu() {
         case 'help':
           $('helpOverlay')?.classList.add('open');
           break;
+        // v3.8.2: mobile auth rows — mirror the desktop #authBox / #profileMenu
+        // behavior. When in Wix, postMessage to the parent; when standalone,
+        // fall back to a helpful toast.
+        case 'auth-login':
+          if (App.inWix) window.parent.postMessage({ type: 'request-login' }, '*');
+          else import('./toast.js').then(m => m.toast('Log in via the Wix site header', 'error'));
+          break;
+        case 'auth-dashboard':
+          if (!(await confirmLeaveIfDirty({ context: 'dashboard' }))) return;
+          if (App.inWix) window.parent.postMessage({ type: 'nav-dashboard' }, '*');
+          break;
+        case 'auth-mywork':
+          // Open right drawer + activate Projects tab (no navigation, safe without dirty-check)
+          document.querySelector('.tab-btn[data-tab="projects"]')?.click();
+          $('rightPanel')?.classList.add('open');
+          $('leftPanel')?.classList.remove('open');
+          $('panelBackdrop')?.classList.add('show');
+          break;
+        case 'auth-logout':
+          if (!(await confirmLeaveIfDirty({ context: 'logout' }))) return;
+          if (App.inWix) window.parent.postMessage({ type: 'request-logout' }, '*');
+          break;
       }
     });
   });
@@ -226,5 +248,26 @@ export function updateMobileTopbar() {
   if (layersBtn && App.project) {
     const count = App.project.panels?.[App.activePanelIdx]?.layers?.length || 0;
     layersBtn.setAttribute('data-count', String(count));
+  }
+}
+
+/**
+ * v3.8.2: Show/hide the 4 auth rows in #mobileMoreMenu based on login state.
+ * Called from topbar.js updateAuthUI() so desktop + mobile stay in sync.
+ * When logged-in, the Dashboard row gets the member nickname for clarity.
+ */
+export function updateMobileAuthMenu() {
+  const loggedIn = !!App.isLoggedIn;
+  const loginRow = $('mtbAuthLogin');
+  const dashRow  = $('mtbAuthDashboard');
+  const workRow  = $('mtbAuthMyWork');
+  const outRow   = $('mtbAuthLogout');
+  if (loginRow) loginRow.style.display = loggedIn ? 'none' : '';
+  if (dashRow)  dashRow.style.display  = loggedIn ? '' : 'none';
+  if (workRow)  workRow.style.display  = loggedIn ? '' : 'none';
+  if (outRow)   outRow.style.display   = loggedIn ? '' : 'none';
+  // Personalize the dashboard label with the member nickname if available
+  if (loggedIn && dashRow && App.member?.nickname) {
+    dashRow.textContent = `📊 ${App.member.nickname}'s Dashboard`;
   }
 }

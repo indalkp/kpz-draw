@@ -77,7 +77,8 @@
     .resize-handle{display:none}
     #leftPanel,#rightPanel{position:absolute;top:0;bottom:0;width:min(320px,85vw);z-index:50;
       transition:transform .25s;box-shadow:0 0 30px rgba(0,0,0,.5)}
-    #leftPanel{left:var(--railW);transform:translateX(-110%)}
+    /* v3.8.2: left:0 (toolRail is hidden on mobile, so no rail offset — previously opened with a 56px gap on the left). */
+    #leftPanel{left:0;transform:translateX(-110%)}
     #rightPanel{right:0;transform:translateX(110%)}
     #leftPanel.open{transform:translateX(0)}
     #rightPanel.open{transform:translateX(0)}
@@ -602,6 +603,19 @@
   #rightPanel.open { box-shadow: inset  2px 0 0 0 var(--accent), 0 0 30px rgba(0,0,0,.5); }
 
   #statusbar { font-size: 11px; padding-bottom: env(safe-area-inset-bottom); }
+
+  /* v3.8.2: Respect iOS/Android safe-area insets when modals are open on mobile.
+     Without this, the New/Save/Help modals could push their top edge under the
+     notch or their buttons under the home-indicator bar. Adds 16px base padding
+     plus the safe-area inset — applies to every .modal-bg including mobile
+     color modal via #mobileColorModal in this same media query. */
+  .modal-bg {
+    padding:
+      calc(16px + env(safe-area-inset-top))
+      16px
+      calc(16px + env(safe-area-inset-bottom));
+  }
+  .modal { max-height: calc(90vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
 }
 
 /* Phone-only tightening */

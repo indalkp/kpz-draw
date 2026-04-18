@@ -7,6 +7,8 @@ import { undo, redo } from '../drawing/history.js';
 import { fitView, applyView } from '../drawing/view.js';
 import { addPanel, deletePanel } from './panel-nav.js';
 import { confirmLeaveIfDirty } from './confirm-leave.js';
+// v3.8.2: keep the mobile more-menu auth rows in sync with desktop #authBox
+import { updateMobileAuthMenu } from './mobile-chrome.js';
 
 export function initTopbar() {
   $('btnUndo')?.addEventListener('click', undo);
@@ -131,6 +133,8 @@ export function updateAuthUI() {
     if (name) { name.textContent = 'Log in to save'; name.classList.add('prompt'); }
     if (avatar) avatar.style.backgroundImage = '';
   }
+  // v3.8.2: mirror auth state into the mobile more-menu auth rows
+  updateMobileAuthMenu();
 }
 
 function toggleFullscreen() {

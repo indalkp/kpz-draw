@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.8.1</small></div>
+    <div class="brand">KPZ Draw <small>v3.8.2</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -283,7 +283,15 @@ export function buildAppDom(root) {
   </div>
 
   <!-- Mobile "more" menu (gallery button reuses this) -->
+  <!-- v3.8.2: added 4 auth rows at top so login/logout/dashboard/mywork are -->
+  <!-- reachable on mobile (desktop has #authBox in topbar; mobile topbar had -->
+  <!-- no auth control). Rows are shown/hidden via updateMobileAuthMenu(). -->
   <div id="mobileMoreMenu" class="m-popover" aria-hidden="true">
+    <button class="mtp-item-row" data-action="auth-login" id="mtbAuthLogin">🔑 Log in to save</button>
+    <button class="mtp-item-row" data-action="auth-dashboard" id="mtbAuthDashboard" style="display:none">📊 My Dashboard</button>
+    <button class="mtp-item-row" data-action="auth-mywork" id="mtbAuthMyWork" style="display:none">🎨 My Work</button>
+    <button class="mtp-item-row" data-action="auth-logout" id="mtbAuthLogout" style="display:none">↩ Log out</button>
+    <div class="mtp-divider"></div>
     <button class="mtp-item-row" data-action="new">New project</button>
     <button class="mtp-item-row" data-action="open">Open file</button>
     <button class="mtp-item-row" data-action="save">Save…</button>
