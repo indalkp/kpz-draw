@@ -84,6 +84,14 @@ export const App = {
   //   'both'  — previous AND next panels rendered as ghosts
   // UI-only — not serialized into .kpz so each session starts clean.
   onionMode: 'off',
+
+  // v3.9.10: animatic playback. When `playing` is true, an interval (managed
+  // in topbar.js) auto-advances activePanelIdx at `playFps` panels per
+  // second. Drawing on the canvas (canvas.js startStroke) flips this back
+  // to false to avoid fighting the user. Not serialized — transient view
+  // state for storyboard timing review.
+  playing: false,
+  playFps: 2,
 };
 
 // Convenience accessors

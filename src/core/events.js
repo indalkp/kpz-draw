@@ -23,7 +23,8 @@ import { setTool } from '../ui/toolrail.js';
 import { updateBrushUI } from '../ui/brush-panel.js';
 // v3.9.8: shared onion-mode cycle helper so 'O' shortcut and topbar button
 // stay in sync without duplicating state transitions.
-import { cycleOnionMode } from '../ui/topbar.js';
+// v3.9.10: shared playback toggle so 'P' shortcut and topbar button match.
+import { cycleOnionMode, togglePlayback } from '../ui/topbar.js';
 import { closeRefViewer, showRef } from '../ui/ref-viewer.js';
 import { $ } from '../utils/dom-helpers.js';
 
@@ -122,6 +123,8 @@ function handleKeyDown(e) {
   if (e.key === 'f' || e.key === 'F') fitView();
   // v3.9.8: 'O' cycles onion skin off → past → both → off.
   if (e.key === 'o' || e.key === 'O') cycleOnionMode();
+  // v3.9.10: 'P' toggles animatic playback (cycles panels at the chosen FPS).
+  if (e.key === 'p' || e.key === 'P') togglePlayback();
   if (e.key === '1') setZoom(1);
   if (e.key === '+' || e.key === '=') setZoom(App.view.scale * 1.25);
   if (e.key === '-') setZoom(App.view.scale * 0.8);

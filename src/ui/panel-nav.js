@@ -61,6 +61,31 @@ export function renderPanelNav() {
 function switchPanel(i) {
   App.activePanelIdx = i;
   renderDisplay(); renderLayersUI(); renderPanelNav();
+  scrollActiveThumbIntoView();
+}
+
+/**
+ * v3.9.10: lightweight panel switch for animatic playback. Skips the
+ * layers UI re-render (panels share layer structure visually so the layers
+ * panel doesn't need to flicker every frame) but does re-render the canvas
+ * and the filmstrip, and scrolls the active thumb into view so the user
+ * can follow the playback position.
+ */
+export function switchPanelForPlayback(i) {
+  App.activePanelIdx = i;
+  renderDisplay();
+  renderPanelNav();
+  scrollActiveThumbIntoView();
+}
+
+function scrollActiveThumbIntoView() {
+  const nav = $('panelNav');
+  if (!nav) return;
+  const active = nav.querySelector('.panel-thumb.active');
+  if (!active) return;
+  // Use scrollIntoView with smooth + nearest so the user sees the
+  // playback head moving along the filmstrip without jumpy resets.
+  active.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
 }
 
 export function addPanel() {

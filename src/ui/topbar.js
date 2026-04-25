@@ -34,6 +34,23 @@ export function initTopbar() {
   // immediately. Same cycle is bound to the 'O' keyboard shortcut in
   // events.js so power-users don't have to reach for the topbar.
   $('btnOnion')?.addEventListener('click', cycleOnionMode);
+  // v3.9.10: animatic playback wiring. The actual play/pause / FPS change
+  // logic lives below at module scope (export togglePlayback) so events.js
+  // can bind the 'P' keyboard shortcut to the same function.
+  $('btnPlay')?.addEventListener('click', togglePlayback);
+  $('playFps')?.addEventListener('change', e => {
+    const n = parseInt(e.target.value, 10);
+    if (!Number.isNaN(n) && n >= 1 && n <= 12) {
+      App.playFps = n;
+      // If currently playing, restart the interval at the new rate
+      if (App.playing) {
+        stopPlaybackInterval();
+        startPlaybackInterval();
+      }
+    } else {
+      e.target.value = App.playFps;     // revert invalid input
+    }
+  });
   $('exitFullscreen')?.addEventListener('click', toggleFullscreen);
   $('btnHelp')?.addEventListener('click', () => $('helpOverlay')?.classList.add('open'));
   $('helpClose')?.addEventListener('click', () => $('helpOverlay')?.classList.remove('open'));
@@ -261,4 +278,102 @@ export function cycleOnionMode() {
     btn.title = ONION_TITLE[App.onionMode] || ONION_TITLE.off;
   }
   renderDisplay();
+}
+
+
+// ===========================================================================
+// v3.9.10: animatic playback. Cycles activePanelIdx through the project's
+// panels at App.playFps panels per second so storyboard sequences play
+// like a rough animatic — exactly the use case the user described:
+// "adjust the frame rate to create storyboard sequences that can play back
+// dialogue and motion." Caption / script overlay during playback is a v4.0+
+// extension; for now playback is purely visual panel cycling.
+// ===========================================================================
+
+let _playInterval = null;
+
+/**
+ * Toggle playback. Exported so events.js can wire 'P' to the same handler
+ * the topbar button uses — single source of truth for state changes.
+ */
+export function togglePlayback() {
+  if (!App.project || App.project.panels.length < 2) {
+    // One panel = nothing to animate. Silently no-op (toast would be noisy
+    // since pressing P repeatedly is a likely accident).
+    return;
+  }
+  if (App.playing) {
+    stopPlayback();
+  } else {
+    startPlayback();
+  }
+}
+
+export function startPlayback() {
+  if (App.playing) return;
+  App.playing = true;
+  syncPlayButton();
+  startPlaybackInterval();
+}
+
+export function stopPlayback() {
+  if (!App.playing) return;
+  App.playing = false;
+  stopPlaybackInterval();
+  syncPlayButton();
+}
+
+function startPlaybackInterval() {
+  stopPlaybackInterval();
+  const fps = Math.max(1, Math.min(12, App.playFps || 2));
+  const ms = Math.round(1000 / fps);
+  _playInterval = setInterval(advancePlaybackPanel, ms);
+}
+
+function stopPlaybackInterval() {
+  if (_playInterval !== null) {
+    clearInterval(_playInterval);
+    _playInterval = null;
+  }
+}
+
+function advancePlaybackPanel() {
+  if (!App.project || App.project.panels.length < 2) {
+    stopPlayback();
+    return;
+  }
+  // Loop at the end. ping-pong / once-through could be added as modes later.
+  const next = (App.activePanelIdx + 1) % App.project.panels.length;
+  // Lazy-load to avoid circular imports at module init: panel-nav imports
+  // topbar (for updateSaveStatus), so we don't import panel-nav at the top.
+  import('./panel-nav.js').then(m => {
+    if (typeof m.switchPanelForPlayback === 'function') {
+      m.switchPanelForPlayback(next);
+    } else if (typeof m.renderPanelNav === 'function') {
+      // Fallback: set state directly + re-render
+      App.activePanelIdx = next;
+      m.renderPanelNav();
+      // Re-render the canvas so the new panel's content is visible
+      renderDisplay();
+    }
+  });
+}
+
+/**
+ * Update the play button's icon + aria-pressed to reflect current state.
+ * Triangle when paused (suggests "press to play"); two bars when playing.
+ */
+function syncPlayButton() {
+  const btn = $('btnPlay');
+  if (!btn) return;
+  btn.classList.toggle('active', App.playing);
+  btn.setAttribute('aria-pressed', App.playing ? 'true' : 'false');
+  btn.title = App.playing ? 'Pause animatic (P)' : 'Play animatic (P)';
+  // Swap the inner SVG path for a play triangle vs a pause two-bar.
+  const PLAY_PATH = 'M8 5v14l11-7z';
+  const PAUSE_PATH = 'M6 5h4v14H6zm8 0h4v14h-4z';
+  const path = btn.querySelector('svg path');
+  if (path) {
+    path.setAttribute('d', App.playing ? PAUSE_PATH : PLAY_PATH);
+  }
 }

@@ -106,6 +106,13 @@ if (typeof window !== 'undefined') {
 }
 
 function startStroke(e) {
+  // v3.9.10: any pointer-down on the canvas stops animatic playback. Drawing
+  // and auto-cycling-panels would fight each other; user wins. We import
+  // lazily to avoid circular import (topbar -> panel-nav -> ... -> canvas).
+  if (App.playing) {
+    import('../ui/topbar.js').then(m => m.stopPlayback?.());
+  }
+
   // Pan modes (middle-click, right-click, space-held, hand tool) — unchanged
   if (e.button === 1 || e.button === 2 || App.spacePan || App.tool === 'hand') {
     startPan(e);

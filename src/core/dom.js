@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.9</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.10</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -41,6 +41,20 @@ export function buildAppDom(root) {
     <div class="tb-group">
       <button class="btn" id="btnAddPanel" title="Add storyboard panel">+ Panel</button>
       <button class="btn" id="btnDelPanel" title="Delete current panel">− Panel</button>
+    </div>
+    <!--
+      v3.9.10: animatic playback. Auto-advances through panels at the chosen
+      frame rate so storyboard sequences play like a rough animatic. Drawing
+      on the canvas auto-stops playback. Keyboard 'P' toggles play/pause.
+      No saved state — playback is a transient view.
+    -->
+    <div class="tb-group" id="playbackGroup">
+      <button class="btn" id="btnPlay" title="Play animatic (P)" aria-pressed="false">
+        <svg id="btnPlayIcon" viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+      </button>
+      <label class="fps-label" title="Playback frame rate (panels per second)">
+        <input type="number" id="playFps" min="1" max="12" value="2"> fps
+      </label>
     </div>
     <div class="tb-group">
       <button class="btn" id="btnFit" title="Fit to screen (F)">Fit</button>
