@@ -1,4 +1,4 @@
-// src/ui/modals.js
+﻿// src/ui/modals.js
 // New project, Save, and Open file modal dialogs.
 
 import { App } from '../core/state.js';
@@ -240,57 +240,10 @@ function paintPanelForExport(ctx, panel, w, h) {
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
 
-  // Burn the caption — only if there's actually text
-  const caption = (panel.caption || '').trim();
-  if (caption) {
-    // Sizes scale with project height so 720p and 1080p both look balanced
-    const fontSize = Math.max(18, Math.round(h * 0.038));
-    const padY = Math.round(fontSize * 0.6);
-    const padX = Math.round(fontSize * 0.8);
-    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-
-    // Wrap the caption into lines that fit the canvas width
-    const maxW = w - padX * 2;
-    const lines = wrapTextLines(ctx, caption, maxW);
-    const lineH = Math.round(fontSize * 1.25);
-    const blockH = lines.length * lineH + padY * 2;
-    const blockY = h - blockH;
-
-    // Subtitle bar background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-    ctx.fillRect(0, blockY, w, blockH);
-
-    // White text
-    ctx.fillStyle = '#fff';
-    for (let i = 0; i < lines.length; i++) {
-      const y = blockY + padY + (i + 1) * lineH - Math.round(lineH * 0.25);
-      ctx.fillText(lines[i], w / 2, y);
-    }
-  }
+// v3.9.16: caption rendering moved to drawCaptionSubtitle in view.js
+  // — single source of truth shared with the in-app playback preview.
+  drawCaptionSubtitle(ctx, panel.caption, w, h);
   ctx.restore();
-}
-
-/**
- * Greedy word-wrap into lines that fit within maxWidth on the given context.
- * If a single word is wider than maxWidth, it gets its own (over-wide) line.
- */
-function wrapTextLines(ctx, text, maxWidth) {
-  const words = text.split(/\s+/);
-  const lines = [];
-  let cur = '';
-  for (const word of words) {
-    const test = cur ? cur + ' ' + word : word;
-    if (ctx.measureText(test).width <= maxWidth) {
-      cur = test;
-    } else {
-      if (cur) lines.push(cur);
-      cur = word;
-    }
-  }
-  if (cur) lines.push(cur);
-  return lines;
 }
 
 function sleep(ms) {
