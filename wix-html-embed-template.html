@@ -1,0 +1,80 @@
+<!--
+  KPZ Draw — Wix HTML Embed shim — v3.9.24
+  Paste this ENTIRE file once into the HTML Embed component on indalkp.com/draw,
+  replacing whatever's currently there. After this paste, you NEVER need to edit
+  the Wix Editor again for a release. The version is asked from Velo (which is
+  in Git + auto-deployed by `wix publish`) so every future version change is one
+  shell command.
+
+  How it works:
+    1. Renders an empty #kpz-root placeholder inside the iframe.
+    2. Asks the parent window for the current version via postMessage
+       ({ type: 'kpz-request-version' }).
+    3. Velo Page Code on /draw replies with { type: 'kpz-version', version }
+       (handler lives in src/pages/Draw.w52ay.js, KPZ_VERSION constant near top).
+    4. On reply, dynamically imports main.js from
+       cdn.jsdelivr.net/gh/indalkp/kpz-draw@<version>/src/main.js and calls
+       init('#kpz-root', { baseUrl, version }).
+    5. If Velo doesn't reply within 5 seconds (Velo broken, or running outside
+       the Wix iframe in dev), falls back to loading @main so the app still
+       boots — losing tag-pinning rollback, but the screen isn't blank.
+
+  Version pinning + rollback:
+    To roll back to v3.9.21 in production, edit the KPZ_VERSION constant in
+    Draw.w52ay.js to 'v3.9.21' and run `wix publish --source remote -y`.
+    Live in ~10 seconds.
+-->
+<div id="kpz-root" style="position:fixed;inset:0;background:#1a1a1a;color:#888;font-family:system-ui;display:flex;align-items:center;justify-content:center">
+  <span style="font-size:13px;opacity:.6">Loading…</span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var FALLBACK_VERSION = 'main';   // used if Velo doesn't reply in time
+  var TIMEOUT_MS       = 5000;
+  var loaded           = false;
+  var timeoutId        = null;
+
+  function loadKpz(version) {
+    if (loaded) return;
+    loaded = true;
+    if (timeoutId) clearTimeout(timeoutId);
+    if (!version || typeof version !== 'string') version = FALLBACK_VERSION;
+    var base = 'https://cdn.jsdelivr.net/gh/indalkp/kpz-draw@' + version;
+    var s = document.createElement('script');
+    s.type = 'module';
+    s.textContent =
+      "import { init } from '" + base + "/src/main.js';\n" +
+      "init('#kpz-root', { baseUrl: '" + base + "', version: '" + version + "' });";
+    document.body.appendChild(s);
+  }
+
+  // Listen for the version reply from Velo
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || typeof d !== 'object') return;
+    if (d.type === 'kpz-version' && typeof d.version === 'string' && d.version) {
+      loadKpz(d.version);
+    }
+  });
+
+  // Ask the parent for the version. If we're standalone (no parent iframe),
+  // skip straight to the fallback — no point waiting.
+  if (window.parent && window.parent !== window) {
+    try {
+      window.parent.postMessage({ type: 'kpz-request-version' }, '*');
+    } catch (_) { /* postMessage rarely throws but be safe */ }
+    // 5-second safety net — if Velo's request-version handler is missing,
+    // mis-deployed, or the parent doesn't have Velo at all, we still boot
+    // the app via the fallback version.
+    timeoutId = setTimeout(function () {
+      console.warn('[KPZ] No version response from parent within ' + TIMEOUT_MS + 'ms; falling back to @' + FALLBACK_VERSION);
+      loadKpz(FALLBACK_VERSION);
+    }, TIMEOUT_MS);
+  } else {
+    // Not embedded — direct fallback
+    loadKpz(FALLBACK_VERSION);
+  }
+})();
+</script>
