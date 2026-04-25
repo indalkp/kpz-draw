@@ -81,36 +81,6 @@ export function renderDisplay() {
   if (display.height !== p.height) display.height = p.height;
   dctx.clearRect(0, 0, p.width, p.height);
 
-  // v3.9.7 / v3.9.8: onion-skin overlay. Render neighbor panels BEFORE the
-  // current panel at low opacity so they sit as faint ghosts behind it.
-  // Mode 'past'  → previous panel only.
-  // Mode 'both'  → previous + next panels.
-  // Mode 'off'   → no overlay (default).
-  // Useful for continuity drawing across a sequence: pose timing, character
-  // position, scene composition. The full animation timeline from the V3a
-  // wireframe (frames within a panel, FPS, play, tween) is a v4.0-track
-  // feature because it changes the .kpz format.
-  const mode = App.onionMode || 'off';
-  if (mode !== 'off') {
-    const renderGhost = (panel) => {
-      if (!panel) return;
-      dctx.save();
-      dctx.globalAlpha = 0.18;
-      for (const layer of panel.layers) {
-        if (!layer.visible) continue;
-        dctx.globalCompositeOperation = layer.blend || 'source-over';
-        dctx.drawImage(layer.canvas, 0, 0);
-      }
-      dctx.restore();
-    };
-    if ((mode === 'past' || mode === 'both') && App.activePanelIdx > 0) {
-      renderGhost(p.panels[App.activePanelIdx - 1]);
-    }
-    if (mode === 'both' && App.activePanelIdx < p.panels.length - 1) {
-      renderGhost(p.panels[App.activePanelIdx + 1]);
-    }
-  }
-
   const panel = curPanel();
 
   // v3.6.3: During an in-progress stroke, we need to show the stroke buffer
@@ -179,6 +149,47 @@ export function renderDisplay() {
       dctx.globalAlpha = layer.opacity * App.brush.opacity;
       dctx.globalCompositeOperation = 'source-over';
       dctx.drawImage(strokeBuf, 0, 0);
+    }
+  }
+
+  // v3.9.9: onion-skin overlay. Painted AFTER the current panel like
+  // tracing paper on top of the active drawing — gives the user a faint
+  // reference of neighbor panels' content without dimming the canvas.
+  //
+  // Why on top, not behind: every panel has an opaque white "Background"
+  // layer (see drawing/panels.js createPanel). If we tried to paint the
+  // ghost BEHIND the current panel (v3.9.7 / v3.9.8), the current panel's
+  // Background would immediately repaint the whole canvas white and bury
+  // the ghost. Putting the ghost on top with low alpha lets it sit as a
+  // visible reference layer.
+  //
+  // The ghost panel's own Background layer is SKIPPED — painting another
+  // 18%-white rectangle over the canvas would dim the user's visible
+  // drawing without contributing any useful ghost detail.
+  //
+  // Mode 'past' → previous panel ghost only.
+  // Mode 'both' → previous + next panels both.
+  // Mode 'off'  → no overlay (default).
+  const mode = App.onionMode || 'off';
+  if (mode !== 'off') {
+    const renderGhost = (ghostPanel) => {
+      if (!ghostPanel) return;
+      dctx.save();
+      dctx.globalAlpha = 0.28;
+      for (const layer of ghostPanel.layers) {
+        if (!layer.visible) continue;
+        // Skip the panel's white Background — see comment above.
+        if (layer.name === 'Background') continue;
+        dctx.globalCompositeOperation = layer.blend || 'source-over';
+        dctx.drawImage(layer.canvas, 0, 0);
+      }
+      dctx.restore();
+    };
+    if ((mode === 'past' || mode === 'both') && App.activePanelIdx > 0) {
+      renderGhost(p.panels[App.activePanelIdx - 1]);
+    }
+    if (mode === 'both' && App.activePanelIdx < p.panels.length - 1) {
+      renderGhost(p.panels[App.activePanelIdx + 1]);
     }
   }
 
