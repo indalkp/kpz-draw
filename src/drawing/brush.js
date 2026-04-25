@@ -29,16 +29,32 @@ export function getStampAlpha(pressure) {
 
 /**
  * Render a single radial-gradient stamp at (x, y) on the given context.
- * Unchanged from v3.6.3.
+ *
+ * v3.9.3 HOTFIX: stamps always paint into the offscreen stroke buffer with
+ * `source-over` — even for the eraser. The buffer is just an opaque-shape
+ * accumulator. The eraser-vs-brush distinction is applied ONCE at flush
+ * time in flushStrokeBuffer() (canvas.js), where the layer composites the
+ * buffer with `destination-out` for the eraser or `source-over` at
+ * App.brush.opacity for the brush.
+ *
+ * Why this regressed in v3.6.3: that release moved opacity compositing from
+ * per-stamp to the post-stroke flush, but stamp() kept its erase-time
+ * `destination-out`. Setting destination-out on the EMPTY per-stroke
+ * buffer removed nothing (no destination to remove from), so the buffer
+ * stayed transparent, and flushStrokeBuffer's destination-out composited
+ * a transparent buffer onto the layer — net effect: eraser did nothing.
  */
 export function stamp(ctx, x, y, size, alpha) {
   const r = size / 2;
   if (r < 0.5) return;
   const erase = App.tool === 'eraser';
-  ctx.globalCompositeOperation = erase ? 'destination-out' : 'source-over';
+  // v3.9.3: source-over always when stamping into the per-stroke buffer.
+  ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = alpha;
   const inner = r * App.brush.hardness;
   const grad = ctx.createRadialGradient(x, y, inner, x, y, r);
+  // Color choice doesn't affect the eraser flush (destination-out only uses
+  // alpha), but black keeps the buffer image debuggable if inspected.
   const col = erase ? '#000' : App.brush.color;
   const { r: R, g: G, b: B } = hexToRgb(col);
   grad.addColorStop(0, `rgba(${R},${G},${B},1)`);
