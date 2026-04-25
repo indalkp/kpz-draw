@@ -21,6 +21,9 @@ import { undo, redo } from '../drawing/history.js';
 import { fitView, setZoom, applyView } from '../drawing/view.js';
 import { setTool } from '../ui/toolrail.js';
 import { updateBrushUI } from '../ui/brush-panel.js';
+// v3.9.8: shared onion-mode cycle helper so 'O' shortcut and topbar button
+// stay in sync without duplicating state transitions.
+import { cycleOnionMode } from '../ui/topbar.js';
 import { closeRefViewer, showRef } from '../ui/ref-viewer.js';
 import { $ } from '../utils/dom-helpers.js';
 
@@ -117,6 +120,8 @@ function handleKeyDown(e) {
   if (e.key === 'i' || e.key === 'I') setTool('eyedropper');
   if (e.key === 'h' || e.key === 'H') setTool('hand');
   if (e.key === 'f' || e.key === 'F') fitView();
+  // v3.9.8: 'O' cycles onion skin off → past → both → off.
+  if (e.key === 'o' || e.key === 'O') cycleOnionMode();
   if (e.key === '1') setZoom(1);
   if (e.key === '+' || e.key === '=') setZoom(App.view.scale * 1.25);
   if (e.key === '-') setZoom(App.view.scale * 0.8);

@@ -1495,3 +1495,10 @@
   vertical-align: middle;
   fill: currentColor;
 }
+
+
+/* v3.9.8: onion-skin "both" mode gets a subtle inner ring so users can
+   distinguish past-only from past+future at a glance. */
+#btnOnion.onion-both {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+}

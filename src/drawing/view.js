@@ -81,24 +81,33 @@ export function renderDisplay() {
   if (display.height !== p.height) display.height = p.height;
   dctx.clearRect(0, 0, p.width, p.height);
 
-  // v3.9.7: onion-skin overlay. Render the previous storyboard panel's
-  // composited layers BEFORE the current panel, at low opacity. The result
-  // is a faint ghost of the prior panel sitting behind the current one —
-  // useful for continuity drawing and pose timing across panels.
-  // Only the immediate predecessor is shown; future-frame onion (next
-  // panel) can come in a later release alongside the full animation
-  // timeline that V3a's wireframe describes.
-  if (App.onionSkin && App.activePanelIdx > 0) {
-    const prevPanel = p.panels[App.activePanelIdx - 1];
-    if (prevPanel) {
+  // v3.9.7 / v3.9.8: onion-skin overlay. Render neighbor panels BEFORE the
+  // current panel at low opacity so they sit as faint ghosts behind it.
+  // Mode 'past'  → previous panel only.
+  // Mode 'both'  → previous + next panels.
+  // Mode 'off'   → no overlay (default).
+  // Useful for continuity drawing across a sequence: pose timing, character
+  // position, scene composition. The full animation timeline from the V3a
+  // wireframe (frames within a panel, FPS, play, tween) is a v4.0-track
+  // feature because it changes the .kpz format.
+  const mode = App.onionMode || 'off';
+  if (mode !== 'off') {
+    const renderGhost = (panel) => {
+      if (!panel) return;
       dctx.save();
       dctx.globalAlpha = 0.18;
-      for (const layer of prevPanel.layers) {
+      for (const layer of panel.layers) {
         if (!layer.visible) continue;
         dctx.globalCompositeOperation = layer.blend || 'source-over';
         dctx.drawImage(layer.canvas, 0, 0);
       }
       dctx.restore();
+    };
+    if ((mode === 'past' || mode === 'both') && App.activePanelIdx > 0) {
+      renderGhost(p.panels[App.activePanelIdx - 1]);
+    }
+    if (mode === 'both' && App.activePanelIdx < p.panels.length - 1) {
+      renderGhost(p.panels[App.activePanelIdx + 1]);
     }
   }
 

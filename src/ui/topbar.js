@@ -28,18 +28,12 @@ export function initTopbar() {
   $('btnDelPanel')?.addEventListener('click', deletePanel);
   $('btnFit')?.addEventListener('click', () => fitView());
   $('btnFullscreen')?.addEventListener('click', toggleFullscreen);
-  // v3.9.7: onion-skin toggle. Flips App.onionSkin and re-renders the
-  // display canvas immediately so the ghost appears/disappears without
-  // waiting for the next stroke or pan.
-  $('btnOnion')?.addEventListener('click', () => {
-    App.onionSkin = !App.onionSkin;
-    const btn = $('btnOnion');
-    if (btn) {
-      btn.classList.toggle('active', App.onionSkin);
-      btn.setAttribute('aria-pressed', App.onionSkin ? 'true' : 'false');
-    }
-    renderDisplay();
-  });
+  // v3.9.8: onion-skin cycling toggle. Click cycles through three states:
+  //   off → past → both → off
+  // Each click re-renders the display so the ghosts appear/disappear
+  // immediately. Same cycle is bound to the 'O' keyboard shortcut in
+  // events.js so power-users don't have to reach for the topbar.
+  $('btnOnion')?.addEventListener('click', cycleOnionMode);
   $('exitFullscreen')?.addEventListener('click', toggleFullscreen);
   $('btnHelp')?.addEventListener('click', () => $('helpOverlay')?.classList.add('open'));
   $('helpClose')?.addEventListener('click', () => $('helpOverlay')?.classList.remove('open'));
@@ -240,4 +234,31 @@ function setupResizeHandle(handleId, panelSide) {
     localStorage.removeItem(panelSide === 'left' ? 'kpz_leftW' : 'kpz_rightW');
     if (App.project) requestAnimationFrame(applyView);
   });
+}
+
+
+// ===========================================================================
+// v3.9.8: onion-skin cycle helper. Lives at module scope so the keyboard
+// shortcut in events.js can import it and reuse the exact same cycle logic
+// the topbar button uses — single source of truth for the off→past→both
+// transitions and the corresponding aria/title syncs.
+// ===========================================================================
+
+const ONION_NEXT = { off: 'past', past: 'both', both: 'off' };
+const ONION_TITLE = {
+  off:  'Onion skin: off — click to show previous panel as ghost',
+  past: 'Onion skin: past — click to also show next panel',
+  both: 'Onion skin: past + next — click to turn off',
+};
+
+export function cycleOnionMode() {
+  App.onionMode = ONION_NEXT[App.onionMode] || 'past';
+  const btn = $('btnOnion');
+  if (btn) {
+    btn.classList.toggle('active', App.onionMode !== 'off');
+    btn.classList.toggle('onion-both', App.onionMode === 'both');
+    btn.setAttribute('aria-pressed', App.onionMode === 'off' ? 'false' : 'true');
+    btn.title = ONION_TITLE[App.onionMode] || ONION_TITLE.off;
+  }
+  renderDisplay();
 }

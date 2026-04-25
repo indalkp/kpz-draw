@@ -77,11 +77,13 @@ export const App = {
   // backend returns a stale error so we can show a "reload/overwrite" modal.
   projectLoadedAt: null,
 
-  // v3.9.7: onion skin — when true, view.js renders the previous panel as
-  // a faint ghost layer behind the current panel. UI-only flag, not
-  // serialized into .kpz (would persist across sessions if we wanted, but
-  // most users want a clean slate per session).
-  onionSkin: false,
+  // v3.9.7 / v3.9.8: onion skin mode. Three states cycled by the topbar
+  // button (and keyboard shortcut 'O'):
+  //   'off'   — no onion (default)
+  //   'past'  — previous panel rendered as a ghost behind the current
+  //   'both'  — previous AND next panels rendered as ghosts
+  // UI-only — not serialized into .kpz so each session starts clean.
+  onionMode: 'off',
 };
 
 // Convenience accessors
