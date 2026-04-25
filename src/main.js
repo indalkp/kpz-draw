@@ -115,23 +115,36 @@ export async function init(rootSelector, opts = {}) {
   // first fitView(). The v3.8.3 double-rAF assumed iframe layout settles
   // in 2 frames, but the Wix HtmlComponent often sizes its iframe async —
   // fitView ran while canvasArea was still 0x0, hit the v3.8.1 zero-size
-  // guard, and returned without setting App.view.scale. Worse, the
-  // ResizeObserver's "first real size" callback in events.js had already
-  // been wasted on a pre-project-creation entries[] event (early-returned
-  // by `if (!App.project) return`), and RO never fires again once the
-  // iframe size is stable. Net result: scale stuck at 1.0, displayCanvas
-  // overflows canvasArea, statusbar appears mid-screen on mobile.
-  // Polling fix: requestAnimationFrame loop, max ~1s, exits as soon as
-  // canvasArea reports >= 100px on both axes — same threshold the
-  // ResizeObserver uses for its `hasRealSize` check.
+  // guard, and returned without setting App.view.scale. Net result: scale
+  // stuck at 1.0, displayCanvas overflows canvasArea, statusbar appears
+  // mid-screen on mobile.
+  //
+  // v3.9.5: reports came in that some iPad / mobile loads still show no
+  // canvas after the v3.8.4 fix. Two extensions: (a) cap raised from ~1s
+  // to ~5s so slow iframes still recover (300 frames of rAF), and (b) a
+  // last-resort fallback — if the cap is reached and scale is still at
+  // the default 1.0, force fitView() against whatever current size we
+  // have. Worst case it fits to a small visible area; ResizeObserver then
+  // re-fits when the iframe finishes settling. Better than a black canvas.
   let _firstFitTries = 0;
   const _tryFirstFit = () => {
     const ca = document.getElementById('canvasArea');
     if (ca && ca.clientWidth >= 100 && ca.clientHeight >= 100) {
       fitView();
       renderDisplay();
-    } else if (++_firstFitTries < 60) {
+      return;
+    }
+    if (++_firstFitTries < 300) {
       requestAnimationFrame(_tryFirstFit);
+      return;
+    }
+    // v3.9.5 last-resort: 5s have passed and we still don't have a real
+    // size. If scale is at the default 1.0, the canvas is invisible (size
+    // 1280x720 inside a tiny iframe). Force fitView so SOMETHING renders.
+    if (App.view && App.view.scale === 1) {
+      console.warn('[KPZ] canvasArea did not reach 100px in 5s — forcing fitView with current dims.');
+      fitView();
+      renderDisplay();
     }
   };
   _tryFirstFit();

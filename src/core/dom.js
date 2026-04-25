@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.4</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.5</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -378,15 +378,6 @@ export function buildAppDom(root) {
       </svg>
       <span class="md-label">Draw</span>
     </button>
-    <button class="md-btn" data-md="script" aria-label="Script">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="8" y1="13" x2="16" y2="13"/>
-        <line x1="8" y1="17" x2="14" y2="17"/>
-      </svg>
-      <span class="md-label">Script</span>
-    </button>
     <button class="md-btn" data-md="refs" aria-label="Refs">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="7" height="7" rx="1"/>
@@ -395,6 +386,20 @@ export function buildAppDom(root) {
         <rect x="14" y="14" width="7" height="7" rx="1"/>
       </svg>
       <span class="md-label">Refs</span>
+    </button>
+    <!--
+      v3.9.5: replaced the Script placeholder dock button with Layers.
+      Layers became unreachable on mobile in v3.9.4 (mtbLayers got hidden
+      by CSS but no dock entry was added) — clear navigation regression.
+      Script returns when v4.0 ships its real editor.
+    -->
+    <button class="md-btn" data-md="layers" aria-label="Layers">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+      <span class="md-label">Layers</span>
     </button>
     <button class="md-btn" data-md="project" aria-label="Project">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">

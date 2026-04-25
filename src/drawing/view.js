@@ -24,6 +24,12 @@ function ensureDom() {
   canvasArea = $('canvasArea');
 }
 
+// v3.9.5: per-stroke offscreen for live eraser preview. Allocated lazily
+// inside renderDisplay() and re-sized when the active layer's dimensions
+// change. Reused across strokes — one canvas, one alloc.
+let eraserPreview = null;
+let eraserPreviewCtx = null;
+
 export function applyView() {
   ensureDom();
   canvasWrap.style.transform =
@@ -97,16 +103,47 @@ export function renderDisplay() {
     const layer = panel.layers[i];
     if (!layer.visible) continue;
 
+    // v3.9.5: live eraser preview path. When the user is mid-stroke with the
+    // eraser on this active layer, we can't just drawImage(layer.canvas) and
+    // hope for the best — the eraser strokes haven't been flushed onto the
+    // layer yet (that happens in canvas.js endStroke). Instead, render the
+    // layer THROUGH a per-stroke offscreen: copy layer pixels in, apply the
+    // strokeBuffer with `destination-out`, draw the masked result to the
+    // display. The actual layer canvas stays untouched until endStroke.
+    const isErasingActiveLayer = strokeBuf && erasing && i === activeLayerIdx;
+    if (isErasingActiveLayer) {
+      // Lazy alloc / re-size the preview canvas to match layer dims
+      const lw = layer.canvas.width;
+      const lh = layer.canvas.height;
+      if (!eraserPreview || eraserPreview.width !== lw || eraserPreview.height !== lh) {
+        eraserPreview = document.createElement('canvas');
+        eraserPreview.width = lw;
+        eraserPreview.height = lh;
+        eraserPreviewCtx = eraserPreview.getContext('2d');
+      }
+      // 1. Copy layer
+      eraserPreviewCtx.globalCompositeOperation = 'source-over';
+      eraserPreviewCtx.globalAlpha = 1;
+      eraserPreviewCtx.clearRect(0, 0, lw, lh);
+      eraserPreviewCtx.drawImage(layer.canvas, 0, 0);
+      // 2. Mask out where the stroke buffer has alpha
+      eraserPreviewCtx.globalCompositeOperation = 'destination-out';
+      eraserPreviewCtx.drawImage(strokeBuf, 0, 0);
+      // 3. Draw the masked result instead of the layer itself
+      dctx.globalAlpha = layer.opacity;
+      dctx.globalCompositeOperation = layer.blend || 'source-over';
+      dctx.drawImage(eraserPreview, 0, 0);
+      continue;
+    }
+
     // Draw the layer itself
     dctx.globalAlpha = layer.opacity;
     dctx.globalCompositeOperation = layer.blend || 'source-over';
     dctx.drawImage(layer.canvas, 0, 0);
 
     // v3.6.3: on the active layer only, overlay the in-progress stroke buffer.
-    // Brush: source-over at App.brush.opacity. Eraser: we can't live-preview
-    // a destination-out cleanly on the display canvas, so we draw nothing
-    // and the user sees the stamp vanish on stroke-end (matches behavior
-    // of most drawing apps — eraser previews are hard).
+    // Brush: source-over at App.brush.opacity. Eraser is now handled above
+    // via the eraser-preview offscreen path.
     if (strokeBuf && i === activeLayerIdx && !erasing) {
       dctx.globalAlpha = layer.opacity * App.brush.opacity;
       dctx.globalCompositeOperation = 'source-over';

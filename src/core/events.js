@@ -56,6 +56,14 @@ export function wireGlobalEvents() {
     // canvas rendered invisibly small. Now we only consume firstFit once the
     // container reports a real size (> 100px each axis). Also re-fit if the
     // scale looks collapsed to the floor (sign of a prior failed fit).
+    //
+    // v3.9.5: also re-fit if scale is still at the default 1.0 when a real
+    // size arrives. This catches the case where main.js's polling exited
+    // before canvasArea was sized AND firstFit had already been consumed
+    // by some earlier callback that didn't actually run fitView (e.g. the
+    // last-resort path in main.js sets scale=1 by default). Without this,
+    // the canvas can render at its natural 1280x720 size, way bigger than
+    // the iframe, and appear "missing" because most of it is off-screen.
     let firstFit = true;
     const ro = new ResizeObserver((entries) => {
       if (!App.project) return;
@@ -64,7 +72,11 @@ export function wireGlobalEvents() {
       if (firstFit && hasRealSize) {
         firstFit = false;
         fitView();
-      } else if (hasRealSize && App.view.scale <= 0.06) {
+      } else if (hasRealSize && (App.view.scale <= 0.06 || App.view.scale === 1)) {
+        // v3.9.5: scale === 1 here means "still at default, never properly
+        // fit". Treat as a fresh fit needed. Cheap (one fitView per real
+        // size change) and idempotent — if scale was already correct, it
+        // gets recomputed to the same value.
         fitView();
       } else {
         applyView();

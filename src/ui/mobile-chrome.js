@@ -85,11 +85,18 @@ function handleMobileDockAction(target, btn, e) {
       setActiveDockButton('draw');
       break;
 
-    case 'script':
-      // v3.9.4: script editor is a v4.0 feature. Show a friendly placeholder
-      // so users know it's coming. Don't change visible mode.
-      import('./toast.js').then(m => m.toast('Script editor lands in v4.0', 'info'));
-      // Don't change active button — user is still in Draw mode.
+    case 'layers':
+      // v3.9.5: toggle the layers panel via the dock. Same handler as the
+      // hidden mtbLayers button — opens the right drawer and activates
+      // the Layers tab so the user lands on the right thing.
+      {
+        const open = $('rightPanel')?.classList.toggle('open');
+        $('leftPanel')?.classList.remove('open');
+        $('panelBackdrop')?.classList.toggle('show', !!open);
+        const layersTab = document.querySelector('.tab-btn[data-tab="layers"]');
+        layersTab?.click();
+        setActiveDockButton(open ? 'layers' : 'draw');
+      }
       break;
 
     case 'refs':
