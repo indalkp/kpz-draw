@@ -52,6 +52,10 @@ export function renderPanelNav() {
     const t = document.createElement('div');
     t.className = 'panel-thumb' + (i === App.activePanelIdx ? ' active' : '');
     t.innerHTML = `<span class="num">${i + 1}</span><button class="panel-del" title="Delete panel">×</button>`;
+    // v3.9.12: thumbs are draggable for reorder
+    t.draggable = true;
+    t.dataset.idx = String(i);
+
     const tc = document.createElement('canvas');
     tc.width = 54; tc.height = 40;
     const tctx = tc.getContext('2d');
@@ -62,6 +66,7 @@ export function renderPanelNav() {
     }
     tctx.globalAlpha = 1;
     t.style.backgroundImage = `url(${tc.toDataURL()})`;
+
     t.addEventListener('click', e => {
       if (e.target.classList.contains('panel-del')) {
         e.stopPropagation();
@@ -76,6 +81,35 @@ export function renderPanelNav() {
       }
       switchPanel(i);
     });
+
+    // v3.9.12: drag-and-drop reorder. Same pattern the references panel
+    // already uses (see ui/references.js) — set a custom mime type on
+    // dragstart so we can distinguish panel drags from arbitrary file
+    // drags, then on drop swap the array indices and adjust activePanelIdx
+    // so the same panel object stays focused after the reorder.
+    t.addEventListener('dragstart', e => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/kpz-panel-idx', String(i));
+      t.classList.add('dragging');
+    });
+    t.addEventListener('dragend', () => t.classList.remove('dragging'));
+    t.addEventListener('dragover', e => {
+      if (e.dataTransfer.types.includes('text/kpz-panel-idx')) {
+        e.preventDefault();
+        t.classList.add('drop-target');
+      }
+    });
+    t.addEventListener('dragleave', () => t.classList.remove('drop-target'));
+    t.addEventListener('drop', e => {
+      const fromStr = e.dataTransfer.getData('text/kpz-panel-idx');
+      const from = parseInt(fromStr, 10);
+      t.classList.remove('drop-target');
+      if (Number.isNaN(from) || from === i) return;
+      e.preventDefault();
+      e.stopPropagation();
+      reorderPanel(from, i);
+    });
+
     nav.appendChild(t);
   });
 
@@ -131,6 +165,51 @@ export function addPanel() {
   App.activePanelIdx = App.project.panels.length - 1;
   App.dirty = true; updateSaveStatus();
   renderDisplay(); renderLayersUI(); renderPanelNav();
+}
+
+/**
+ * v3.9.12: move a panel from index `from` to index `to`. Adjusts
+ * activePanelIdx so the same PANEL OBJECT (not the same numeric index)
+ * stays selected after the move — matches user expectation that the
+ * panel they're working on follows their drag, not the slot it left.
+ *
+ * Also reorders the parallel App.history[] / App.historyIdx[] arrays so
+ * undo/redo keeps working against the right per-panel stacks. The history
+ * arrays are sparse (one entry per panel), so we splice them in lockstep.
+ */
+export function reorderPanel(from, to) {
+  if (!App.project) return;
+  const panels = App.project.panels;
+  if (from === to) return;
+  if (from < 0 || to < 0 || from >= panels.length || to >= panels.length) return;
+
+  // Move the panel
+  const moved = panels.splice(from, 1)[0];
+  panels.splice(to, 0, moved);
+
+  // Move the matching history slot (same indexing as panels)
+  const movedHist = App.history.splice(from, 1)[0];
+  App.history.splice(to, 0, movedHist);
+  const movedHistIdx = App.historyIdx.splice(from, 1)[0];
+  App.historyIdx.splice(to, 0, movedHistIdx);
+
+  // Recompute activePanelIdx so the user-focused panel follows the drag.
+  // Three cases:
+  //   - The dragged panel WAS the active one → it just moved to `to`.
+  //   - Active panel sat between `from` and `to` (exclusive `from`,
+  //     inclusive `to`) and got shifted by the splice — adjust by ±1.
+  //   - Otherwise unchanged.
+  if (App.activePanelIdx === from) {
+    App.activePanelIdx = to;
+  } else if (from < App.activePanelIdx && App.activePanelIdx <= to) {
+    App.activePanelIdx -= 1;
+  } else if (from > App.activePanelIdx && App.activePanelIdx >= to) {
+    App.activePanelIdx += 1;
+  }
+
+  App.dirty = true; updateSaveStatus();
+  renderDisplay(); renderLayersUI(); renderPanelNav();
+  syncCaptionInput();
 }
 
 export function deletePanel() {

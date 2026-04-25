@@ -1626,3 +1626,28 @@
     right: 8px;
   }
 }
+
+
+/* =====================================================================
+   v3.9.12 — drag-to-reorder feedback for the filmstrip thumbs
+   ===================================================================== */
+
+.panel-thumb {
+  /* signal the affordance — without breaking the existing :hover state */
+  cursor: grab;
+}
+.panel-thumb:active { cursor: grabbing; }
+
+.panel-thumb.dragging {
+  opacity: 0.45;
+  transform: scale(0.96);
+  transition: transform 0.12s, opacity 0.12s;
+}
+
+.panel-thumb.drop-target {
+  /* a left-edge accent strip — clearly says "the dropped panel will
+     land HERE, before this thumb" */
+  box-shadow:
+    -3px 0 0 0 var(--accent, #ff7a45),
+    0 0 0 2px rgba(255, 122, 69, 0.4) inset;
+}
