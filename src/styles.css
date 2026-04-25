@@ -1478,3 +1478,20 @@
   /* The hidden brush chip from v3.9.1 was already mobile-hidden — keep that.
      Statusbar stays visible at the bottom for save state + zoom %. */
 }
+
+
+/* =====================================================================
+   v3.9.7 — onion skin toggle button (active state in topbar)
+   ===================================================================== */
+
+#btnOnion.active {
+  background: var(--accent, #ff7a45);
+  color: white;
+  border-color: var(--accent, #ff7a45);
+}
+#btnOnion svg {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  fill: currentColor;
+}

@@ -80,6 +80,28 @@ export function renderDisplay() {
   if (display.width  !== p.width)  display.width  = p.width;
   if (display.height !== p.height) display.height = p.height;
   dctx.clearRect(0, 0, p.width, p.height);
+
+  // v3.9.7: onion-skin overlay. Render the previous storyboard panel's
+  // composited layers BEFORE the current panel, at low opacity. The result
+  // is a faint ghost of the prior panel sitting behind the current one —
+  // useful for continuity drawing and pose timing across panels.
+  // Only the immediate predecessor is shown; future-frame onion (next
+  // panel) can come in a later release alongside the full animation
+  // timeline that V3a's wireframe describes.
+  if (App.onionSkin && App.activePanelIdx > 0) {
+    const prevPanel = p.panels[App.activePanelIdx - 1];
+    if (prevPanel) {
+      dctx.save();
+      dctx.globalAlpha = 0.18;
+      for (const layer of prevPanel.layers) {
+        if (!layer.visible) continue;
+        dctx.globalCompositeOperation = layer.blend || 'source-over';
+        dctx.drawImage(layer.canvas, 0, 0);
+      }
+      dctx.restore();
+    }
+  }
+
   const panel = curPanel();
 
   // v3.6.3: During an in-progress stroke, we need to show the stroke buffer

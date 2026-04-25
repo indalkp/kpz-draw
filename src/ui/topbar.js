@@ -4,7 +4,7 @@
 import { App } from '../core/state.js';
 import { $, $$ } from '../utils/dom-helpers.js';
 import { undo, redo } from '../drawing/history.js';
-import { fitView, applyView } from '../drawing/view.js';
+import { fitView, applyView, renderDisplay } from '../drawing/view.js';
 import { addPanel, deletePanel } from './panel-nav.js';
 import { confirmLeaveIfDirty } from './confirm-leave.js';
 // v3.8.2: keep the mobile more-menu auth rows in sync with desktop #authBox
@@ -28,6 +28,18 @@ export function initTopbar() {
   $('btnDelPanel')?.addEventListener('click', deletePanel);
   $('btnFit')?.addEventListener('click', () => fitView());
   $('btnFullscreen')?.addEventListener('click', toggleFullscreen);
+  // v3.9.7: onion-skin toggle. Flips App.onionSkin and re-renders the
+  // display canvas immediately so the ghost appears/disappears without
+  // waiting for the next stroke or pan.
+  $('btnOnion')?.addEventListener('click', () => {
+    App.onionSkin = !App.onionSkin;
+    const btn = $('btnOnion');
+    if (btn) {
+      btn.classList.toggle('active', App.onionSkin);
+      btn.setAttribute('aria-pressed', App.onionSkin ? 'true' : 'false');
+    }
+    renderDisplay();
+  });
   $('exitFullscreen')?.addEventListener('click', toggleFullscreen);
   $('btnHelp')?.addEventListener('click', () => $('helpOverlay')?.classList.add('open'));
   $('helpClose')?.addEventListener('click', () => $('helpOverlay')?.classList.remove('open'));

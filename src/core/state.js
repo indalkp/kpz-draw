@@ -76,6 +76,12 @@ export const App = {
   // If different, another session modified the project after we loaded —
   // backend returns a stale error so we can show a "reload/overwrite" modal.
   projectLoadedAt: null,
+
+  // v3.9.7: onion skin — when true, view.js renders the previous panel as
+  // a faint ghost layer behind the current panel. UI-only flag, not
+  // serialized into .kpz (would persist across sessions if we wanted, but
+  // most users want a clean slate per session).
+  onionSkin: false,
 };
 
 // Convenience accessors
