@@ -1346,3 +1346,135 @@
     bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+
+/* =====================================================================
+   v3.9.6 — desktop-layout-everywhere (revert v3.8.0+ mobile chrome)
+   The v3.8.0 → v3.9.5 mobile chrome had recurring layout / visibility
+   regressions on iPad and narrow browsers. This release reverts the
+   mobile chrome takeover entirely: desktop topbar is always visible at
+   every viewport width; mobileTopbar / mobileDock / brushDock / mobile
+   popovers are hidden permanently. On narrow screens (<1100px), the
+   sidebars become slide-in drawers triggered by the pre-v3.8.0 floating
+   #mobileToggles buttons over the canvas — minimal, predictable, and
+   the canvas always renders.
+   ===================================================================== */
+
+/* Hide every v3.8.0+ mobile chrome element regardless of viewport. */
+#mobileTopbar,
+#mobileDock,
+#brushDock,
+#mobileToolPopover,
+#mobileColorModal,
+#mobileMoreMenu {
+  display: none !important;
+}
+
+/* Keep the desktop topbar visible at all widths. */
+#topbar {
+  display: flex !important;
+}
+
+/* Reset any v3.9.4 dock-related canvas padding. */
+#canvasArea {
+  padding-bottom: 0 !important;
+}
+
+/* Restore the pre-v3.8.0 narrow-viewport drawer behavior — sidebars slide in
+   over the canvas, triggered by the floating #mobileToggles buttons that
+   already live inside #canvasArea. */
+@media (max-width: 1100px) {
+  /* Make sure the main grid still gives canvasArea its height (kept from v3.8.1) */
+  #main {
+    grid-template-rows: 1fr;
+  }
+
+  /* Sidebars become slide-in drawers */
+  #leftPanel,
+  #rightPanel {
+    position: fixed !important;
+    top: 40px;          /* below the desktop topbar */
+    bottom: 30px;       /* above the statusbar */
+    width: min(280px, 80vw);
+    background: var(--bg, #1c1c1c);
+    z-index: 50;
+    transition: transform 0.18s ease;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    /* When closed, slide off the relevant edge */
+  }
+  #leftPanel {
+    left: 0;
+    transform: translateX(-100%);
+  }
+  #rightPanel {
+    right: 0;
+    transform: translateX(100%);
+  }
+  #leftPanel.open,
+  #rightPanel.open {
+    transform: translateX(0);
+  }
+
+  /* Show the pre-v3.8.0 floating toggle buttons over the canvas — these
+     are the clear navigation indicators for the sidebars on narrow screens. */
+  #mobileToggles {
+    display: flex !important;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    justify-content: space-between;
+    z-index: 30;
+    pointer-events: none;        /* container doesn't block canvas events */
+  }
+  #mobileToggles button {
+    pointer-events: auto;        /* but the buttons themselves do */
+    background: rgba(0, 0, 0, 0.55);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+  #mobileToggles button svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+  }
+  #mobileToggles button:hover {
+    background: rgba(0, 0, 0, 0.75);
+    border-color: var(--accent, #ff7a45);
+  }
+
+  /* Hide the desktop tool rail and resize handles — they don't fit on narrow */
+  #toolRail,
+  #resizeLeft,
+  #resizeRight {
+    display: none !important;
+  }
+
+  /* Canvas takes the full width of the viewport */
+  #canvasArea {
+    grid-column: 1 / -1;
+  }
+
+  /* Backdrop dims the canvas when a drawer is open */
+  #panelBackdrop {
+    position: fixed;
+    inset: 40px 0 30px 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 40;
+    display: none;
+  }
+  #panelBackdrop.show {
+    display: block;
+  }
+
+  /* The hidden brush chip from v3.9.1 was already mobile-hidden — keep that.
+     Statusbar stays visible at the bottom for save state + zoom %. */
+}
