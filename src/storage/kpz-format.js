@@ -41,6 +41,10 @@ export async function serializeKpz() {
       // playback silently no-ops. v3.9.18+ can either embed audio in
       // .kpz or sync via Wix file storage.
       audioId: p.audioId || null,
+      // v3.9.19: cached audio duration (seconds). Used by the playback
+      // scheduler so audio-bearing panels hold for their full clip
+      // length. Defaults to 0 = "use FPS timing" on older files.
+      audioDuration: typeof p.audioDuration === 'number' ? p.audioDuration : 0,
       layers: p.layers.map(l => ({
         id: l.id, name: l.name, visible: l.visible,
         opacity: l.opacity, blend: l.blend, locked: !!l.locked,
@@ -98,6 +102,9 @@ export async function deserializeKpz(blob) {
       // an older .kpz file. The actual audio Blob is looked up from IDB
       // by topbar.js's playback path.
       audioId: typeof pmeta.audioId === 'string' ? pmeta.audioId : null,
+      // v3.9.19: cached audio duration in seconds. Older .kpz files have no
+      // audioDuration field and default to 0 (= use FPS timing).
+      audioDuration: typeof pmeta.audioDuration === 'number' ? pmeta.audioDuration : 0,
       layers: [],
     };
     for (const lmeta of pmeta.layers) {

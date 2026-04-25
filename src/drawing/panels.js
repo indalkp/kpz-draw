@@ -38,7 +38,12 @@ export function createPanel(w, h) {
   bg.canvas.getContext('2d').fillStyle = '#ffffff';
   bg.canvas.getContext('2d').fillRect(0, 0, w, h);
   const layer = createLayer(w, h, 'Layer 1');
-  return { layers: [bg, layer], activeLayer: 1, caption: '' };
+  // v3.9.11: caption.
+  // v3.9.17: audioId reference into IDB (audio bytes don't live in the panel).
+  // v3.9.19: audioDuration cached at attach time so the playback scheduler
+  //          can hold this panel for the audio's full length without an
+  //          async re-decode every frame. Defaults to 0 (= "use FPS timing").
+  return { layers: [bg, layer], activeLayer: 1, caption: '', audioId: null, audioDuration: 0 };
 }
 
 /** Returns the currently active panel. */

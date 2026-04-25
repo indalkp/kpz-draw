@@ -5,6 +5,9 @@ import { App } from '../core/state.js';
 import { $, $$ } from '../utils/dom-helpers.js';
 import { createProject } from '../drawing/panels.js';
 import { renderDisplay, fitView, drawCaptionSubtitle } from '../drawing/view.js';
+// v3.9.19: shared scheduling helper so playback + export agree on per-panel
+// hold duration (audio length wins, with 1/fps as the floor).
+import { computePanelHoldMs } from './topbar.js';
 import { renderLayersUI } from './layers-panel.js';
 import { renderPanelNav } from './panel-nav.js';
 import { renderRefs } from './references.js';
@@ -154,8 +157,16 @@ async function exportAnimaticWebm() {
   const fps = App.playFps || 2;
   const w = App.project.width;
   const h = App.project.height;
-  const panelMs = Math.round(1000 / fps);
   const panels = App.project.panels;
+
+  // v3.9.19: each panel has its own hold duration. Audio panels hold for
+  // the full clip length, silent panels hold for 1/fps. Pre-compute each
+  // panel's hold ms (and a running offset) so audio scheduling and the
+  // paint loop stay in lockstep.
+  const panelHoldMs = panels.map(p => computePanelHoldMs(p));
+  const panelOffsetMs = [];
+  let acc = 0;
+  for (const ms of panelHoldMs) { panelOffsetMs.push(acc); acc += ms; }
 
   // Offscreen render canvas - sized to the project, used as the recorder source
   const exportCanvas = document.createElement('canvas');
@@ -164,13 +175,10 @@ async function exportAnimaticWebm() {
   const exportCtx = exportCanvas.getContext('2d');
 
   // -------------------------------------------------------------------------
-  // v3.9.18: per-panel voice-over audio in the recorded video. If ANY panel
-  // has an audioId, build an AudioContext + MediaStreamDestination, decode
-  // every audio Blob ahead of time, then schedule each one at its panel's
-  // exact position via audioCtx.currentTime. The destination's stream tracks
-  // get merged with the canvas video tracks into one MediaStream that the
-  // recorder captures end-to-end. If no panel has audio, the export takes
-  // the v3.9.13 silent path with no Web Audio overhead.
+  // v3.9.18: per-panel voice-over audio in the recorded video.
+  // v3.9.19: each clip is scheduled at its panel's exact start offset
+  //          (panelOffsetMs) so the audio + visual stay aligned even when
+  //          panels have variable durations.
   // -------------------------------------------------------------------------
   const anyAudio = panels.some(p => p.audioId);
   let audioCtx = null;
@@ -217,7 +225,7 @@ async function exportAnimaticWebm() {
   }
 
   // Build the combined media stream - canvas video + (optional) audio
-  const videoStream = exportCanvas.captureStream();    // automatic frame timing
+  const videoStream = exportCanvas.captureStream();
   const tracks = [...videoStream.getVideoTracks()];
   if (audioDest) tracks.push(...audioDest.stream.getAudioTracks());
   const stream = new MediaStream(tracks);
@@ -235,13 +243,14 @@ async function exportAnimaticWebm() {
   recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
 
   const audioNote = audioBuffers ? ' with audio' : '';
-  toast(`Exporting ${panels.length} panels at ${fps} fps${audioNote}...`, 'info');
+  const totalSec = (acc / 1000).toFixed(1);
+  toast(`Exporting ${panels.length} panels (${totalSec}s${audioNote})...`, 'info');
 
   // Paint the FIRST panel before starting the recorder so the very first
   // frame doesn't capture a blank canvas.
   paintPanelForExport(exportCtx, panels[0], w, h);
 
-  // v3.9.18: schedule audio sources at exact times relative to recorder start.
+  // v3.9.18 / v3.9.19: schedule audio sources at exact panel start offsets.
   const audioLeadMs = audioCtx ? 50 : 0;
   if (audioCtx) {
     if (audioCtx.state === 'suspended') {
@@ -254,8 +263,8 @@ async function exportAnimaticWebm() {
       const src = audioCtx.createBufferSource();
       src.buffer = buf;
       src.connect(audioDest);
-      const startAt = baseTime + (i * panelMs / 1000);
-      const stopAt  = startAt + (panelMs / 1000);
+      const startAt = baseTime + (panelOffsetMs[i] / 1000);
+      const stopAt  = startAt + (panelHoldMs[i] / 1000);
       src.start(startAt);
       try { src.stop(stopAt); } catch (_) { /* already stopped */ }
     }
@@ -263,13 +272,16 @@ async function exportAnimaticWebm() {
 
   recorder.start();
   if (audioLeadMs) await sleep(audioLeadMs);
-  await sleep(panelMs);
+  // Hold the first panel for ITS duration, not a uniform 1/fps.
+  await sleep(panelHoldMs[0]);
 
+  // Cycle through remaining panels with each one's own hold duration.
   for (let i = 1; i < panels.length; i++) {
     paintPanelForExport(exportCtx, panels[i], w, h);
-    await sleep(panelMs);
+    await sleep(panelHoldMs[i]);
   }
 
+  // Small tail so the encoder flushes the last frame's data
   await sleep(120);
   recorder.stop();
 

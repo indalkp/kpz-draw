@@ -290,7 +290,11 @@ export function cycleOnionMode() {
 // extension; for now playback is purely visual panel cycling.
 // ===========================================================================
 
-let _playInterval = null;
+// v3.9.10: setInterval-based playback at fixed FPS.
+// v3.9.19: replaced with a recursive setTimeout scheduler so each panel
+// can hold for its own duration — short panels at 1/fps, long-audio panels
+// for their audio's full duration. _playTimeout holds the pending advance.
+let _playTimeout = null;
 
 /**
  * Toggle playback. Exported so events.js can wire 'P' to the same handler
@@ -339,17 +343,45 @@ export function stopPlayback() {
 }
 
 function startPlaybackInterval() {
+  // v3.9.19: schedule the first advance after the CURRENT panel's duration.
+  // Subsequent advances are scheduled inside advancePlaybackPanel itself.
   stopPlaybackInterval();
-  const fps = Math.max(1, Math.min(12, App.playFps || 2));
-  const ms = Math.round(1000 / fps);
-  _playInterval = setInterval(advancePlaybackPanel, ms);
+  scheduleNextAdvance();
 }
 
 function stopPlaybackInterval() {
-  if (_playInterval !== null) {
-    clearInterval(_playInterval);
-    _playInterval = null;
+  if (_playTimeout !== null) {
+    clearTimeout(_playTimeout);
+    _playTimeout = null;
   }
+}
+
+/**
+ * v3.9.19: hold the current panel for its computed duration, then advance.
+ * Computed duration = max(audioDuration, 1/fps). If the panel has audio,
+ * it runs to completion; otherwise the FPS rate decides timing.
+ */
+function scheduleNextAdvance() {
+  if (!App.playing) return;
+  const panel = App.project?.panels?.[App.activePanelIdx];
+  const ms = computePanelHoldMs(panel);
+  _playTimeout = setTimeout(() => {
+    advancePlaybackPanel();
+    if (App.playing) scheduleNextAdvance();
+  }, ms);
+}
+
+/**
+ * v3.9.19: how long this panel should be held visible during playback,
+ * in milliseconds. Audio length wins when present (so dialogue isn't cut),
+ * 1/fps is the floor so panels never flash by faster than the user's
+ * chosen FPS.
+ */
+export function computePanelHoldMs(panel) {
+  const fps = Math.max(1, Math.min(12, App.playFps || 2));
+  const fpsMs = Math.round(1000 / fps);
+  const audioMs = panel && panel.audioDuration > 0 ? Math.round(panel.audioDuration * 1000) : 0;
+  return Math.max(fpsMs, audioMs);
 }
 
 function advancePlaybackPanel() {

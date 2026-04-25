@@ -70,6 +70,7 @@ function onAudioBtnClick() {
     if (!confirm('Remove the voice-over from this panel?')) return;
     const oldId = panel.audioId;
     panel.audioId = null;
+    panel.audioDuration = 0;     // v3.9.19: clear cached duration too
     deletePanelAudio(oldId);
     syncCaptionInput();
     App.dirty = true; updateSaveStatus();
@@ -113,13 +114,54 @@ async function onAudioFileChosen(e) {
     await deletePanelAudio(panel.audioId);
   }
 
+  // v3.9.19: probe duration via an Audio element + loadedmetadata so the
+  // playback scheduler can hold this panel for the full clip length.
+  // Fallback to 0 = "use FPS timing" if probing fails for any reason.
+  let durationSec = 0;
+  try {
+    durationSec = await probeAudioDuration(file);
+  } catch (err) {
+    console.warn('audio duration probe failed:', err);
+  }
+
   const audioId = newAudioId();
   await setPanelAudio(audioId, file);
   panel.audioId = audioId;
+  panel.audioDuration = durationSec;
 
   syncCaptionInput();
   App.dirty = true; updateSaveStatus();
-  toast(`Voice-over attached (${(file.size / 1024).toFixed(0)} KB)`, 'ok');
+  const durNote = durationSec > 0 ? `, ${durationSec.toFixed(1)}s` : '';
+  toast(`Voice-over attached (${(file.size / 1024).toFixed(0)} KB${durNote})`, 'ok');
+}
+
+/**
+ * v3.9.19: read the audio file's duration without decoding the whole thing
+ * in the main thread. Resolves with the duration in seconds (0 if unknown).
+ * Uses an Audio element + 'loadedmetadata' event because that's universally
+ * supported and metadata loads cheaply (no full decode needed).
+ */
+function probeAudioDuration(blob) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio();
+    let done = false;
+    const finish = (val) => {
+      if (done) return;
+      done = true;
+      try { URL.revokeObjectURL(url); } catch (_) { /* noop */ }
+      resolve(val);
+    };
+    audio.preload = 'metadata';
+    audio.addEventListener('loadedmetadata', () => {
+      const d = audio.duration;
+      finish(Number.isFinite(d) && d > 0 ? d : 0);
+    });
+    audio.addEventListener('error', () => finish(0));
+    // Hard timeout — some browsers stall on certain formats
+    setTimeout(() => finish(0), 4000);
+    audio.src = url;
+  });
 }
 
 export function renderPanelNav() {
