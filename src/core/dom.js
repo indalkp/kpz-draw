@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.24</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.25</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -253,6 +253,16 @@ export function buildAppDom(root) {
         </button>
         <input type="file" id="captionAudioFileInput" accept="audio/*" hidden
                aria-label="Audio file picker">
+        <!--
+          v3.9.25: manual per-panel duration override. Hold the panel for
+          at least N seconds during playback / export. 0 = auto (use audio
+          length if present, else 1/fps). Useful for silent dramatic pauses.
+        -->
+        <label class="cs-duration" title="Hold panel for at least N seconds (0 = auto)">
+          <input id="captionDurationInput" type="number" min="0" max="60" step="0.1"
+                 value="0" aria-label="Panel hold duration in seconds">
+          <span class="cs-duration-unit">s</span>
+        </label>
       </div>
       <div id="panelNav"></div>
       <div id="mobileToggles">

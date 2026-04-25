@@ -49,6 +49,9 @@ export async function serializeKpz() {
       // scheduler so audio-bearing panels hold for their full clip
       // length. Defaults to 0 = "use FPS timing" on older files.
       audioDuration: typeof p.audioDuration === 'number' ? p.audioDuration : 0,
+      // v3.9.25: optional manual hold duration (seconds). Older .kpz files
+      // have no duration field; defaults to 0 (= "auto") on load.
+      duration: typeof p.duration === 'number' ? p.duration : 0,
       layers: p.layers.map(l => ({
         id: l.id, name: l.name, visible: l.visible,
         opacity: l.opacity, blend: l.blend, locked: !!l.locked,
@@ -155,6 +158,8 @@ export async function deserializeKpz(blob) {
       // v3.9.19: cached audio duration in seconds. Older .kpz files have no
       // audioDuration field and default to 0 (= use FPS timing).
       audioDuration: typeof pmeta.audioDuration === 'number' ? pmeta.audioDuration : 0,
+      // v3.9.25: manual duration override. Older files default to 0 (auto).
+      duration: typeof pmeta.duration === 'number' ? pmeta.duration : 0,
       layers: [],
     };
     for (const lmeta of pmeta.layers) {

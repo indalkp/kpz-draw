@@ -43,7 +43,11 @@ export function createPanel(w, h) {
   // v3.9.19: audioDuration cached at attach time so the playback scheduler
   //          can hold this panel for the audio's full length without an
   //          async re-decode every frame. Defaults to 0 (= "use FPS timing").
-  return { layers: [bg, layer], activeLayer: 1, caption: '', audioId: null, audioDuration: 0 };
+  // v3.9.25: optional manual duration override in seconds. When > 0, holds the
+  // panel for at least this long during playback / export — useful for dramatic
+  // pauses on silent panels without bumping global FPS. 0 = "auto" (use audio
+  // length if present, else 1/fps).
+  return { layers: [bg, layer], activeLayer: 1, caption: '', audioId: null, audioDuration: 0, duration: 0 };
 }
 
 /** Returns the currently active panel. */

@@ -36,6 +36,18 @@ export function initPanelNav() {
   $('captionAudioFileInput')?.addEventListener('change', onAudioFileChosen);
   // v3.9.20: in-browser recording button.
   $('captionRecordBtn')?.addEventListener('click', onRecordBtnClick);
+  // v3.9.25: manual per-panel duration override input. Live-binds on input
+  // (every keystroke / arrow click) since the field is small and changes
+  // are cheap — playback timing recomputes on next advance via
+  // computePanelHoldMs(panel), no separate render needed.
+  $('captionDurationInput')?.addEventListener('input', e => {
+    if (!App.project) return;
+    const panel = App.project.panels[App.activePanelIdx];
+    if (!panel) return;
+    const v = parseFloat(e.target.value);
+    panel.duration = (Number.isFinite(v) && v > 0) ? v : 0;
+    App.dirty = true; updateSaveStatus();
+  });
   // Escape cancels an in-progress recording without saving.
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isRecording()) {
@@ -93,6 +105,12 @@ export function syncCaptionInput() {
     audioBtn.title = hasAudio
       ? 'Voice-over attached — click to remove'
       : 'Attach voice-over audio for this panel';
+  }
+  // v3.9.25: sync the manual duration input. Skip when the user is editing
+  // the field (active focus) to avoid clobbering their in-progress typing.
+  const durInput = $('captionDurationInput');
+  if (durInput && document.activeElement !== durInput) {
+    durInput.value = (panel?.duration && panel.duration > 0) ? panel.duration : 0;
   }
 }
 

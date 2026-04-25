@@ -376,12 +376,21 @@ function scheduleNextAdvance() {
  * in milliseconds. Audio length wins when present (so dialogue isn't cut),
  * 1/fps is the floor so panels never flash by faster than the user's
  * chosen FPS.
+ *
+ * v3.9.25: also factors in the panel's manual duration override
+ * (panel.duration in seconds). If set and > 0, the panel holds for at
+ * least that long — useful for dramatic pauses on silent panels.
+ * Three sources, max() wins:
+ *   - 1/fps                     (the floor)
+ *   - panel.audioDuration       (so audio plays in full)
+ *   - panel.duration            (manual override)
  */
 export function computePanelHoldMs(panel) {
   const fps = Math.max(1, Math.min(12, App.playFps || 2));
   const fpsMs = Math.round(1000 / fps);
   const audioMs = panel && panel.audioDuration > 0 ? Math.round(panel.audioDuration * 1000) : 0;
-  return Math.max(fpsMs, audioMs);
+  const manualMs = panel && panel.duration > 0 ? Math.round(panel.duration * 1000) : 0;
+  return Math.max(fpsMs, audioMs, manualMs);
 }
 
 function advancePlaybackPanel() {

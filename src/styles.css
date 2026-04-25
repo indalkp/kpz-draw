@@ -1761,3 +1761,48 @@ body.animatic-playing #captionStrip {
   border-radius: 50%;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
+
+
+/* =====================================================================
+   v3.9.25 — manual per-panel duration override input. Tiny number input
+   in the caption strip, sized to barely fit "60.0" + the "s" unit.
+   ===================================================================== */
+
+.cs-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  user-select: none;
+}
+.cs-duration input[type="number"] {
+  width: 38px;
+  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+  font: inherit;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.cs-duration input[type="number"]:focus {
+  outline: none;
+  border-color: var(--accent, #ff7a45);
+  background: rgba(255, 255, 255, 0.14);
+}
+.cs-duration input[type="number"]::-webkit-inner-spin-button,
+.cs-duration input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cs-duration input[type="number"] {
+  -moz-appearance: textfield;
+}
+.cs-duration-unit {
+  font-size: 10px;
+  opacity: 0.6;
+}
