@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.0</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.1</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -23,6 +23,19 @@ export function buildAppDom(root) {
       </button>
       <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">
         <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+      </button>
+    </div>
+    <!--
+      v3.9.1: brush chip in the desktop topbar. Anchored popover (defined at
+      the bottom of #app) opens below this chip on click. The right-panel
+      Brush tab is preserved as-is — popover and tab are two views of the
+      same App.brush state, both updated by updateBrushUI().
+    -->
+    <div class="tb-group" id="brushChipGroup">
+      <button class="btn brush-chip" id="brushChip" title="Brush settings (Ctrl+B)">
+        <span class="brush-chip-swatch" id="brushChipSwatch" style="background:#1a1a1a"></span>
+        <span class="brush-chip-size" id="brushChipSize">8px</span>
+        <span class="brush-chip-gear">⚙</span>
       </button>
     </div>
     <div class="tb-group">
@@ -325,6 +338,72 @@ export function buildAppDom(root) {
     <button class="mtp-item-row" data-action="fit">Fit to screen</button>
     <button class="mtp-item-row" data-action="fullscreen">Immersive mode</button>
     <button class="mtp-item-row" data-action="help">Keyboard shortcuts</button>
+  </div>
+
+  <!--
+    v3.9.1: anchored brush popover. Opens from #brushChip in the topbar.
+    Caret SVG points back to the chip — visually clearly its child. Same
+    sliders as the right-panel Brush tab but two-way bound through
+    updateBrushUI(); both surfaces stay in sync.
+    Tabs inside: Brush (size/opacity/hardness/smoothing + colors) and
+    Pressure (presSize/presOp). Presets is a v3.9.x stretch.
+  -->
+  <div id="brushPopover" class="bp-pop" aria-hidden="true">
+    <svg class="bp-caret" viewBox="0 0 18 10" aria-hidden="true">
+      <polygon points="9,0 18,10 0,10"/>
+    </svg>
+    <div class="bp-head">
+      <span class="bp-title">🖌 Brush</span>
+      <button class="bp-close" id="bpClose" aria-label="Close" title="Close">✕</button>
+    </div>
+    <div class="bp-tabs" role="tablist">
+      <button class="bp-tab active" data-bp-tab="brush" role="tab">Brush</button>
+      <button class="bp-tab"        data-bp-tab="pressure" role="tab">Pressure</button>
+    </div>
+    <!-- Brush tab content -->
+    <div class="bp-tab-pane active" data-bp-pane="brush">
+      <div class="bp-stroke-preview" id="bpStrokePreview" aria-hidden="true">
+        <svg viewBox="0 0 240 38" preserveAspectRatio="none">
+          <path id="bpStrokePath" d="M10 26 Q 60 6 120 20 T 230 14" fill="none"
+                stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="bp-color-row">
+        <input type="color" id="bpColorPicker" value="#1a1a1a" title="Pick color">
+        <div class="bp-swatches" id="bpSwatches"></div>
+      </div>
+      <div class="bp-prop">
+        <label>Size <span class="bp-val" id="bpSizeVal">8 px</span></label>
+        <input type="range" id="bpSize" min="1" max="200" value="8">
+      </div>
+      <div class="bp-prop">
+        <label>Opacity <span class="bp-val" id="bpOpacityVal">100%</span></label>
+        <input type="range" id="bpOpacity" min="1" max="100" value="100">
+      </div>
+      <div class="bp-prop">
+        <label>Hardness <span class="bp-val" id="bpHardnessVal">80%</span></label>
+        <input type="range" id="bpHardness" min="0" max="100" value="80">
+      </div>
+      <div class="bp-prop">
+        <label>Smoothing <span class="bp-val" id="bpSmoothingVal">40%</span></label>
+        <input type="range" id="bpSmoothing" min="0" max="100" value="40">
+      </div>
+    </div>
+    <!-- Pressure tab content -->
+    <div class="bp-tab-pane" data-bp-pane="pressure">
+      <div class="bp-prop">
+        <label>Pressure → Size <span class="bp-val" id="bpPresSizeVal">100%</span></label>
+        <input type="range" id="bpPresSize" min="0" max="100" value="100">
+      </div>
+      <div class="bp-prop">
+        <label>Pressure → Opacity <span class="bp-val" id="bpPresOpVal">0%</span></label>
+        <input type="range" id="bpPresOp" min="0" max="100" value="0">
+      </div>
+      <p class="bp-hint">
+        Pressure response only applies on stylus / pen input —
+        mouse and touch use fixed brush settings.
+      </p>
+    </div>
   </div>
 </div>
 

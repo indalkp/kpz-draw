@@ -950,3 +950,226 @@
   .cc-tile { aspect-ratio: 1 / 1; }
   .cc-attach-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+
+/* =====================================================================
+   v3.9.1 — Anchored brush popover + topbar brush chip
+   ===================================================================== */
+
+/* Brush chip in the desktop topbar */
+.brush-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 14px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--ink, #1f1d1b);
+  transition: background 0.12s, border-color 0.12s;
+}
+.brush-chip:hover { background: rgba(255, 255, 255, 0.9); border-color: var(--accent, #ff7a45); }
+.brush-chip-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+}
+.brush-chip-size {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  min-width: 28px;
+  text-align: center;
+}
+.brush-chip-gear {
+  font-size: 11px;
+  color: var(--ink-soft, #4a4540);
+  opacity: 0.7;
+}
+.brush-chip:hover .brush-chip-gear { opacity: 1; }
+
+/* Popover panel */
+.bp-pop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  background: #fdfcf9;
+  border: 1.5px solid #1f1d1b;
+  border-radius: 10px;
+  box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.18);
+  z-index: 200;
+  display: none;
+  font-size: 12px;
+}
+.bp-pop.open { display: block; }
+
+/* Caret pointing back at the chip */
+.bp-caret {
+  position: absolute;
+  top: -10px;
+  left: 18px;
+  width: 18px;
+  height: 10px;
+  overflow: visible;
+}
+.bp-caret polygon {
+  fill: #fdfcf9;
+  stroke: #1f1d1b;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+/* Mask the line where the caret meets the popover top border */
+.bp-pop::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 19px;
+  width: 16px;
+  height: 2px;
+  background: #fdfcf9;
+}
+
+/* Header */
+.bp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 9px 9px 0 0;
+}
+.bp-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #1f1d1b;
+}
+.bp-close {
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  color: var(--ink-soft, #4a4540);
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+.bp-close:hover { background: rgba(0, 0, 0, 0.06); color: #1f1d1b; }
+
+/* Tabs */
+.bp-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+.bp-tab {
+  flex: 1;
+  padding: 7px 0;
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--ink-soft, #4a4540);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.bp-tab.active {
+  color: var(--accent, #ff7a45);
+  border-bottom-color: var(--accent, #ff7a45);
+  font-weight: 600;
+}
+.bp-tab:hover { color: #1f1d1b; }
+
+/* Tab panes */
+.bp-tab-pane {
+  display: none;
+  padding: 10px 12px;
+  flex-direction: column;
+  gap: 10px;
+}
+.bp-tab-pane.active {
+  display: flex;
+}
+
+/* Live stroke preview */
+.bp-stroke-preview {
+  height: 38px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.bp-stroke-preview svg { width: 100%; height: 100%; display: block; }
+
+/* Color row (picker + swatch grid) */
+.bp-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bp-color-row input[type="color"] {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+}
+.bp-swatches {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+}
+.bp-swatch {
+  aspect-ratio: 1 / 1;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.bp-swatch:hover { transform: scale(1.15); border-color: var(--accent, #ff7a45); }
+
+/* Slider rows */
+.bp-prop {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bp-prop label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-soft, #4a4540);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.bp-val {
+  font-variant-numeric: tabular-nums;
+  color: #1f1d1b;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.bp-prop input[type="range"] {
+  width: 100%;
+  height: 6px;
+}
+
+.bp-hint {
+  font-size: 11px;
+  color: var(--ink-soft, #4a4540);
+  margin: 4px 0 0;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* Mobile — desktop topbar (and its chip) is hidden below 1100px, mobile
+   has its own brush dock + color modal. Hide the popover too just in case. */
+@media (max-width: 1100px) {
+  #brushChipGroup,
+  #brushPopover { display: none !important; }
+}
