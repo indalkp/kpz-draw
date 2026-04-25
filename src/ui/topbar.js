@@ -95,22 +95,65 @@ export function initTopbar() {
   });
 }
 
+/**
+ * v3.9.2: drives the desktop statusbar save chip (#saveStatus) AND the
+ * mobile topbar mini chip (#mtbSaveStatus). State machine:
+ *
+ *   App.saving === true
+ *     -> orange "Saving…" with a pulsing cloud icon
+ *
+ *   App.dirty === true
+ *     -> orange "Unsaved" with a hollow-cloud icon
+ *
+ *   App.dirty === false && App.currentProjectId
+ *     -> green "Saved" (cloud-bound, last save round-tripped to Wix)
+ *
+ *   App.dirty === false && !App.currentProjectId
+ *     -> grey "Local only" — no cloud project yet, .kpz autosave is the
+ *        only safety net. Hint to log in / save.
+ *
+ * Both chips share the same state classes (.ss-saved/.ss-saving/.ss-dirty/
+ * .ss-offline) so a single CSS rule set styles both.
+ */
+const SS_STATES = ['ss-saved', 'ss-saving', 'ss-dirty', 'ss-offline'];
+function _applySaveChip(el, stateClass, icon, label, title) {
+  if (!el) return;
+  el.classList.remove(...SS_STATES);
+  el.classList.add(stateClass);
+  el.title = title;
+  // Inner spans are guaranteed by buildAppDom — safe to query on every call.
+  const iconEl  = el.querySelector('.ss-icon');
+  const labelEl = el.querySelector('.ss-label');
+  if (iconEl)  iconEl.textContent = icon;
+  if (labelEl) labelEl.textContent = label;
+}
+
 export function updateSaveStatus() {
-  const s = $('saveStatus');
-  if (!s) return;
-  s.classList.remove('saving');
+  let stateClass, icon, label, title;
   if (App.saving) {
-    s.textContent = '● Saving…';
-    s.classList.add('saving');
-    return;
-  }
-  if (App.dirty) {
-    s.textContent = '● Unsaved';
-    s.classList.add('dirty');
+    stateClass = 'ss-saving';
+    icon = '☁';
+    label = 'Saving…';
+    title = 'Saving to your account';
+  } else if (App.dirty) {
+    stateClass = 'ss-dirty';
+    icon = '☁';
+    label = 'Unsaved';
+    title = 'You have unsaved changes';
+  } else if (App.currentProjectId) {
+    stateClass = 'ss-saved';
+    icon = '☁︎';
+    label = 'Saved';
+    title = 'Saved to your account';
   } else {
-    s.textContent = '● Saved';
-    s.classList.remove('dirty');
+    stateClass = 'ss-offline';
+    icon = '⚠';
+    label = 'Local only';
+    title = 'This project is not in the cloud yet — Save to keep it';
   }
+  _applySaveChip($('saveStatus'),    stateClass, icon, label, title);
+  // Mobile chip — same state, no label (icon-only), tooltip carries the message
+  _applySaveChip($('mtbSaveStatus'), stateClass, icon, '',    title);
 }
 
 export function updateAuthUI() {

@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.1</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.2</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -78,6 +78,10 @@ export function buildAppDom(root) {
     </button>
     <div class="mtb-spacer"></div>
     <span class="mtb-project" id="mtbProjectName">Untitled</span>
+    <!-- v3.9.2: compact save chip mirrors the desktop one — same state classes -->
+    <span id="mtbSaveStatus" class="save-chip save-chip-mini ss-saved" title="Save status" aria-hidden="false">
+      <span class="ss-icon" aria-hidden="true">☁</span>
+    </span>
     <div class="mtb-spacer"></div>
     <button id="mtbRefs" class="mtb-btn" aria-label="References" title="References">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -268,8 +272,18 @@ export function buildAppDom(root) {
   </div>
 
   <!-- ===== STATUS BAR ===== -->
+  <!--
+    v3.9.2: #saveStatus is now a cloud-chip span. State classes set the
+    background and icon: .ss-saved (green) / .ss-saving (orange + pulse) /
+    .ss-dirty (orange) / .ss-offline (grey). updateSaveStatus() in
+    topbar.js mutates the inner spans + class. Click cycles through a
+    short status history dropdown (v3.9.x stretch); plain hover for now.
+  -->
   <div id="statusbar">
-    <span id="saveStatus">● Saved</span>
+    <span id="saveStatus" class="save-chip ss-saved" title="Save status">
+      <span class="ss-icon" aria-hidden="true">☁</span>
+      <span class="ss-label">Saved</span>
+    </span>
     <div class="sep"></div>
     <span id="canvasInfo">1280 × 720</span>
     <div class="sep"></div>
