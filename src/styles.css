@@ -1664,3 +1664,43 @@
 body.animatic-playing #captionStrip {
   display: none;
 }
+
+
+/* =====================================================================
+   v3.9.17 — caption-strip audio attach button
+   ===================================================================== */
+
+.cs-audio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  margin-left: 6px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.cs-audio-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.cs-audio-btn svg { display: block; }
+
+/* When this panel has an audio clip attached — accent color, solid fill */
+.cs-audio-btn.has-audio {
+  background: var(--accent, #ff7a45);
+  color: #fff;
+  border-color: var(--accent, #ff7a45);
+}
+.cs-audio-btn.has-audio:hover {
+  background: #e06535;
+  border-color: #e06535;
+}

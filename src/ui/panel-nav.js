@@ -1,5 +1,7 @@
 // src/ui/panel-nav.js
 // v3.5.2: redesigned + button (filled circle, not dashed), better thumb spacing.
+// v3.9.17: caption strip now also wires the audio attach/remove button so
+// each panel can carry a voice-over clip that plays during animatic playback.
 import { App } from '../core/state.js';
 import { $ } from '../utils/dom-helpers.js';
 import { createPanel } from '../drawing/panels.js';
@@ -7,6 +9,7 @@ import { renderDisplay } from '../drawing/view.js';
 import { renderLayersUI } from './layers-panel.js';
 import { updateSaveStatus } from './topbar.js';
 import { toast } from './toast.js';
+import { newAudioId, setPanelAudio, deletePanelAudio } from '../storage/panel-audio.js';
 
 export function initPanelNav() {
   // v3.9.11: caption input wiring. The input lives in #canvasArea above
@@ -26,21 +29,97 @@ export function initPanelNav() {
     // too in case any other code path leaves the input out of sync.
     syncCaptionInput();
   }
+
+  // v3.9.17: audio button + file picker for per-panel voice-over.
+  $('captionAudioBtn')?.addEventListener('click', onAudioBtnClick);
+  $('captionAudioFileInput')?.addEventListener('change', onAudioFileChosen);
 }
 
 /**
  * v3.9.11: copy the active panel's caption into the input. Called from
  * switchPanel + playback advance + after load so the strip always reflects
  * the visible panel without us listening to every state mutation.
+ *
+ * v3.9.17: also sync the audio button's visual state — `has-audio` class
+ * when this panel has an audioId, so users can tell at a glance whether
+ * a voice-over is attached.
  */
 export function syncCaptionInput() {
-  const input = $('captionInput');
-  if (!input) return;
   const panel = App.project?.panels?.[App.activePanelIdx];
-  // Don't clobber the user's in-progress edit if they're focused on the
-  // input — they're typing right now, the visible value is theirs.
-  if (document.activeElement === input) return;
-  input.value = panel?.caption || '';
+  const input = $('captionInput');
+  if (input && document.activeElement !== input) {
+    input.value = panel?.caption || '';
+  }
+  const audioBtn = $('captionAudioBtn');
+  if (audioBtn) {
+    const hasAudio = !!panel?.audioId;
+    audioBtn.classList.toggle('has-audio', hasAudio);
+    audioBtn.title = hasAudio
+      ? 'Voice-over attached — click to remove'
+      : 'Attach voice-over audio for this panel';
+  }
+}
+
+// v3.9.17: audio button click handler. Two states:
+//   - No audio attached → trigger the hidden file picker
+//   - Audio attached    → confirm + remove from IDB and the panel
+function onAudioBtnClick() {
+  const panel = App.project?.panels?.[App.activePanelIdx];
+  if (!panel) return;
+  if (panel.audioId) {
+    if (!confirm('Remove the voice-over from this panel?')) return;
+    const oldId = panel.audioId;
+    panel.audioId = null;
+    deletePanelAudio(oldId);
+    syncCaptionInput();
+    App.dirty = true; updateSaveStatus();
+    toast('Voice-over removed', 'ok');
+  } else {
+    // Reset value so the same file can be re-picked after a remove + re-add
+    const fi = $('captionAudioFileInput');
+    if (fi) fi.value = '';
+    fi?.click();
+  }
+}
+
+// v3.9.17: file picker change handler. Reads the chosen audio file as a
+// Blob and stores it in IDB under a fresh audioId. The panel keeps only
+// the audioId (small string), so .kpz round-trips cleanly without the
+// audio bytes inflating the project file.
+async function onAudioFileChosen(e) {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = ''; // reset for next pick
+  if (!file) return;
+  if (!App.project) return;
+  const panel = App.project.panels[App.activePanelIdx];
+  if (!panel) return;
+
+  // Hard cap on size to avoid bloating IDB. 25MB covers a few minutes
+  // of voice-over at reasonable quality. Anything larger is probably
+  // accidentally-picked music or a phone recording.
+  const MAX_BYTES = 25 * 1024 * 1024;
+  if (file.size > MAX_BYTES) {
+    toast(`Audio too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max 25 MB.`, 'error');
+    return;
+  }
+  // Type sanity check — accept anything that decodes as audio
+  if (file.type && !file.type.startsWith('audio/')) {
+    toast('That file does not look like audio (' + (file.type || 'unknown') + ').', 'error');
+    return;
+  }
+
+  // If panel already had audio, free the old IDB entry so we don't leak.
+  if (panel.audioId) {
+    await deletePanelAudio(panel.audioId);
+  }
+
+  const audioId = newAudioId();
+  await setPanelAudio(audioId, file);
+  panel.audioId = audioId;
+
+  syncCaptionInput();
+  App.dirty = true; updateSaveStatus();
+  toast(`Voice-over attached (${(file.size / 1024).toFixed(0)} KB)`, 'ok');
 }
 
 export function renderPanelNav() {

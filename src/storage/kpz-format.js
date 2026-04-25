@@ -32,6 +32,15 @@ export async function serializeKpz() {
       // empty string if absent (see below), so backward compatibility
       // is preserved.
       caption: p.caption || '',
+      // v3.9.17: persist audioId reference. The audio bytes themselves
+      // live in IndexedDB (storage/panel-audio.js), keyed by this id —
+      // the .kpz only carries the reference so projects round-trip
+      // small. Older .kpz files have no audioId; defaults to null on
+      // load. NOTE: opening a .kpz on a different device WON'T have
+      // the audio in IDB, so the audio button shows attached but
+      // playback silently no-ops. v3.9.18+ can either embed audio in
+      // .kpz or sync via Wix file storage.
+      audioId: p.audioId || null,
       layers: p.layers.map(l => ({
         id: l.id, name: l.name, visible: l.visible,
         opacity: l.opacity, blend: l.blend, locked: !!l.locked,
@@ -85,6 +94,10 @@ export async function deserializeKpz(blob) {
     const panel = {
       activeLayer: pmeta.activeLayer || 0,
       caption: typeof pmeta.caption === 'string' ? pmeta.caption : '',
+      // v3.9.17: audioId is optional. null when absent or when loading
+      // an older .kpz file. The actual audio Blob is looked up from IDB
+      // by topbar.js's playback path.
+      audioId: typeof pmeta.audioId === 'string' ? pmeta.audioId : null,
       layers: [],
     };
     for (const lmeta of pmeta.layers) {

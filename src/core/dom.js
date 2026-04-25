@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.16</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.17</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -226,6 +226,23 @@ export function buildAppDom(root) {
         <input id="captionInput" type="text" maxlength="240"
                placeholder="Add a caption / line of dialogue for this panel…"
                aria-label="Panel caption">
+        <!--
+          v3.9.17: per-panel voice-over. The button toggles between
+          "no audio" (mic icon) and "audio attached" (speaker icon).
+          Click with no audio → opens the hidden file picker. Click
+          when audio exists → confirms + removes. Audio plays during
+          animatic playback (topbar.js handles the lifecycle).
+        -->
+        <button id="captionAudioBtn" class="cs-audio-btn" type="button"
+                title="Attach voice-over audio for this panel"
+                aria-label="Attach voice-over audio">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <path fill="currentColor"
+                  d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
+          </svg>
+        </button>
+        <input type="file" id="captionAudioFileInput" accept="audio/*" hidden
+               aria-label="Audio file picker">
       </div>
       <div id="panelNav"></div>
       <div id="mobileToggles">

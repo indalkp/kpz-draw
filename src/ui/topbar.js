@@ -317,6 +317,9 @@ export function startPlayback() {
   // future "playback mode" affordances a hook to react to.
   document.body.classList.add('animatic-playing');
   syncPlayButton();
+  // v3.9.17: kick off the FIRST panel's audio immediately. Subsequent
+  // panels are handled by advancePlaybackPanel.
+  playCurrentPanelAudio(App.activePanelIdx);
   startPlaybackInterval();
 }
 
@@ -325,6 +328,9 @@ export function stopPlayback() {
   App.playing = false;
   document.body.classList.remove('animatic-playing');
   stopPlaybackInterval();
+  // v3.9.17: stop any in-flight audio before we re-render so the visual
+  // and the audio cut out together.
+  stopPanelAudio();
   syncPlayButton();
   // v3.9.14: re-render once on stop so the burned-in caption disappears
   // immediately (renderDisplay only burns when App.playing is true; the
@@ -366,6 +372,62 @@ function advancePlaybackPanel() {
       renderDisplay();
     }
   });
+  // v3.9.17: trigger this panel's voice-over audio (if any). The previous
+  // panel's audio is stopped first so they don't overlap.
+  playCurrentPanelAudio(next);
+}
+
+// ---------------------------------------------------------------------------
+// v3.9.17: per-panel audio narration playback. One <audio> element kept at
+// module scope, swapped between panels. Stopped + cleared on playback end.
+// Audio resolves from IDB via getPanelAudio; if the audio isn't found
+// (e.g. .kpz loaded on a fresh device), playback silently no-ops.
+// ---------------------------------------------------------------------------
+let _audioEl = null;
+let _audioObjectUrl = null;
+
+async function playCurrentPanelAudio(panelIdx) {
+  // Always stop whatever's currently playing first — prevents overlap
+  // between consecutive panels.
+  stopPanelAudio();
+  if (!App.project) return;
+  const panel = App.project.panels[panelIdx];
+  if (!panel || !panel.audioId) return;
+
+  try {
+    // Lazy-import to avoid pulling the storage module on app init for users
+    // who never attach audio.
+    const { getPanelAudio } = await import('../storage/panel-audio.js');
+    const blob = await getPanelAudio(panel.audioId);
+    if (!blob) return;
+    // Sanity: if user paused mid-load, abort.
+    if (!App.playing || App.activePanelIdx !== panelIdx) return;
+
+    if (_audioObjectUrl) {
+      try { URL.revokeObjectURL(_audioObjectUrl); } catch (_) { /* noop */ }
+    }
+    _audioObjectUrl = URL.createObjectURL(blob);
+    _audioEl = new Audio(_audioObjectUrl);
+    _audioEl.play().catch(err => {
+      // Autoplay restrictions can reject the play() promise. Silently log;
+      // user pressed Play themselves so it should be allowed.
+      console.warn('Panel audio playback rejected:', err);
+    });
+  } catch (err) {
+    console.warn('playCurrentPanelAudio failed:', err);
+  }
+}
+
+function stopPanelAudio() {
+  if (_audioEl) {
+    try { _audioEl.pause(); _audioEl.currentTime = 0; } catch (_) { /* noop */ }
+    _audioEl.src = '';
+    _audioEl = null;
+  }
+  if (_audioObjectUrl) {
+    try { URL.revokeObjectURL(_audioObjectUrl); } catch (_) { /* noop */ }
+    _audioObjectUrl = null;
+  }
 }
 
 /**
