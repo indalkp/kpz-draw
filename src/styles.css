@@ -1740,3 +1740,24 @@ body.animatic-playing #captionStrip {
   color: rgba(255, 255, 255, 0.55);
   border-color: rgba(255, 255, 255, 0.08);
 }
+
+
+/* =====================================================================
+   v3.9.23 — record button "via Wix bridge" indicator. Subtle dot in
+   the corner so users notice their recording goes through Velo.
+   ===================================================================== */
+
+.cs-record-btn.mic-via-bridge {
+  position: relative;
+}
+.cs-record-btn.mic-via-bridge::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  background: var(--accent, #ff7a45);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}

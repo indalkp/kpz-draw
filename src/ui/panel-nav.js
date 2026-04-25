@@ -46,21 +46,28 @@ export function initPanelNav() {
     }
   });
 
-  // v3.9.22: detect Permissions-Policy / unsupported-API early and disable
-  // the record button with a clear tooltip if the mic can't possibly work.
-  // This catches the Wix iframe case where getUserMedia rejects without a
-  // permission prompt — users were getting a generic "denied" toast and
-  // wondering why they were never asked. Now they see the disabled state
-  // upfront and a tooltip that explains the workaround (Upload).
-  detectMicAvailability().then(({ available, reason }) => {
-    if (available) return;
+  // v3.9.22 / v3.9.23: detect mic availability up front. Three outcomes:
+  //   - Local mic works → record button enabled, normal flow.
+  //   - Local blocked but Velo bridge responds → record button enabled,
+  //     tooltip notes recording goes through the parent page.
+  //   - Neither → record button disabled with a clear tooltip pointing
+  //     the user at the Upload alternative.
+  detectMicAvailability().then(({ available, reason, mode }) => {
     const btn = $('captionRecordBtn');
     if (!btn) return;
-    btn.classList.add('mic-unavailable');
-    btn.disabled = true;
-    btn.title = reason === 'iframe-policy'
-      ? 'Recording is blocked by this page\'s iframe — use Upload instead'
-      : 'Microphone is not available in this browser';
+    if (!available) {
+      btn.classList.add('mic-unavailable');
+      btn.disabled = true;
+      btn.title = reason === 'iframe-policy'
+        ? 'Recording is blocked by this page\'s iframe — use Upload instead, or paste the v3.9.23 Velo bridge handler in your Wix Editor.'
+        : 'Microphone is not available in this browser';
+      return;
+    }
+    // Available — keep the default tooltip but annotate when bridge is on.
+    if (mode === 'bridge') {
+      btn.title = 'Record voice-over (via Wix bridge — recorded in the parent page)';
+      btn.classList.add('mic-via-bridge');
+    }
   });
 }
 
