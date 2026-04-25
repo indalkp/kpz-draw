@@ -18,6 +18,10 @@ import { restorePersistentCharacters } from './persistent-refs.js';
 import { syncCaptionInput } from '../ui/panel-nav.js';
 import { updateSaveStatus } from '../ui/topbar.js';
 import { toast } from '../ui/toast.js';
+// v3.9.21: bundle per-panel audio into the .kpz so projects round-trip
+// across devices. getPanelAudio reads on serialize, setPanelAudio writes
+// on deserialize.
+import { getPanelAudio, setPanelAudio } from './panel-audio.js';
 
 export async function serializeKpz() {
   const meta = {
@@ -58,13 +62,50 @@ export async function serializeKpz() {
     }
   }
   const enc = new TextEncoder();
+
+  // v3.9.21: collect per-panel audio Blobs so they ride along with the .kpz.
+  // The reference (audioId + audioDuration) is already in the per-panel meta.
+  // We append the audio bytes after the layer-PNG section, length-prefixed
+  // with a per-entry header [audioId len + audioId + blob len + blob bytes].
+  // Older readers stop after the layer iteration — they just see the audio
+  // section as trailing bytes they ignore. The new audioBundleCount sentinel
+  // in `meta` tells new readers how many entries to read back.
+  const audioEntries = [];
+  for (const panel of App.project.panels) {
+    if (!panel.audioId) continue;
+    try {
+      const blob = await getPanelAudio(panel.audioId);
+      if (blob && blob.size > 0) {
+        audioEntries.push({
+          audioId: panel.audioId,
+          mime: blob.type || 'audio/webm',
+          buf: new Uint8Array(await blob.arrayBuffer()),
+        });
+      }
+    } catch (err) {
+      console.warn('serialize: failed to read audio for panel', panel.audioId, err);
+    }
+  }
+  meta.audioBundleCount = audioEntries.length;
+
   const jsonBytes = enc.encode(JSON.stringify(meta));
+  // Header (8) + json + per-layer (4 + blob) + per-audio (4 + idLen + 4 + mimeLen + 4 + blobLen)
   let total = 4 + 4 + jsonBytes.length;
   const blobBufs = [];
   for (const b of blobs) {
     const buf = new Uint8Array(await b.arrayBuffer());
     blobBufs.push(buf); total += 4 + buf.length;
   }
+  // v3.9.21: pre-encode audio metadata strings + sum into total
+  const audioEncoded = audioEntries.map(e => ({
+    idBytes: enc.encode(e.audioId),
+    mimeBytes: enc.encode(e.mime),
+    buf: e.buf,
+  }));
+  for (const a of audioEncoded) {
+    total += 4 + a.idBytes.length + 4 + a.mimeBytes.length + 4 + a.buf.length;
+  }
+
   const out = new Uint8Array(total);
   const dv = new DataView(out.buffer);
   let off = 0;
@@ -74,6 +115,15 @@ export async function serializeKpz() {
   for (const buf of blobBufs) {
     dv.setUint32(off, buf.length, true); off += 4;
     out.set(buf, off); off += buf.length;
+  }
+  // v3.9.21: append audio entries — each one length-prefixed independently.
+  for (const a of audioEncoded) {
+    dv.setUint32(off, a.idBytes.length, true);   off += 4;
+    out.set(a.idBytes, off);                      off += a.idBytes.length;
+    dv.setUint32(off, a.mimeBytes.length, true); off += 4;
+    out.set(a.mimeBytes, off);                    off += a.mimeBytes.length;
+    dv.setUint32(off, a.buf.length, true);       off += 4;
+    out.set(a.buf, off);                          off += a.buf.length;
   }
   return new Blob([out], { type: 'application/octet-stream' });
 }
@@ -125,6 +175,33 @@ export async function deserializeKpz(blob) {
     }
     project.panels.push(panel);
   }
+
+  // v3.9.21: if this .kpz carries bundled audio, restore the Blobs into IDB
+  // so playback + export find them under the same audioIds. Older files
+  // have no audioBundleCount — skip the read entirely. New files always
+  // write the count even when zero (the loop below is a no-op then).
+  const audioCount = (typeof meta.audioBundleCount === 'number') ? meta.audioBundleCount : 0;
+  for (let i = 0; i < audioCount; i++) {
+    if (off + 4 > buf.length) break; // defensive — truncated file
+    const idLen = dv.getUint32(off, true); off += 4;
+    if (off + idLen > buf.length) break;
+    const audioId = dec.decode(buf.slice(off, off + idLen)); off += idLen;
+    if (off + 4 > buf.length) break;
+    const mimeLen = dv.getUint32(off, true); off += 4;
+    if (off + mimeLen > buf.length) break;
+    const mime = dec.decode(buf.slice(off, off + mimeLen)); off += mimeLen;
+    if (off + 4 > buf.length) break;
+    const blen = dv.getUint32(off, true); off += 4;
+    if (off + blen > buf.length) break;
+    const audioBlob = new Blob([buf.slice(off, off + blen)], { type: mime || 'audio/webm' });
+    off += blen;
+    try {
+      await setPanelAudio(audioId, audioBlob);
+    } catch (err) {
+      console.warn('deserialize: failed to restore audio for', audioId, err);
+    }
+  }
+
   return project;
 }
 
