@@ -26,13 +26,19 @@ export function createProject(name, w, h) {
 
 /**
  * Create a new panel with a white background layer and a blank drawing layer.
+ *
+ * v3.9.11: panels now carry an optional `caption` string — used as a
+ * subtitle / line of dialogue that shows in the strip below the canvas
+ * and cycles automatically during animatic playback. Defaults to empty
+ * so existing UI / save-load paths see no behavior change for panels
+ * that don't have a caption set.
  */
 export function createPanel(w, h) {
   const bg = createLayer(w, h, 'Background');
   bg.canvas.getContext('2d').fillStyle = '#ffffff';
   bg.canvas.getContext('2d').fillRect(0, 0, w, h);
   const layer = createLayer(w, h, 'Layer 1');
-  return { layers: [bg, layer], activeLayer: 1 };
+  return { layers: [bg, layer], activeLayer: 1, caption: '' };
 }
 
 /** Returns the currently active panel. */

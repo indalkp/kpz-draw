@@ -13,6 +13,9 @@ import { renderRefs, persistRefs } from '../ui/references.js';
 // pick up any IDB-persisted characters for the new project key.
 import { renderCast } from '../ui/cast-panel.js';
 import { restorePersistentCharacters } from './persistent-refs.js';
+// v3.9.11: sync the caption strip after loading a project so the input
+// reflects the active panel's caption (which was just deserialized).
+import { syncCaptionInput } from '../ui/panel-nav.js';
 import { updateSaveStatus } from '../ui/topbar.js';
 import { toast } from '../ui/toast.js';
 
@@ -24,6 +27,11 @@ export async function serializeKpz() {
     refs: App.project.refs,
     panels: App.project.panels.map(p => ({
       activeLayer: p.activeLayer,
+      // v3.9.11: persist caption alongside layers. Additive field —
+      // older .kpz files don't carry it; deserializeKpz defaults to
+      // empty string if absent (see below), so backward compatibility
+      // is preserved.
+      caption: p.caption || '',
       layers: p.layers.map(l => ({
         id: l.id, name: l.name, visible: l.visible,
         opacity: l.opacity, blend: l.blend, locked: !!l.locked,
@@ -73,7 +81,12 @@ export async function deserializeKpz(blob) {
   project.strokeCount = meta.strokeCount || 0;
   project.panels = [];
   for (const pmeta of meta.panels) {
-    const panel = { activeLayer: pmeta.activeLayer || 0, layers: [] };
+    // v3.9.11: caption restored if present, default empty for older .kpz files.
+    const panel = {
+      activeLayer: pmeta.activeLayer || 0,
+      caption: typeof pmeta.caption === 'string' ? pmeta.caption : '',
+      layers: [],
+    };
     for (const lmeta of pmeta.layers) {
       const blen = dv.getUint32(off, true); off += 4;
       const pngBuf = buf.slice(off, off + blen); off += blen;
@@ -114,6 +127,8 @@ export async function loadKpzBlob(blob) {
     // characters for the loaded project come purely from IDB by project key.
     await restorePersistentCharacters();
     renderCast();
+    // v3.9.11: caption strip reflects the loaded panel's caption.
+    syncCaptionInput();
     App.dirty = false; updateSaveStatus();
     toast('Project loaded', 'ok');
   } catch (err) { toast('Load failed: ' + err.message, 'error'); }

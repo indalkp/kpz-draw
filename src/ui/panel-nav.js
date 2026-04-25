@@ -8,7 +8,40 @@ import { renderLayersUI } from './layers-panel.js';
 import { updateSaveStatus } from './topbar.js';
 import { toast } from './toast.js';
 
-export function initPanelNav() {}
+export function initPanelNav() {
+  // v3.9.11: caption input wiring. The input lives in #canvasArea above
+  // the filmstrip; we keep it in sync with the active panel's caption,
+  // and write back on every keystroke (cheap — one string assignment).
+  const input = $('captionInput');
+  if (input) {
+    input.addEventListener('input', e => {
+      if (!App.project) return;
+      const panel = App.project.panels[App.activePanelIdx];
+      if (!panel) return;
+      panel.caption = e.target.value;
+      App.dirty = true; updateSaveStatus();
+    });
+    // Initial population — main.js calls renderPanelNav after createProject /
+    // loadKpzBlob, which now also calls syncCaptionInput, but seed it here
+    // too in case any other code path leaves the input out of sync.
+    syncCaptionInput();
+  }
+}
+
+/**
+ * v3.9.11: copy the active panel's caption into the input. Called from
+ * switchPanel + playback advance + after load so the strip always reflects
+ * the visible panel without us listening to every state mutation.
+ */
+export function syncCaptionInput() {
+  const input = $('captionInput');
+  if (!input) return;
+  const panel = App.project?.panels?.[App.activePanelIdx];
+  // Don't clobber the user's in-progress edit if they're focused on the
+  // input — they're typing right now, the visible value is theirs.
+  if (document.activeElement === input) return;
+  input.value = panel?.caption || '';
+}
 
 export function renderPanelNav() {
   const nav = $('panelNav');
@@ -62,6 +95,7 @@ function switchPanel(i) {
   App.activePanelIdx = i;
   renderDisplay(); renderLayersUI(); renderPanelNav();
   scrollActiveThumbIntoView();
+  syncCaptionInput();             // v3.9.11
 }
 
 /**
@@ -70,12 +104,16 @@ function switchPanel(i) {
  * panel doesn't need to flicker every frame) but does re-render the canvas
  * and the filmstrip, and scrolls the active thumb into view so the user
  * can follow the playback position.
+ *
+ * v3.9.11: also syncs the caption input so the strip below the canvas
+ * shows the active panel's line of dialogue as panels cycle.
  */
 export function switchPanelForPlayback(i) {
   App.activePanelIdx = i;
   renderDisplay();
   renderPanelNav();
   scrollActiveThumbIntoView();
+  syncCaptionInput();
 }
 
 function scrollActiveThumbIntoView() {

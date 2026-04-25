@@ -1558,3 +1558,71 @@
 @media (max-width: 600px) {
   #playbackGroup { display: none; }
 }
+
+
+/* =====================================================================
+   v3.9.11 — caption strip (per-panel subtitle / line of dialogue)
+   Sits in the bottom of #canvasArea above the filmstrip. Always visible
+   so the field is discoverable; click into the input to edit. During
+   animatic playback the value cycles automatically as panels advance.
+   ===================================================================== */
+
+#captionStrip {
+  position: absolute;
+  bottom: 64px;     /* clears the panelNav filmstrip */
+  left: 12px;
+  right: 12px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.55);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: auto;
+  max-width: 720px;
+  margin: 0 auto;
+}
+#captionStrip .cs-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+#captionStrip input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 2px 0;
+  min-width: 0;
+}
+#captionStrip input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+  font-style: italic;
+}
+#captionStrip input:focus {
+  outline: none;
+}
+#captionStrip:focus-within {
+  border-color: var(--accent, #ff7a45);
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* On narrow viewports lift the caption strip a bit higher to clear the
+   floating mobile toggle buttons + filmstrip. */
+@media (max-width: 1100px) {
+  #captionStrip {
+    bottom: 88px;
+    left: 8px;
+    right: 8px;
+  }
+}

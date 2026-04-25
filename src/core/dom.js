@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.10</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.11</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -215,6 +215,18 @@ export function buildAppDom(root) {
         </div>
       </div>
 
+      <!--
+        v3.9.11: caption strip. Shows the current panel's caption / line of
+        dialogue and lets the user edit it inline. Sits just above the
+        filmstrip so the user can read it AND see which panel it belongs
+        to during playback. Auto-updates as panels cycle.
+      -->
+      <div id="captionStrip" title="Caption / dialogue for this panel">
+        <span class="cs-label" aria-hidden="true">CAPTION</span>
+        <input id="captionInput" type="text" maxlength="240"
+               placeholder="Add a caption / line of dialogue for this panel…"
+               aria-label="Panel caption">
+      </div>
       <div id="panelNav"></div>
       <div id="mobileToggles">
         <button id="toggleLeft" title="References">
