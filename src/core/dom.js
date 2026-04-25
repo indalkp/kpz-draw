@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.19</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.20</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -227,18 +227,28 @@ export function buildAppDom(root) {
                placeholder="Add a caption / line of dialogue for this panel…"
                aria-label="Panel caption">
         <!--
-          v3.9.17: per-panel voice-over. The button toggles between
-          "no audio" (mic icon) and "audio attached" (speaker icon).
-          Click with no audio → opens the hidden file picker. Click
-          when audio exists → confirms + removes. Audio plays during
-          animatic playback (topbar.js handles the lifecycle).
+          v3.9.17: per-panel voice-over. Originally a single mic button
+          that opened a file picker.
+          v3.9.20: split into TWO buttons. Mic icon now means "record
+          voice-over right here" (more natural mapping); the new folder
+          icon means "upload an audio file." When audio is already
+          attached, both buttons are replaced by a single solid speaker
+          + remove button via JS.
         -->
-        <button id="captionAudioBtn" class="cs-audio-btn" type="button"
-                title="Attach voice-over audio for this panel"
-                aria-label="Attach voice-over audio">
+        <button id="captionRecordBtn" class="cs-audio-btn cs-record-btn" type="button"
+                title="Record voice-over for this panel"
+                aria-label="Record voice-over">
           <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
             <path fill="currentColor"
                   d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
+          </svg>
+        </button>
+        <button id="captionAudioBtn" class="cs-audio-btn cs-upload-btn" type="button"
+                title="Upload an audio file"
+                aria-label="Upload audio file">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <path fill="currentColor"
+                  d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2zm-1 11h2v-3h2.5L11 9.5 7.5 13H10v3z"/>
           </svg>
         </button>
         <input type="file" id="captionAudioFileInput" accept="audio/*" hidden

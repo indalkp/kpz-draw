@@ -10,6 +10,7 @@ import { renderLayersUI } from './layers-panel.js';
 import { updateSaveStatus } from './topbar.js';
 import { toast } from './toast.js';
 import { newAudioId, setPanelAudio, deletePanelAudio } from '../storage/panel-audio.js';
+import { startRecording, stopRecording, cancelRecording, isRecording } from './audio-recorder.js';
 
 export function initPanelNav() {
   // v3.9.11: caption input wiring. The input lives in #canvasArea above
@@ -30,9 +31,20 @@ export function initPanelNav() {
     syncCaptionInput();
   }
 
-  // v3.9.17: audio button + file picker for per-panel voice-over.
+  // v3.9.17: audio file-upload button.
   $('captionAudioBtn')?.addEventListener('click', onAudioBtnClick);
   $('captionAudioFileInput')?.addEventListener('change', onAudioFileChosen);
+  // v3.9.20: in-browser recording button.
+  $('captionRecordBtn')?.addEventListener('click', onRecordBtnClick);
+  // Escape cancels an in-progress recording without saving.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isRecording()) {
+      cancelRecording();
+      setRecordingUI(false);
+      toast('Recording cancelled', 'ok');
+      e.stopPropagation();
+    }
+  });
 }
 
 /**
@@ -133,6 +145,69 @@ async function onAudioFileChosen(e) {
   App.dirty = true; updateSaveStatus();
   const durNote = durationSec > 0 ? `, ${durationSec.toFixed(1)}s` : '';
   toast(`Voice-over attached (${(file.size / 1024).toFixed(0)} KB${durNote})`, 'ok');
+}
+
+// v3.9.20: in-browser recording. Same save path as upload — once recording
+// stops, the recorded Blob flows through the same probeAudioDuration +
+// IDB-store + audioId-on-panel + dirty-flag pipeline as a file pick.
+async function onRecordBtnClick() {
+  if (!App.project) return;
+  const panel = App.project.panels[App.activePanelIdx];
+  if (!panel) return;
+
+  if (isRecording()) {
+    // Stop and save
+    setRecordingUI(false);
+    const blob = await stopRecording();
+    if (!blob || blob.size === 0) {
+      toast('Recording produced no audio', 'error');
+      return;
+    }
+    // Cap at 25 MB (same as upload path)
+    if (blob.size > 25 * 1024 * 1024) {
+      toast('Recording too large (>25 MB). Try a shorter clip.', 'error');
+      return;
+    }
+
+    // Probe duration
+    let durationSec = 0;
+    try { durationSec = await probeAudioDuration(blob); } catch (_) { /* noop */ }
+
+    // Free old audio if any, then store the new clip
+    if (panel.audioId) await deletePanelAudio(panel.audioId);
+    const audioId = newAudioId();
+    await setPanelAudio(audioId, blob);
+    panel.audioId = audioId;
+    panel.audioDuration = durationSec;
+
+    syncCaptionInput();
+    App.dirty = true; updateSaveStatus();
+    toast(`Voice-over recorded (${durationSec.toFixed(1)}s)`, 'ok');
+    return;
+  }
+
+  // Not recording yet — start. Mic permission is requested by getUserMedia.
+  try {
+    await startRecording();
+    setRecordingUI(true);
+    toast('Recording — click the mic again to stop, or press Escape to cancel', 'info');
+  } catch (err) {
+    console.warn('startRecording failed:', err);
+    toast('Microphone access denied or unavailable', 'error');
+  }
+}
+
+/**
+ * v3.9.20: paint the record button red + pulse during a live recording so
+ * users see at a glance that the mic is hot. Reset to grey when idle.
+ */
+function setRecordingUI(recording) {
+  const btn = $('captionRecordBtn');
+  if (!btn) return;
+  btn.classList.toggle('recording', recording);
+  btn.title = recording
+    ? 'Recording — click to stop (Esc to cancel)'
+    : 'Record voice-over for this panel';
 }
 
 /**
