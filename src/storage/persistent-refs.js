@@ -26,6 +26,9 @@ import { idbGet, idbSet, idbDelete } from '../utils/idb.js';
 
 const IDX_KEY = 'kpz_ref_index';
 const REFS_PREFIX = 'kpz_refs::';
+// v3.9.0: characters bucket — parallel to refs, scoped per-project.
+// Stored in IDB only; not serialized into .kpz or Wix CMS in v3.9.0.
+const CHARS_PREFIX = 'kpz_chars::';
 export const LEGACY_BUCKET = 'legacy-library';
 
 /**
@@ -35,6 +38,16 @@ export const LEGACY_BUCKET = 'legacy-library';
 export function currentRefsKey() {
   const projectKey = App.currentProjectId || 'local';
   return REFS_PREFIX + projectKey;
+}
+
+/**
+ * v3.9.0: returns the IndexedDB key where the CURRENT project's characters
+ * are stored. Same project key resolution as currentRefsKey() so refs and
+ * characters move together when a project is loaded/saved.
+ */
+export function currentCharsKey() {
+  const projectKey = App.currentProjectId || 'local';
+  return CHARS_PREFIX + projectKey;
 }
 
 /**
@@ -154,5 +167,38 @@ export async function restorePersistentRefs() {
     }
   } catch (err) {
     console.warn('restorePersistentRefs (current bucket) failed:', err);
+  }
+}
+
+/**
+ * v3.9.0: restore the current project's characters from IndexedDB.
+ * Mirrors restorePersistentRefs() but for characters. Called from main.js
+ * during app init, after the project has been created/restored.
+ */
+export async function restorePersistentCharacters() {
+  if (!App.project) return;
+  // Don't overwrite characters that were populated by autosave/in-memory creation.
+  if (App.project.characters && App.project.characters.length > 0) return;
+  try {
+    const saved = await idbGet(currentCharsKey());
+    if (Array.isArray(saved)) {
+      App.project.characters = saved;
+    }
+  } catch (err) {
+    console.warn('restorePersistentCharacters failed:', err);
+  }
+}
+
+/**
+ * v3.9.0: persist the current project's characters to IndexedDB.
+ * Called after any add / edit / delete of a character. Cheap (a few KB),
+ * so we don't debounce.
+ */
+export async function persistCharacters() {
+  if (!App.project) return;
+  try {
+    await idbSet(currentCharsKey(), App.project.characters || []);
+  } catch (err) {
+    console.warn('persistCharacters failed:', err);
   }
 }

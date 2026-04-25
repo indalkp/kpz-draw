@@ -627,3 +627,326 @@
   .mtb-btn { width: 38px; height: 38px; }
   .mtb-color-swatch { width: 28px; height: 28px; }
 }
+
+
+/* =====================================================================
+   v3.9.0 — Cast & References
+   Adds: tab strip in #leftPanel, character cards (compact/comfy density),
+   per-card zoom slider, palette swatches, profile accordion, attach-ref
+   picker. Refs tab keeps its existing styles untouched — these rules are
+   scoped to .cast-* and .char-* / #castList / #castEmpty so nothing
+   collides with the v3.8.x ref-* classes.
+   ===================================================================== */
+
+/* Tab strip — sits where the old "References" header label was */
+.cast-tabstrip {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+}
+.cast-tab {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-soft, #4a4540);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.cast-tab.active {
+  color: var(--accent, #ff7a45);
+  border-bottom-color: var(--accent, #ff7a45);
+  font-weight: 600;
+}
+
+.cast-header-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Cast list body */
+#castList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px;
+}
+#castEmpty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--ink-soft, #4a4540);
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
+/* Character card */
+.char-card {
+  background: var(--paper, #fdfcf9);
+  border: 1.5px solid #1f1d1b;
+  border-radius: 7px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  --char-zoom: 1;
+}
+.char-card.expanded {
+  border-color: var(--accent, #ff7a45);
+  border-width: 2px;
+  padding: 7px;
+}
+
+.cc-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.cc-icon { font-size: 14px; }
+.cc-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #1f1d1b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-count {
+  background: rgba(0, 0, 0, 0.07);
+  border-radius: 9px;
+  padding: 1px 7px;
+  font-size: 10px;
+  color: var(--ink-soft, #4a4540);
+}
+.cc-zoom-badge {
+  background: rgba(255, 122, 69, 0.15);
+  border: 1px solid var(--accent, #ff7a45);
+  border-radius: 9px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--ink, #1f1d1b);
+  cursor: pointer;
+}
+.cc-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.cc-act {
+  background: transparent;
+  border: none;
+  padding: 2px 5px;
+  font-size: 11px;
+  color: var(--ink-soft, #4a4540);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.cc-act:hover { background: rgba(0, 0, 0, 0.06); color: var(--ink, #1f1d1b); }
+.cc-chev { font-size: 10px; color: var(--ink-soft, #4a4540); padding-left: 2px; }
+
+/* Per-card zoom slider */
+.cc-zoom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+}
+.cc-zoom-min, .cc-zoom-max { font-size: 11px; color: var(--ink-soft, #4a4540); }
+.cc-zoom-slider {
+  flex: 1;
+  height: 6px;
+  margin: 0;
+}
+.cc-zoom-val {
+  min-width: 36px;
+  text-align: right;
+  font-size: 10px;
+  color: var(--ink-soft, #4a4540);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thumbnail grid — applies the per-card zoom CSS var */
+.cc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.cc-tile {
+  aspect-ratio: 3 / 4;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+}
+.cc-tile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(var(--char-zoom, 1));
+  transform-origin: center;
+  transition: transform 0.12s ease-out;
+}
+.cc-tile:hover img { filter: brightness(1.05); }
+.cc-tile-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  background: transparent;
+  color: var(--ink-soft, #4a4540);
+  font-size: 18px;
+  gap: 2px;
+}
+.cc-tile-add-label { font-size: 10px; line-height: 1; }
+.cc-grid-empty {
+  grid-template-columns: 1fr;
+  display: block;
+  padding: 12px 8px;
+  text-align: center;
+}
+.cc-grid-hint {
+  color: var(--ink-soft, #4a4540);
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* Palette swatches */
+.cc-palette {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px;
+}
+.cc-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.cc-swatch:hover { transform: scale(1.15); }
+.cc-pal-add {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px dashed rgba(0, 0, 0, 0.4);
+  background: transparent;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--ink-soft, #4a4540);
+  padding: 0;
+  line-height: 1;
+}
+
+/* Profile accordion (only when expanded) */
+.cc-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  padding: 8px;
+}
+.cc-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cc-profile-label {
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-soft, #4a4540);
+  min-width: 36px;
+  flex-shrink: 0;
+}
+.cc-profile-input {
+  flex: 1;
+  background: var(--paper, #fdfcf9);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  min-width: 0;
+}
+.cc-profile-input:focus {
+  outline: none;
+  border-color: var(--accent, #ff7a45);
+}
+
+/* Attach-ref picker (inline panel inside the card) */
+.cc-attach-picker {
+  background: rgba(255, 244, 138, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 5px;
+  padding: 8px;
+  margin-top: 4px;
+}
+.cc-attach-title {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--ink, #1f1d1b);
+}
+.cc-attach-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.cc-attach-tile {
+  aspect-ratio: 3 / 4;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+.cc-attach-tile img {
+  flex: 1;
+  width: 100%;
+  object-fit: cover;
+}
+.cc-attach-tile span {
+  font-size: 9px;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-attach-tile:hover { border-color: var(--accent, #ff7a45); }
+
+/* Density toggle button */
+#castDensityToggle {
+  font-size: 13px;
+  padding: 3px 6px;
+}
+
+/* Mobile — same layout works, just a bit denser */
+@media (max-width: 1100px) {
+  .cast-tab { padding: 5px 10px; font-size: 12px; }
+  #castList { padding: 4px; }
+  .char-card { padding: 6px; }
+  .cc-grid { gap: 3px; }
+  .cc-tile { aspect-ratio: 1 / 1; }
+  .cc-attach-grid { grid-template-columns: repeat(2, 1fr); }
+}

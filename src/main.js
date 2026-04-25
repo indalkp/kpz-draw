@@ -25,6 +25,8 @@ import { initLayersPanel, renderLayersUI } from './ui/layers-panel.js';
 import { initBrushPanel, updateBrushUI } from './ui/brush-panel.js';
 import { initReferences, renderRefs } from './ui/references.js';
 import { initRefViewer } from './ui/ref-viewer.js';
+// v3.9.0: Cast & References — character cards, density toggle, per-card zoom
+import { initCastPanel, renderCast } from './ui/cast-panel.js';
 import { initDocsPanel } from './ui/docs-panel.js';
 import { initPanelNav, renderPanelNav } from './ui/panel-nav.js';
 import { initModals } from './ui/modals.js';
@@ -36,7 +38,7 @@ import { initMobileChrome, updateMobileTopbar } from './ui/mobile-chrome.js';
 
 import { initWixBridge } from './storage/wix-bridge.js';
 import { tryRestoreAutosave } from './storage/autosave.js';
-import { restorePersistentRefs } from './storage/persistent-refs.js';
+import { restorePersistentRefs, restorePersistentCharacters } from './storage/persistent-refs.js';
 
 /**
  * Initialize KPZ Draw inside the given root element.
@@ -62,6 +64,9 @@ export async function init(rootSelector, opts = {}) {
   initBrushPanel();
   initLayersPanel();
   initReferences();
+  // v3.9.0: cast panel sits in the same #leftPanel as refs and toggles via tabs.
+  // Init AFTER initReferences so the refs DOM and listeners are wired first.
+  initCastPanel();
   initRefViewer();
   initDocsPanel();
   initPanelNav();
@@ -88,9 +93,12 @@ export async function init(rootSelector, opts = {}) {
     renderDisplay();
   }
 
-  // 5. Restore session-persistent references
+  // 5. Restore session-persistent references and characters
   await restorePersistentRefs();
+  // v3.9.0: characters live in their own IDB bucket parallel to refs.
+  await restorePersistentCharacters();
   renderRefs();
+  renderCast();
 
   // 6. Restore persisted UI state
   const lastDoc = localStorage.getItem('kpz_doc_url');

@@ -9,6 +9,10 @@ import { fitView, renderDisplay } from '../drawing/view.js';
 import { renderLayersUI } from '../ui/layers-panel.js';
 import { renderPanelNav } from '../ui/panel-nav.js';
 import { renderRefs, persistRefs } from '../ui/references.js';
+// v3.9.0: re-render the Cast tab after loading a project so character cards
+// pick up any IDB-persisted characters for the new project key.
+import { renderCast } from '../ui/cast-panel.js';
+import { restorePersistentCharacters } from './persistent-refs.js';
 import { updateSaveStatus } from '../ui/topbar.js';
 import { toast } from '../ui/toast.js';
 
@@ -104,6 +108,12 @@ export async function loadKpzBlob(blob) {
     // v3.6.1: persist loaded refs into the current project's bucket so they
     // show up in the library next time.
     persistRefs();
+    // v3.9.0: load characters for this project from IDB, then render Cast.
+    // The .kpz file itself doesn't carry characters in v3.9.0 (bundling
+    // rule — save/load format change is isolated to a later release), so
+    // characters for the loaded project come purely from IDB by project key.
+    await restorePersistentCharacters();
+    renderCast();
     App.dirty = false; updateSaveStatus();
     toast('Project loaded', 'ok');
   } catch (err) { toast('Load failed: ' + err.message, 'error'); }

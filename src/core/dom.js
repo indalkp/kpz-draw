@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.8.4</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.0</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -80,24 +80,47 @@ export function buildAppDom(root) {
 
   <!-- ===== MAIN GRID ===== -->
   <div id="main">
-    <!-- LEFT: REFERENCES -->
-    <div id="leftPanel">
+    <!-- LEFT: CAST & REFERENCES (v3.9.0) -->
+    <!--
+      v3.9.0 introduces a Cast tab alongside the existing Refs flat list.
+      Cast renders character cards that group refs by referencing ref ids.
+      The Refs tab keeps today's UX as a fallback so power users aren't
+      forced into the cast model. Tab body containers are toggled via
+      display:none in cast-panel.js#switchTab — the underlying #refList /
+      #refEmpty / .ref-header-actions / .ref-size-row elements are NEVER
+      removed, so all existing references.js logic keeps working.
+    -->
+    <div id="leftPanel" class="cast-compact">
       <div class="panel-header">
-        <span>References</span>
-        <div class="ref-header-actions">
+        <div class="cast-tabstrip" id="castTabstrip">
+          <button class="cast-tab active" id="castTabCast">Cast</button>
+          <button class="cast-tab" id="castTabRefs">Refs</button>
+        </div>
+        <div class="cast-header-actions">
+          <button class="btn icon-btn" id="castDensityToggle" title="Switch to comfy view">⚏</button>
+          <button class="btn" id="btnAddChar" title="Add a character">+ Char</button>
+        </div>
+        <div class="ref-header-actions" style="display:none">
           <button class="btn icon-btn" id="btnRefLibrary" title="Import refs from past projects">📁</button>
           <button class="btn icon-btn" id="btnImportRefs" title="Import refs from file">↓</button>
           <button class="btn icon-btn" id="btnExportRefs" title="Export refs to file">↑</button>
           <button class="btn" id="btnAddRef">+ Add</button>
         </div>
       </div>
-      <div class="ref-size-row">
+      <div class="ref-size-row" style="display:none">
         <label>Size</label>
         <input type="range" id="refSize" min="100" max="480" value="220" step="20">
       </div>
       <div class="panel-body">
-        <div id="refList"></div>
-        <div id="refEmpty">No references yet.<br>Click <b>+ Add</b> or drag images here.</div>
+        <!-- Cast body -->
+        <div id="castList"></div>
+        <div id="castEmpty">
+          No characters yet.<br>
+          Click <b>+ Char</b> to add one and group your refs by character.
+        </div>
+        <!-- Refs body — same DOM as before, just hidden when Cast is active -->
+        <div id="refList" style="display:none"></div>
+        <div id="refEmpty" style="display:none">No references yet.<br>Click <b>+ Add</b> or drag images here.</div>
       </div>
     </div>
 

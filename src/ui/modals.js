@@ -8,6 +8,9 @@ import { renderDisplay, fitView } from '../drawing/view.js';
 import { renderLayersUI } from './layers-panel.js';
 import { renderPanelNav } from './panel-nav.js';
 import { renderRefs } from './references.js';
+// v3.9.0: re-render Cast on new project so the empty state shows for the
+// freshly-created project (which has characters: [] from createProject).
+import { renderCast } from './cast-panel.js';
 import { updateSaveStatus } from './topbar.js';
 import { toast } from './toast.js';
 import { serializeKpz, loadKpzBlob } from '../storage/kpz-format.js';
@@ -48,7 +51,7 @@ function createNewProject() {
   const disp = $('displayCanvas');
   if (disp) { disp.width = w; disp.height = h; }
   fitView();
-  renderDisplay(); renderLayersUI(); renderPanelNav(); renderRefs();
+  renderDisplay(); renderLayersUI(); renderPanelNav(); renderRefs(); renderCast();
   App.dirty = false; updateSaveStatus();
   $('newModal')?.classList.remove('open');
 }

@@ -13,6 +13,12 @@ export function createProject(name, w, h) {
     width: w, height: h,
     panels: [createPanel(w, h)],
     refs: [],
+    // v3.9.0: characters live alongside refs. Each character groups a set of
+    // refIds (lookups into project.refs) plus its own palette + profile.
+    // Persisted to IndexedDB only — NOT included in serializeKpz() to keep
+    // the .kpz format and Wix CMS payload unchanged in v3.9.0. Cloud sync
+    // for characters lands in a later release.
+    characters: [],
     created: Date.now(),
     version: 3,
   };
