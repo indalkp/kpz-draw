@@ -84,6 +84,11 @@ async function doSave(target) {
     toast('PNG exported', 'ok');
     return;
   }
+  if (target === 'local-webm') {
+    // v3.9.13: animatic export
+    await exportAnimaticWebm();
+    return;
+  }
   if (target === 'wix') {
     if (!App.inWix) { toast('Open this app on indalkp.com/draw to save to your site', 'error'); return; }
     await saveToWix();
@@ -115,4 +120,174 @@ async function handleFileOpen(e) {
     img.src = url;
   }
   e.target.value = '';
+}
+
+
+// ===========================================================================
+// v3.9.13: animatic export. Renders each panel onto an offscreen canvas
+// (with caption burned in at the bottom), captures the canvas as a video
+// stream via captureStream(), records to WebM via MediaRecorder, downloads
+// the resulting blob.
+//
+// Why WebM, not MP4: MediaRecorder produces WebM natively in every modern
+// browser. MP4 in-browser would require a WASM ffmpeg shim (~30MB). WebM
+// plays in browsers, Discord, Twitter, OBS, VLC. For QuickTime / iMessage,
+// users can convert with cloudconvert.com or similar (one-time, free).
+// ===========================================================================
+
+async function exportAnimaticWebm() {
+  if (!App.project) return;
+  if (App.project.panels.length < 2) {
+    toast('Need at least 2 panels to export an animatic', 'error');
+    return;
+  }
+  if (typeof MediaRecorder === 'undefined') {
+    toast('Your browser does not support video recording. Try Chrome or Firefox.', 'error');
+    return;
+  }
+
+  const fps = App.playFps || 2;
+  const w = App.project.width;
+  const h = App.project.height;
+  const panelMs = Math.round(1000 / fps);
+
+  // Offscreen render canvas — sized to the project, used as the recorder source
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = w;
+  exportCanvas.height = h;
+  const exportCtx = exportCanvas.getContext('2d');
+
+  // Pick a supported MIME type; vp8 is the broadest. vp9 is more efficient
+  // but Safari rejects it. Prefer the first one MediaRecorder accepts.
+  const mimeCandidates = [
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ];
+  let mimeType = '';
+  for (const c of mimeCandidates) {
+    if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+      mimeType = c;
+      break;
+    }
+  }
+  // If isTypeSupported is unavailable (older browsers), try the default
+  // and let the constructor throw if it can't.
+  const stream = exportCanvas.captureStream();    // automatic frame timing
+  let recorder;
+  try {
+    recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+  } catch (err) {
+    toast('Could not start recorder: ' + err.message, 'error');
+    return;
+  }
+
+  const chunks = [];
+  recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+  toast(`Exporting ${App.project.panels.length} panels at ${fps} fps…`, 'info');
+
+  // Paint the FIRST panel before starting the recorder so the very first
+  // frame doesn't capture a blank canvas.
+  paintPanelForExport(exportCtx, App.project.panels[0], w, h);
+  recorder.start();
+  // Sleep one panel duration so the first frame is held the right length
+  await sleep(panelMs);
+
+  // Cycle through remaining panels
+  for (let i = 1; i < App.project.panels.length; i++) {
+    paintPanelForExport(exportCtx, App.project.panels[i], w, h);
+    await sleep(panelMs);
+  }
+
+  // Small tail so the encoder flushes the last frame's data
+  await sleep(120);
+  recorder.stop();
+
+  // Wait for onstop, then assemble the blob
+  await new Promise((res) => { recorder.onstop = res; });
+  const blob = new Blob(chunks, { type: 'video/webm' });
+
+  if (blob.size === 0) {
+    toast('Recording produced an empty file. Try a different browser.', 'error');
+    return;
+  }
+
+  await downloadBlob(blob, (App.project.name || 'animatic') + '.webm');
+  toast(`Animatic exported (${(blob.size / 1024 / 1024).toFixed(1)} MB)`, 'ok');
+}
+
+/**
+ * Paint one panel onto the export canvas, with caption burned in at the
+ * bottom as a subtitle bar. Composites visible layers in order.
+ */
+function paintPanelForExport(ctx, panel, w, h) {
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.clearRect(0, 0, w, h);
+  for (const layer of panel.layers) {
+    if (!layer.visible) continue;
+    ctx.globalAlpha = layer.opacity;
+    ctx.globalCompositeOperation = layer.blend || 'source-over';
+    ctx.drawImage(layer.canvas, 0, 0);
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Burn the caption — only if there's actually text
+  const caption = (panel.caption || '').trim();
+  if (caption) {
+    // Sizes scale with project height so 720p and 1080p both look balanced
+    const fontSize = Math.max(18, Math.round(h * 0.038));
+    const padY = Math.round(fontSize * 0.6);
+    const padX = Math.round(fontSize * 0.8);
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+
+    // Wrap the caption into lines that fit the canvas width
+    const maxW = w - padX * 2;
+    const lines = wrapTextLines(ctx, caption, maxW);
+    const lineH = Math.round(fontSize * 1.25);
+    const blockH = lines.length * lineH + padY * 2;
+    const blockY = h - blockH;
+
+    // Subtitle bar background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.fillRect(0, blockY, w, blockH);
+
+    // White text
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < lines.length; i++) {
+      const y = blockY + padY + (i + 1) * lineH - Math.round(lineH * 0.25);
+      ctx.fillText(lines[i], w / 2, y);
+    }
+  }
+  ctx.restore();
+}
+
+/**
+ * Greedy word-wrap into lines that fit within maxWidth on the given context.
+ * If a single word is wider than maxWidth, it gets its own (over-wide) line.
+ */
+function wrapTextLines(ctx, text, maxWidth) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let cur = '';
+  for (const word of words) {
+    const test = cur ? cur + ' ' + word : word;
+    if (ctx.measureText(test).width <= maxWidth) {
+      cur = test;
+    } else {
+      if (cur) lines.push(cur);
+      cur = word;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }

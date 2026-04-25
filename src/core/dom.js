@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.12</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.13</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -622,6 +622,12 @@ export function buildAppDom(root) {
     <button class="save-target" data-target="local-kpz"><strong>💾 Download .kpz file</strong><small>Editable project, all layers preserved.</small></button>
     <button class="save-target" data-target="local-psd"><strong>🎨 Export .psd (Photoshop)</strong><small>Open in Photoshop, Krita, Clip Studio, or Photopea.</small></button>
     <button class="save-target" data-target="local-png"><strong>🖼 Export .png</strong><small>Flattened image. Best for sharing/posting.</small></button>
+    <!--
+      v3.9.13: animatic export. Records the panel sequence at the chosen
+      FPS into a WebM video, captions burned at the bottom of each frame.
+      Disabled inline for 1-panel projects; doSave handles the actual gating.
+    -->
+    <button class="save-target" data-target="local-webm"><strong>🎬 Export animatic (.webm)</strong><small>Plays your panels at the chosen FPS, captions baked in. Share your storyboard as a video.</small></button>
     <div class="modal-actions"><button class="btn" id="saveCancel">Cancel</button></div>
   </div>
 </div>
