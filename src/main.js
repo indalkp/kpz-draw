@@ -103,14 +103,30 @@ export async function init(rootSelector, opts = {}) {
   // 7. Initial canvas fit
   updateBrushUI();
   updateMobileTopbar();  // v3.8.0: populate project name / layer count in mobile topbar
-  // v3.8.3: double rAF so mobile layout (100dvh, safe-area insets, grid row
-  // resolution) has committed before we compute the fit scale. Without this,
-  // mobile first-load fitView() hits the v3.8.1 zero-size guard, returns,
-  // and the scale stays at 1.0 — leaving a 1280px canvas centered with most
-  // of it clipped off-screen. Belt-and-suspenders with the ResizeObserver.
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => { fitView(); renderDisplay(); });
-  });
+  // v3.8.4: poll for canvasArea to reach a real size before running the
+  // first fitView(). The v3.8.3 double-rAF assumed iframe layout settles
+  // in 2 frames, but the Wix HtmlComponent often sizes its iframe async —
+  // fitView ran while canvasArea was still 0x0, hit the v3.8.1 zero-size
+  // guard, and returned without setting App.view.scale. Worse, the
+  // ResizeObserver's "first real size" callback in events.js had already
+  // been wasted on a pre-project-creation entries[] event (early-returned
+  // by `if (!App.project) return`), and RO never fires again once the
+  // iframe size is stable. Net result: scale stuck at 1.0, displayCanvas
+  // overflows canvasArea, statusbar appears mid-screen on mobile.
+  // Polling fix: requestAnimationFrame loop, max ~1s, exits as soon as
+  // canvasArea reports >= 100px on both axes — same threshold the
+  // ResizeObserver uses for its `hasRealSize` check.
+  let _firstFitTries = 0;
+  const _tryFirstFit = () => {
+    const ca = document.getElementById('canvasArea');
+    if (ca && ca.clientWidth >= 100 && ca.clientHeight >= 100) {
+      fitView();
+      renderDisplay();
+    } else if (++_firstFitTries < 60) {
+      requestAnimationFrame(_tryFirstFit);
+    }
+  };
+  _tryFirstFit();
 
   // 8. Prevent accidental nav-away on unsaved changes
   window.addEventListener('beforeunload', e => {
