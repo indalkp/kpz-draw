@@ -11,7 +11,7 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.14</small></div>
+    <div class="brand">KPZ Draw <small>v3.9.15</small></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -628,6 +628,12 @@ export function buildAppDom(root) {
       Disabled inline for 1-panel projects; doSave handles the actual gating.
     -->
     <button class="save-target" data-target="local-webm"><strong>🎬 Export animatic (.webm)</strong><small>Plays your panels at the chosen FPS, captions baked in. Share your storyboard as a video.</small></button>
+    <!--
+      v3.9.15: comic-strip export. Stacks every panel into one tall PNG
+      with caption bands between them. First step toward the vertical-
+      scroll comic-strip vision without an architectural model change.
+    -->
+    <button class="save-target" data-target="local-comic-strip"><strong>🗞 Export comic strip (.png)</strong><small>All panels stacked vertically as one tall image, captions inline. Share your full storyboard at a glance.</small></button>
     <div class="modal-actions"><button class="btn" id="saveCancel">Cancel</button></div>
   </div>
 </div>

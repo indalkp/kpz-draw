@@ -89,6 +89,11 @@ async function doSave(target) {
     await exportAnimaticWebm();
     return;
   }
+  if (target === 'local-comic-strip') {
+    // v3.9.15: comic-strip PNG export
+    await exportComicStripPng();
+    return;
+  }
   if (target === 'wix') {
     if (!App.inWix) { toast('Open this app on indalkp.com/draw to save to your site', 'error'); return; }
     await saveToWix();
@@ -290,4 +295,149 @@ function wrapTextLines(ctx, text, maxWidth) {
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+
+// ===========================================================================
+// v3.9.15: comic-strip export. Stacks every panel into one tall PNG with
+// caption bands between them — a static, single-image artifact of the
+// whole storyboard. Direct progression toward the user's stated future
+// vision of a vertical-scroll comic-strip layout, without yet making
+// the architectural shift inside the editor.
+//
+// Layout per panel: panel image (project_width × project_height) followed
+// by a caption band (only if the panel has a caption). Bands are sized
+// proportional to the panel height so they read at any project resolution.
+// ===========================================================================
+
+async function exportComicStripPng() {
+  if (!App.project) return;
+  const panels = App.project.panels;
+  if (!panels || panels.length === 0) {
+    toast('No panels to export', 'error');
+    return;
+  }
+
+  const w = App.project.width;
+  const panelH = App.project.height;
+  // Caption band sizes ~12% of panel height — keeps text readable at any
+  // resolution without dominating the image. Padding is included.
+  const captionBandH = Math.round(panelH * 0.12);
+  const dividerH = 4; // thin separator between panels for visual rhythm
+
+  // Compute total height: each panel contributes its image + (optional caption band)
+  // + a divider (except after the last panel).
+  const heights = panels.map((p, i) => {
+    const cap = (p.caption || '').trim() ? captionBandH : 0;
+    const div = i < panels.length - 1 ? dividerH : 0;
+    return panelH + cap + div;
+  });
+  const totalH = heights.reduce((a, b) => a + b, 0);
+
+  // Sanity check — VERY large strips (>16384px on any axis) blow up most
+  // browser canvas implementations. Warn the user and bail rather than
+  // producing a corrupted image.
+  if (totalH > 16384) {
+    toast(
+      `Strip would be ${totalH}px tall — too large for browser canvas. ` +
+      `Try fewer panels or a smaller project size.`, 'error'
+    );
+    return;
+  }
+
+  toast(`Building comic strip (${panels.length} panels)…`, 'info');
+  // Yield once so the toast renders before the heavy paint blocks the thread.
+  await new Promise((r) => setTimeout(r, 50));
+
+  const stripCanvas = document.createElement('canvas');
+  stripCanvas.width = w;
+  stripCanvas.height = totalH;
+  const ctx = stripCanvas.getContext('2d');
+
+  // Solid white background so PNG compositing is predictable.
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, totalH);
+
+  let y = 0;
+  for (let i = 0; i < panels.length; i++) {
+    const panel = panels[i];
+
+    // 1. Paint panel layers at this y offset
+    ctx.save();
+    ctx.translate(0, y);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    for (const layer of panel.layers) {
+      if (!layer.visible) continue;
+      ctx.globalAlpha = layer.opacity;
+      ctx.globalCompositeOperation = layer.blend || 'source-over';
+      ctx.drawImage(layer.canvas, 0, 0);
+    }
+    ctx.restore();
+    y += panelH;
+
+    // 2. Caption band — dark bar with light text, only when caption exists
+    const captionText = (panel.caption || '').trim();
+    if (captionText) {
+      ctx.fillStyle = '#1f1d1b';
+      ctx.fillRect(0, y, w, captionBandH);
+
+      const fontSize = Math.max(18, Math.round(captionBandH * 0.42));
+      const padX = Math.round(fontSize * 0.8);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Word-wrap the caption to the band width — long captions need
+      // multiple lines, otherwise text overflows or gets clipped.
+      const maxW = w - padX * 2;
+      const lines = wrapStripCaption(ctx, captionText, maxW);
+      const lineH = Math.round(fontSize * 1.25);
+      const totalTextH = lines.length * lineH;
+      const startY = y + (captionBandH - totalTextH) / 2 + lineH / 2;
+      for (let li = 0; li < lines.length; li++) {
+        ctx.fillText(lines[li], w / 2, startY + li * lineH);
+      }
+      y += captionBandH;
+    }
+
+    // 3. Divider between panels — thin horizontal line, except after last
+    if (i < panels.length - 1) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.fillRect(0, y, w, dividerH);
+      y += dividerH;
+    }
+  }
+
+  // Encode to PNG and download
+  const blob = await new Promise((res) => stripCanvas.toBlob(res, 'image/png'));
+  if (!blob || blob.size === 0) {
+    toast('Comic strip encoding failed. Try fewer or smaller panels.', 'error');
+    return;
+  }
+  await downloadBlob(blob, (App.project.name || 'comic-strip') + '.png');
+  toast(`Comic strip exported (${(blob.size / 1024 / 1024).toFixed(1)} MB)`, 'ok');
+}
+
+/**
+ * Greedy word-wrap for the comic-strip caption bands. Same logic as
+ * wrapTextLines used in the WebM export path — kept local so the strip
+ * export module is self-contained.
+ */
+function wrapStripCaption(ctx, text, maxWidth) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let cur = '';
+  for (const word of words) {
+    const test = cur ? cur + ' ' + word : word;
+    if (ctx.measureText(test).width <= maxWidth) {
+      cur = test;
+    } else {
+      if (cur) lines.push(cur);
+      cur = word;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
 }
