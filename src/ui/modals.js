@@ -155,20 +155,59 @@ async function exportAnimaticWebm() {
   const w = App.project.width;
   const h = App.project.height;
   const panelMs = Math.round(1000 / fps);
+  const panels = App.project.panels;
 
-  // Offscreen render canvas — sized to the project, used as the recorder source
+  // Offscreen render canvas - sized to the project, used as the recorder source
   const exportCanvas = document.createElement('canvas');
   exportCanvas.width = w;
   exportCanvas.height = h;
   const exportCtx = exportCanvas.getContext('2d');
 
-  // Pick a supported MIME type; vp8 is the broadest. vp9 is more efficient
-  // but Safari rejects it. Prefer the first one MediaRecorder accepts.
-  const mimeCandidates = [
-    'video/webm;codecs=vp9',
-    'video/webm;codecs=vp8',
-    'video/webm',
-  ];
+  // -------------------------------------------------------------------------
+  // v3.9.18: per-panel voice-over audio in the recorded video. If ANY panel
+  // has an audioId, build an AudioContext + MediaStreamDestination, decode
+  // every audio Blob ahead of time, then schedule each one at its panel's
+  // exact position via audioCtx.currentTime. The destination's stream tracks
+  // get merged with the canvas video tracks into one MediaStream that the
+  // recorder captures end-to-end. If no panel has audio, the export takes
+  // the v3.9.13 silent path with no Web Audio overhead.
+  // -------------------------------------------------------------------------
+  const anyAudio = panels.some(p => p.audioId);
+  let audioCtx = null;
+  let audioDest = null;
+  let audioBuffers = null;
+  if (anyAudio) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) {
+      try {
+        audioCtx = new Ctx();
+        audioDest = audioCtx.createMediaStreamDestination();
+        audioBuffers = [];
+        const { getPanelAudio } = await import('../storage/panel-audio.js');
+        for (const p of panels) {
+          if (!p.audioId) { audioBuffers.push(null); continue; }
+          try {
+            const blob = await getPanelAudio(p.audioId);
+            if (!blob) { audioBuffers.push(null); continue; }
+            const arr = await blob.arrayBuffer();
+            const buf = await audioCtx.decodeAudioData(arr);
+            audioBuffers.push(buf);
+          } catch (err) {
+            console.warn('audio decode failed for panel', err);
+            audioBuffers.push(null);
+          }
+        }
+      } catch (err) {
+        console.warn('Audio context init failed; export will be silent:', err);
+        audioCtx = null; audioDest = null; audioBuffers = null;
+      }
+    }
+  }
+
+  // Pick a supported MIME type; opus is the standard WebM audio codec.
+  const mimeCandidates = audioDest
+    ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+    : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
   let mimeType = '';
   for (const c of mimeCandidates) {
     if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
@@ -176,50 +215,79 @@ async function exportAnimaticWebm() {
       break;
     }
   }
-  // If isTypeSupported is unavailable (older browsers), try the default
-  // and let the constructor throw if it can't.
-  const stream = exportCanvas.captureStream();    // automatic frame timing
+
+  // Build the combined media stream - canvas video + (optional) audio
+  const videoStream = exportCanvas.captureStream();    // automatic frame timing
+  const tracks = [...videoStream.getVideoTracks()];
+  if (audioDest) tracks.push(...audioDest.stream.getAudioTracks());
+  const stream = new MediaStream(tracks);
+
   let recorder;
   try {
     recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
   } catch (err) {
     toast('Could not start recorder: ' + err.message, 'error');
+    if (audioCtx) try { await audioCtx.close(); } catch (_) {}
     return;
   }
 
   const chunks = [];
   recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
 
-  toast(`Exporting ${App.project.panels.length} panels at ${fps} fps…`, 'info');
+  const audioNote = audioBuffers ? ' with audio' : '';
+  toast(`Exporting ${panels.length} panels at ${fps} fps${audioNote}...`, 'info');
 
   // Paint the FIRST panel before starting the recorder so the very first
   // frame doesn't capture a blank canvas.
-  paintPanelForExport(exportCtx, App.project.panels[0], w, h);
+  paintPanelForExport(exportCtx, panels[0], w, h);
+
+  // v3.9.18: schedule audio sources at exact times relative to recorder start.
+  const audioLeadMs = audioCtx ? 50 : 0;
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') {
+      try { await audioCtx.resume(); } catch (_) { /* noop */ }
+    }
+    const baseTime = audioCtx.currentTime + (audioLeadMs / 1000);
+    for (let i = 0; i < panels.length; i++) {
+      const buf = audioBuffers[i];
+      if (!buf) continue;
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(audioDest);
+      const startAt = baseTime + (i * panelMs / 1000);
+      const stopAt  = startAt + (panelMs / 1000);
+      src.start(startAt);
+      try { src.stop(stopAt); } catch (_) { /* already stopped */ }
+    }
+  }
+
   recorder.start();
-  // Sleep one panel duration so the first frame is held the right length
+  if (audioLeadMs) await sleep(audioLeadMs);
   await sleep(panelMs);
 
-  // Cycle through remaining panels
-  for (let i = 1; i < App.project.panels.length; i++) {
-    paintPanelForExport(exportCtx, App.project.panels[i], w, h);
+  for (let i = 1; i < panels.length; i++) {
+    paintPanelForExport(exportCtx, panels[i], w, h);
     await sleep(panelMs);
   }
 
-  // Small tail so the encoder flushes the last frame's data
   await sleep(120);
   recorder.stop();
 
-  // Wait for onstop, then assemble the blob
   await new Promise((res) => { recorder.onstop = res; });
-  const blob = new Blob(chunks, { type: 'video/webm' });
 
+  if (audioCtx) {
+    try { await audioCtx.close(); } catch (_) { /* noop */ }
+  }
+
+  const blob = new Blob(chunks, { type: 'video/webm' });
   if (blob.size === 0) {
     toast('Recording produced an empty file. Try a different browser.', 'error');
     return;
   }
 
   await downloadBlob(blob, (App.project.name || 'animatic') + '.webm');
-  toast(`Animatic exported (${(blob.size / 1024 / 1024).toFixed(1)} MB)`, 'ok');
+  const sizeMb = (blob.size / 1024 / 1024).toFixed(1);
+  toast(`Animatic exported (${sizeMb} MB${audioBuffers ? ', with audio' : ''})`, 'ok');
 }
 
 /**
