@@ -13,6 +13,7 @@
 import { App, curPanel } from '../core/state.js';
 import { $ } from '../utils/dom-helpers.js';
 import { setTool } from '../ui/toolrail.js';
+import { setBrushColor } from '../ui/brush-panel.js';
 
 let display, dctx, canvasWrap, canvasArea;
 function ensureDom() {
@@ -145,9 +146,8 @@ export function pickColor(e) {
   const hex = '#' + [data[0], data[1], data[2]]
     .map(v => v.toString(16).padStart(2, '0'))
     .join('');
-  App.brush.color = hex;
-  const input = $('colorPicker');
-  if (input) input.value = hex;
+  // v3.8.3 (M3): shared setter syncs desktop picker + mobile swatch + hex label
+  setBrushColor(hex);
   setTool('brush');
 }
 

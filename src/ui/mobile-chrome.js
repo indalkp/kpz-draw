@@ -16,7 +16,7 @@ import { undo, redo } from '../drawing/history.js';
 import { fitView } from '../drawing/view.js';
 import { setTool } from './toolrail.js';
 import { addPanel, deletePanel } from './panel-nav.js';
-import { updateBrushUI } from './brush-panel.js';
+import { updateBrushUI, setBrushColor } from './brush-panel.js';
 import { confirmLeaveIfDirty } from './confirm-leave.js';
 
 const SWATCH_COLORS = [
@@ -145,15 +145,10 @@ function wireColorModal() {
 }
 
 function applyColor(hex) {
-  App.brush.color = hex;
-  // Sync the color swatch visible in the mobile top bar
-  const mtbColor = $('mtbColor');
-  if (mtbColor) mtbColor.style.background = hex;
-  // Sync the desktop right-panel color picker + hex display
-  const cp = $('colorPicker');
-  if (cp) cp.value = hex;
-  const hexLabel = $('mColorHex');
-  if (hexLabel) hexLabel.textContent = hex.toUpperCase();
+  // v3.8.3 (M3): single source of truth for colour changes. setBrushColor
+  // updates App.brush.color, #colorPicker.value, #mtbColor.style.background
+  // and #mColorHex.textContent in one place.
+  setBrushColor(hex);
 }
 
 // ---- "More" menu (gallery button) ------------------------------------------
@@ -255,6 +250,12 @@ export function updateMobileTopbar() {
  * v3.8.2: Show/hide the 4 auth rows in #mobileMoreMenu based on login state.
  * Called from topbar.js updateAuthUI() so desktop + mobile stay in sync.
  * When logged-in, the Dashboard row gets the member nickname for clarity.
+ *
+ * v3.8.3 (H1): on logout, explicitly reset the dashboard row's textContent
+ * to a neutral default. Otherwise the previous user's personalised label
+ * ("📊 Alex's Dashboard") stayed in the DOM, hidden by display:none, and
+ * flashed visible for one frame when the NEXT user logged in before their
+ * own nickname finished loading from the Wix auth round-trip.
  */
 export function updateMobileAuthMenu() {
   const loggedIn = !!App.isLoggedIn;
@@ -266,8 +267,12 @@ export function updateMobileAuthMenu() {
   if (dashRow)  dashRow.style.display  = loggedIn ? '' : 'none';
   if (workRow)  workRow.style.display  = loggedIn ? '' : 'none';
   if (outRow)   outRow.style.display   = loggedIn ? '' : 'none';
-  // Personalize the dashboard label with the member nickname if available
-  if (loggedIn && dashRow && App.member?.nickname) {
-    dashRow.textContent = `📊 ${App.member.nickname}'s Dashboard`;
+  if (dashRow) {
+    if (loggedIn && App.member?.nickname) {
+      dashRow.textContent = `📊 ${App.member.nickname}'s Dashboard`;
+    } else {
+      // v3.8.3: neutral default — no ex-user nickname sticking around
+      dashRow.textContent = '📊 Dashboard';
+    }
   }
 }

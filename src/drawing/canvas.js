@@ -124,9 +124,23 @@ function startStroke(e) {
     const wasTouch = App.activePointerType === 'touch';
     const isPen = e.pointerType === 'pen';
     if (wasTouch && isPen) {
+      // v3.8.3 (C2): the abandoned touch stroke pushed a history entry at
+      // the top of its own startStroke. That entry was never paired with
+      // a commit — Cmd+Z saw a phantom "nothing changed" undo step. Pop it
+      // before we take over with the pen. historyIdx always tracks length
+      // after a push (see pushHistory in history.js), so keep them aligned.
+      const hIdx = App.activePanelIdx;
+      if (App.history[hIdx]?.length) {
+        App.history[hIdx].pop();
+        App.historyIdx[hIdx] = App.history[hIdx].length;
+      }
       // Abandon the touch stroke silently (no commit)
       App.isDrawing = false;
-      strokeBufferCtx?.clearRect(0, 0, strokeBuffer.width, strokeBuffer.height);
+      // v3.8.3 (L3): optional-chain the clear, and guard strokeBuffer access
+      // separately — the property read on null would still throw.
+      if (strokeBuffer && strokeBufferCtx) {
+        strokeBufferCtx.clearRect(0, 0, strokeBuffer.width, strokeBuffer.height);
+      }
       activePointerId = null;
       App.activePointerType = null;
     } else {

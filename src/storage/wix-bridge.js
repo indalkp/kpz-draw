@@ -50,10 +50,22 @@ export function initWixBridge() {
       // --- Auth state from Velo ---
       case 'auth-info':
         App.isLoggedIn = !!msg.loggedIn;
-        App.member     = msg.member || null;
-        App.memberId   = msg.member?.id   || null;
-        App.memberSlug = msg.member?.slug || null;
-        App.memberName = msg.member?.nickname || null;
+        // v3.8.3 (H1): on logout the bridge sometimes sends { loggedIn:false }
+        // with no member. Previously App.member kept the ex-user's data,
+        // which then flashed through the mobile more-menu dash row on the
+        // NEXT login before fresh member data arrived. Explicit null on
+        // logout guarantees a clean slate.
+        if (msg.loggedIn) {
+          App.member     = msg.member || null;
+          App.memberId   = msg.member?.id   || null;
+          App.memberSlug = msg.member?.slug || null;
+          App.memberName = msg.member?.nickname || null;
+        } else {
+          App.member     = null;
+          App.memberId   = null;
+          App.memberSlug = null;
+          App.memberName = null;
+        }
         updateAuthUI();
         break;
 

@@ -31,8 +31,8 @@ export function initBrushDock() {
  */
 function bindTrack(track) {
   const kind = track.dataset.kind;                     // 'size' or 'opacity'
-  const fill  = track.querySelector('.bd-fill');
-  const thumb = track.querySelector('.bd-thumb');
+  // v3.8.3 (L1): removed unused local queries for .bd-fill / .bd-thumb here —
+  // setTrack does the queries when it writes. One less dead reference.
   let dragging = false;
 
   /**

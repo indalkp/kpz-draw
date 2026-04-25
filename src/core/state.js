@@ -30,11 +30,16 @@ export const App = {
   isDrawing: false,
   isPanning: false,
   spacePan: false,            // space held for temporary pan mode
-  lastPoint: null,
-  smoothPoint: null,
+  lastPoint: null,            // most recent smoothed sample during active stroke
   strokeStart: null,          // v3.5: start position for tap-to-dot
   strokeHasMoved: false,      // v3.5: did pointer actually move during stroke
   panStart: null,
+  // v3.7.0 additions (quadratic Bezier sampling in canvas.js)
+  prevPoint: null,            // sample before lastPoint — 2nd point of quad control
+  lastMid: null,              // midpoint(prev, last) — start of next quad segment
+  activePointerType: null,    // 'pen' | 'touch' | 'mouse' — used for pen priority
+  // v3.8.3 (M4): removed unused `smoothPoint` (was v3.5 exponential lerp state;
+  // replaced by the One-Euro filter instance held inside canvas.js).
 
   // Stroke counter (v3.6.0) — per-project, reset on new/load
   strokeCount: 0,

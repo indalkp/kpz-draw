@@ -4,6 +4,7 @@
 import { App } from '../core/state.js';
 import { $ } from '../utils/dom-helpers.js';
 import { toast } from './toast.js';
+import { setBrushColor } from './brush-panel.js';
 
 export function initRefViewer() {
   $('refClose')?.addEventListener('click', closeRefViewer);
@@ -33,9 +34,8 @@ export function initRefViewer() {
     try {
       const data = App.refSampleCanvas.getContext('2d').getImageData(nx, ny, 1, 1).data;
       const hex = '#' + [data[0], data[1], data[2]].map(v => v.toString(16).padStart(2, '0')).join('');
-      App.brush.color = hex;
-      const cp = $('colorPicker');
-      if (cp) cp.value = hex;
+      // v3.8.3 (M3): shared setter keeps mobile topbar swatch + hex label in sync
+      setBrushColor(hex);
       const el = $('refPickedColor');
       if (el) {
         el.style.display = 'inline-block';

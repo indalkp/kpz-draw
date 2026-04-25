@@ -27,7 +27,15 @@ import { $ } from '../utils/dom-helpers.js';
 export function wireGlobalEvents() {
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
-  window.addEventListener('resize', () => { if (App.project) applyView(); });
+  // v3.8.3: guard against iOS address-bar-driven resize firing while layout
+  // is mid-reflow (canvasArea briefly 0). Same class of bug v3.8.1 fixed for
+  // ResizeObserver — window.resize had the same race.
+  window.addEventListener('resize', () => {
+    if (!App.project) return;
+    const ca = $('canvasArea');
+    if (!ca || ca.clientWidth < 100 || ca.clientHeight < 100) return;
+    applyView();
+  });
 
   setupCanvasTouch();
   setupSwipe();
@@ -131,10 +139,15 @@ function toggleFullscreen() {
 }
 
 // ============================================================================
-// Touch pinch/zoom on canvas — v3.7.0 hardened
+// Touch pinch/zoom on canvas — v3.7.0 hardened, v3.8.3 gesture fixes
 // ============================================================================
 let canvasTouchState = null;
 let lastTapTime = 0;
+// v3.8.3: debounce 3-finger undo. The old code re-fired undo on every
+// touchstart while fingers.length === 3, so a palm wobble ate several
+// history steps per gesture. Store the last time it fired and require a
+// spacing window before the next one.
+let lastThreeFingerUndoAt = 0;
 
 /**
  * v3.7.0 helper: return only the "real finger" touches from a TouchEvent.
@@ -166,6 +179,9 @@ function setupCanvasTouch() {
 
     if (fingers.length === 2) {
       e.preventDefault();
+      // v3.8.3 (M1): clear lastTapTime so a pending double-tap-to-fit can't
+      // fire after a pinch ends. Pinch is a distinct gesture from tapping.
+      lastTapTime = 0;
       const [a, b] = fingers;
       canvasTouchState = {
         d: Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY),
@@ -173,7 +189,15 @@ function setupCanvasTouch() {
         vx: App.view.x, vy: App.view.y, scale: App.view.scale
       };
     } else if (fingers.length === 3) {
-      undo(); canvasTouchState = 'undo';
+      // v3.8.3 (C1): only fire undo once per 3-finger gesture. 400ms guard
+      // covers palm wobble, second touch settling, and re-detection loops
+      // where a finger briefly leaves and rejoins the touch list.
+      const now = Date.now();
+      if (now - lastThreeFingerUndoAt > 400) {
+        undo();
+        lastThreeFingerUndoAt = now;
+      }
+      canvasTouchState = 'undo';
     } else if (fingers.length === 1) {
       const now = Date.now();
       if (now - lastTapTime < 320) { fitView(); e.preventDefault(); lastTapTime = 0; return; }
@@ -229,10 +253,15 @@ function setupSwipe() {
     const dy = changed[0].clientY - touchStartY;
     if (Math.abs(dx) < 60 || Math.abs(dy) > 80) return;
     if (dx > 0 && touchStartX < 40) {
+      // v3.8.3 (C3): close the opposite panel so we don't stack both drawers.
+      // Matches the toggle-button behavior in topbar.js + mobile-chrome.js.
+      $('rightPanel')?.classList.remove('open');
       $('leftPanel')?.classList.add('open');
       $('panelBackdrop')?.classList.add('show');
       swipeHandled = true;
     } else if (dx < 0 && touchStartX > window.innerWidth - 40) {
+      // v3.8.3 (C3): mirror of the above — opening right drawer closes left.
+      $('leftPanel')?.classList.remove('open');
       $('rightPanel')?.classList.add('open');
       $('panelBackdrop')?.classList.add('show');
       swipeHandled = true;

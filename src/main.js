@@ -17,6 +17,7 @@ import { wireGlobalEvents } from './core/events.js';
 import { initDrawing } from './drawing/canvas.js';
 import { createProject } from './drawing/panels.js';
 import { fitView } from './drawing/view.js';
+import { renderDisplay } from './drawing/view.js';
 
 import { initTopbar } from './ui/topbar.js';
 import { initToolRail } from './ui/toolrail.js';
@@ -80,6 +81,11 @@ export async function init(rootSelector, opts = {}) {
     App.project = createProject('Untitled', 1280, 720);
     renderPanelNav();
     renderLayersUI();
+    // v3.8.3: paint the blank project onto the display canvas now. Without
+    // this, #displayCanvas stays at the HTML5 default of 300x150 and fitView's
+    // scale collapses the visible rect to a nearly-invisible ~84x42 on mobile.
+    // loadKpzBlob already calls renderDisplay; the fresh-create path did not.
+    renderDisplay();
   }
 
   // 5. Restore session-persistent references
@@ -97,7 +103,14 @@ export async function init(rootSelector, opts = {}) {
   // 7. Initial canvas fit
   updateBrushUI();
   updateMobileTopbar();  // v3.8.0: populate project name / layer count in mobile topbar
-  requestAnimationFrame(() => { fitView(); });
+  // v3.8.3: double rAF so mobile layout (100dvh, safe-area insets, grid row
+  // resolution) has committed before we compute the fit scale. Without this,
+  // mobile first-load fitView() hits the v3.8.1 zero-size guard, returns,
+  // and the scale stays at 1.0 — leaving a 1280px canvas centered with most
+  // of it clipped off-screen. Belt-and-suspenders with the ResizeObserver.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => { fitView(); renderDisplay(); });
+  });
 
   // 8. Prevent accidental nav-away on unsaved changes
   window.addEventListener('beforeunload', e => {
