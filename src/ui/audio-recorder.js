@@ -93,6 +93,62 @@ export function isRecording() {
   return !!(_recorder && _recorder.state === 'recording');
 }
 
+/**
+ * v3.9.22: detect whether the mic can possibly work in this context
+ * BEFORE the user clicks the record button. Three failure modes:
+ *
+ *   - 'unsupported': navigator.mediaDevices / MediaRecorder missing
+ *     (very old browsers, file:// without a serving context).
+ *   - 'iframe-policy': we're in an iframe whose parent page didn't grant
+ *     `allow="microphone"`. getUserMedia would reject as NotAllowedError
+ *     with no permission prompt — the most confusing case for users
+ *     since the browser-level allow they set is for the parent page,
+ *     not the embedded iframe. This is what the Wix HtmlComponent does
+ *     by default; the user can't change it without editing the iframe
+ *     attributes (Wix doesn't expose this in the editor).
+ *   - 'available': everything looks ok; click should produce a normal
+ *     permission prompt or use the cached allow.
+ *
+ * Returns an object so the caller can show a specific message instead
+ * of a generic "denied" toast.
+ */
+export async function detectMicAvailability() {
+  if (typeof navigator === 'undefined' ||
+      !navigator.mediaDevices ||
+      !navigator.mediaDevices.getUserMedia ||
+      typeof MediaRecorder === 'undefined') {
+    return { available: false, reason: 'unsupported' };
+  }
+
+  // Only iframes are at risk of Permissions-Policy denial.
+  const inIframe = window.self !== window.top;
+
+  if (inIframe) {
+    // Synchronous check: the older featurePolicy API. If it explicitly
+    // says microphone is NOT allowed, we're done — getUserMedia will fail
+    // immediately without a prompt.
+    try {
+      const fp = document.featurePolicy;
+      if (fp && typeof fp.allowsFeature === 'function' &&
+          !fp.allowsFeature('microphone')) {
+        return { available: false, reason: 'iframe-policy' };
+      }
+    } catch (_) { /* old browser, ignore */ }
+
+    // Async check: permissions query may return 'denied' if the iframe
+    // policy blocks mic, even before any prompt has been shown. (Some
+    // browsers don't surface this; we still try.)
+    try {
+      const q = await navigator.permissions.query({ name: 'microphone' });
+      if (q.state === 'denied') {
+        return { available: false, reason: 'iframe-policy' };
+      }
+    } catch (_) { /* permissions API may not support 'microphone' name */ }
+  }
+
+  return { available: true };
+}
+
 function cleanup() {
   _recorder = null;
   if (_stream) {

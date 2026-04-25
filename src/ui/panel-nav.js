@@ -10,7 +10,7 @@ import { renderLayersUI } from './layers-panel.js';
 import { updateSaveStatus } from './topbar.js';
 import { toast } from './toast.js';
 import { newAudioId, setPanelAudio, deletePanelAudio } from '../storage/panel-audio.js';
-import { startRecording, stopRecording, cancelRecording, isRecording } from './audio-recorder.js';
+import { startRecording, stopRecording, cancelRecording, isRecording, detectMicAvailability } from './audio-recorder.js';
 
 export function initPanelNav() {
   // v3.9.11: caption input wiring. The input lives in #canvasArea above
@@ -44,6 +44,23 @@ export function initPanelNav() {
       toast('Recording cancelled', 'ok');
       e.stopPropagation();
     }
+  });
+
+  // v3.9.22: detect Permissions-Policy / unsupported-API early and disable
+  // the record button with a clear tooltip if the mic can't possibly work.
+  // This catches the Wix iframe case where getUserMedia rejects without a
+  // permission prompt — users were getting a generic "denied" toast and
+  // wondering why they were never asked. Now they see the disabled state
+  // upfront and a tooltip that explains the workaround (Upload).
+  detectMicAvailability().then(({ available, reason }) => {
+    if (available) return;
+    const btn = $('captionRecordBtn');
+    if (!btn) return;
+    btn.classList.add('mic-unavailable');
+    btn.disabled = true;
+    btn.title = reason === 'iframe-policy'
+      ? 'Recording is blocked by this page\'s iframe — use Upload instead'
+      : 'Microphone is not available in this browser';
   });
 }
 
@@ -193,7 +210,27 @@ async function onRecordBtnClick() {
     toast('Recording — click the mic again to stop, or press Escape to cancel', 'info');
   } catch (err) {
     console.warn('startRecording failed:', err);
-    toast('Microphone access denied or unavailable', 'error');
+    // v3.9.22: differentiate the failure so users know what to do next.
+    // The most confusing case is iframe Permissions-Policy denial —
+    // browser refuses the request silently, no permission prompt shows up,
+    // user sees "denied" without ever having said no.
+    const inIframe = window.self !== window.top;
+    let msg;
+    const name = err && err.name;
+    if (name === 'NotAllowedError' && inIframe) {
+      msg = 'Recording blocked by this iframe\'s permissions policy. Use Upload instead, or open KPZ Draw outside the embed.';
+    } else if (name === 'NotAllowedError') {
+      msg = 'Microphone permission denied. Allow it in your browser site settings and try again.';
+    } else if (name === 'NotFoundError') {
+      msg = 'No microphone found on this device.';
+    } else if (name === 'NotReadableError') {
+      msg = 'Microphone is in use by another app — close it and try again.';
+    } else if (name === 'SecurityError') {
+      msg = 'Microphone disabled (site is not on HTTPS or context is restricted).';
+    } else {
+      msg = 'Recording failed: ' + (err && (err.message || err.name) || 'unknown error');
+    }
+    toast(msg, 'error');
   }
 }
 
