@@ -193,9 +193,79 @@ export function renderDisplay() {
     }
   }
 
+  // v3.9.14: during animatic playback, burn the current panel's caption
+  // onto the display canvas so the in-app preview matches the exported
+  // WebM 1:1. Outside of playback, captions live in the editable strip
+  // below the canvas (so the user can keep working without them obscuring
+  // their drawing). drawCaptionSubtitle is the same helper modals.js uses
+  // for export — single source of truth for caption rendering.
+  if (App.playing && panel && panel.caption) {
+    drawCaptionSubtitle(dctx, panel.caption, p.width, p.height);
+  }
+
   dctx.globalAlpha = 1;
   dctx.globalCompositeOperation = 'source-over';
   $('canvasInfo').textContent = `${p.width} × ${p.height}`;
+}
+
+/**
+ * v3.9.14: shared caption renderer. Draws a semi-transparent black
+ * subtitle bar at the bottom of the canvas with the given text in white,
+ * word-wrapped to fit within the canvas width. Used by:
+ *
+ *   - drawing/view.js renderDisplay() during animatic playback (live
+ *     in-app preview that matches what the user will export).
+ *   - ui/modals.js exportAnimaticWebm() per frame during recording.
+ *
+ * Both call sites pass the SAME context dimensions (project width/height)
+ * so the layout is identical between live preview and exported video.
+ */
+export function drawCaptionSubtitle(ctx, text, w, h) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return;
+
+  ctx.save();
+  // Sizes scale with project height so 720p and 1080p both look balanced.
+  const fontSize = Math.max(18, Math.round(h * 0.038));
+  const padY = Math.round(fontSize * 0.6);
+  const padX = Math.round(fontSize * 0.8);
+  ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+
+  // Wrap into lines that fit. Greedy word-wrap; long words get their own line.
+  const maxW = w - padX * 2;
+  const words = trimmed.split(/\s+/);
+  const lines = [];
+  let cur = '';
+  for (const word of words) {
+    const test = cur ? cur + ' ' + word : word;
+    if (ctx.measureText(test).width <= maxW) {
+      cur = test;
+    } else {
+      if (cur) lines.push(cur);
+      cur = word;
+    }
+  }
+  if (cur) lines.push(cur);
+
+  const lineH = Math.round(fontSize * 1.25);
+  const blockH = lines.length * lineH + padY * 2;
+  const blockY = h - blockH;
+
+  // Subtitle bar background
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  ctx.fillRect(0, blockY, w, blockH);
+
+  // White text
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < lines.length; i++) {
+    const y = blockY + padY + (i + 1) * lineH - Math.round(lineH * 0.25);
+    ctx.fillText(lines[i], w / 2, y);
+  }
+  ctx.restore();
 }
 
 /**

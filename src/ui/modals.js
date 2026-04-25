@@ -4,7 +4,7 @@
 import { App } from '../core/state.js';
 import { $, $$ } from '../utils/dom-helpers.js';
 import { createProject } from '../drawing/panels.js';
-import { renderDisplay, fitView } from '../drawing/view.js';
+import { renderDisplay, fitView, drawCaptionSubtitle } from '../drawing/view.js';
 import { renderLayersUI } from './layers-panel.js';
 import { renderPanelNav } from './panel-nav.js';
 import { renderRefs } from './references.js';

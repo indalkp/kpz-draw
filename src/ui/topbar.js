@@ -312,6 +312,10 @@ export function togglePlayback() {
 export function startPlayback() {
   if (App.playing) return;
   App.playing = true;
+  // v3.9.14: body class drives CSS that hides the caption strip during
+  // playback (since captions now burn into the canvas) — and gives any
+  // future "playback mode" affordances a hook to react to.
+  document.body.classList.add('animatic-playing');
   syncPlayButton();
   startPlaybackInterval();
 }
@@ -319,8 +323,13 @@ export function startPlayback() {
 export function stopPlayback() {
   if (!App.playing) return;
   App.playing = false;
+  document.body.classList.remove('animatic-playing');
   stopPlaybackInterval();
   syncPlayButton();
+  // v3.9.14: re-render once on stop so the burned-in caption disappears
+  // immediately (renderDisplay only burns when App.playing is true; the
+  // last frame painted during playback still has the caption otherwise).
+  renderDisplay();
 }
 
 function startPlaybackInterval() {

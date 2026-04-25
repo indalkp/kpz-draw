@@ -1651,3 +1651,16 @@
     -3px 0 0 0 var(--accent, #ff7a45),
     0 0 0 2px rgba(255, 122, 69, 0.4) inset;
 }
+
+
+/* =====================================================================
+   v3.9.14 — playback-mode tweaks. During animatic playback the caption
+   gets burned onto the canvas (via drawCaptionSubtitle in view.js), so
+   the editable strip below the canvas would just duplicate the same
+   text in a different place. Hide it for a cleaner preview that mirrors
+   what the exported WebM will look like.
+   ===================================================================== */
+
+body.animatic-playing #captionStrip {
+  display: none;
+}
