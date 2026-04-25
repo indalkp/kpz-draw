@@ -9,6 +9,13 @@
 // These elements are always in the DOM but CSS hides them above 1100px so
 // desktop users never see them. All controls drive the same App state and
 // reuse the same functions as the desktop UI — no duplicated logic.
+//
+// v3.9.4: bottom dock — 5-button thumb-reach navigation aligned to the V3a
+// wireframe (Draw / Script / Refs / Project / More). Reuses the existing
+// drawer toggles and modals where applicable so there's a single source
+// of truth. The redundant mtbRefs / mtbLayers / mtbGallery topbar buttons
+// are hidden via CSS but their handlers stay wired (defensive) until v3.9.5
+// removes them from the DOM after a stable production release.
 
 import { App } from '../core/state.js';
 import { $, $$ } from '../utils/dom-helpers.js';
@@ -29,15 +36,125 @@ export function initMobileChrome() {
   wireToolPopover();
   wireColorModal();
   wireMoreMenu();
+  wireMobileDock();             // v3.9.4
   // Close all popovers when tapping outside
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#mobileToolPopover') && !e.target.closest('#mtbTool')) {
       $('mobileToolPopover')?.classList.remove('open');
     }
-    if (!e.target.closest('#mobileMoreMenu') && !e.target.closest('#mtbGallery')) {
+    if (!e.target.closest('#mobileMoreMenu') && !e.target.closest('#mtbGallery') && !e.target.closest('[data-md="more"]')) {
       $('mobileMoreMenu')?.classList.remove('open');
     }
   });
+}
+
+// ---- v3.9.4: Mobile bottom dock --------------------------------------------
+//
+// The dock is the primary mobile navigation surface. Each button maps to a
+// well-defined action; "Draw" represents the canvas and is the default-active
+// state. The dock keeps the active button highlighted so users always know
+// which mode they're in. State is local to this module — driving #mobileDock
+// classes and reusing existing handlers for actual side effects.
+function wireMobileDock() {
+  const dock = $('mobileDock');
+  if (!dock) return;
+
+  $$('#mobileDock .md-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const target = btn.dataset.md;
+      // Update active state — every dock action settles on a specific
+      // visual mode. For modal-style actions (Project, More) we still
+      // light up the button briefly to confirm the tap.
+      handleMobileDockAction(target, btn, e);
+    });
+  });
+}
+
+function setActiveDockButton(targetId) {
+  $$('#mobileDock .md-btn').forEach(b => b.classList.toggle('active', b.dataset.md === targetId));
+}
+
+function handleMobileDockAction(target, btn, e) {
+  switch (target) {
+    case 'draw':
+      // Close any open drawers / popovers; canvas takes center stage.
+      $('leftPanel')?.classList.remove('open');
+      $('rightPanel')?.classList.remove('open');
+      $('panelBackdrop')?.classList.remove('show');
+      $('mobileMoreMenu')?.classList.remove('open');
+      setActiveDockButton('draw');
+      break;
+
+    case 'script':
+      // v3.9.4: script editor is a v4.0 feature. Show a friendly placeholder
+      // so users know it's coming. Don't change visible mode.
+      import('./toast.js').then(m => m.toast('Script editor lands in v4.0', 'info'));
+      // Don't change active button — user is still in Draw mode.
+      break;
+
+    case 'refs':
+      // Toggle the references drawer (same as the now-hidden mtbRefs).
+      // Cast & Refs panel lives in #leftPanel; v3.9.0 added the Cast tab.
+      {
+        const open = $('leftPanel')?.classList.toggle('open');
+        $('rightPanel')?.classList.remove('open');
+        $('panelBackdrop')?.classList.toggle('show', !!open);
+        setActiveDockButton(open ? 'refs' : 'draw');
+      }
+      break;
+
+    case 'project':
+      // Open the existing Save/Export modal (covers .kpz / Wix / PSD / PNG).
+      $('saveModal')?.classList.add('open');
+      // Don't permanently activate — modals close back to Draw.
+      flashDockButton(btn);
+      break;
+
+    case 'more':
+      // Reuse the existing #mobileMoreMenu popover (gallery button).
+      // Position above the dock instead of below the chip — anchor is the
+      // dock button at the bottom of the viewport.
+      e.stopPropagation();
+      positionPopoverAbove($('mobileMoreMenu'), btn);
+      $('mobileMoreMenu')?.classList.toggle('open');
+      $('mobileToolPopover')?.classList.remove('open');
+      flashDockButton(btn);
+      break;
+  }
+}
+
+/**
+ * Briefly highlight a dock button to confirm a modal-style action. Returns
+ * to the previously-active button after a short delay so users get visual
+ * feedback without permanently changing dock state for one-shot actions.
+ */
+function flashDockButton(btn) {
+  const prev = document.querySelector('#mobileDock .md-btn.active');
+  setActiveDockButton(btn.dataset.md);
+  setTimeout(() => {
+    if (prev) prev.classList.add('active');
+    btn.classList.remove('active');
+  }, 220);
+}
+
+/**
+ * Position a popover ABOVE its anchor (used for dock buttons that sit at the
+ * bottom of the viewport). Mirrors positionPopover() but flips vertically.
+ */
+function positionPopoverAbove(popover, anchor) {
+  if (!popover || !anchor) return;
+  const rect = anchor.getBoundingClientRect();
+  // Account for the popover's own height — measured after it renders, so
+  // make the popover briefly visible-but-hidden to grab dimensions, or rely
+  // on a CSS bottom-anchored position. Simpler: anchor by bottom: viewport-rect.top.
+  popover.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+  popover.style.top = 'auto';
+  // Center over the dock button, clamped to viewport
+  const popW = 200; // approximate; mtp-item-row width
+  let left = rect.left + (rect.width / 2) - (popW / 2);
+  left = Math.max(8, Math.min(window.innerWidth - popW - 8, left));
+  popover.style.left = left + 'px';
+  popover.style.right = 'auto';
 }
 
 // ---- Mobile top bar --------------------------------------------------------

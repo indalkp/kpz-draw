@@ -1256,3 +1256,93 @@
     margin: 0 4px;
   }
 }
+
+
+/* =====================================================================
+   v3.9.4 — Mobile bottom dock
+   5-button thumb-reach navigation. Hidden on desktop; on mobile it sits
+   fixed at the bottom and pushes the canvas up by its own height via a
+   media-query offset on #canvasArea (safe-area-inset accounted for).
+   The redundant mobile topbar buttons (#mtbRefs, #mtbLayers, #mtbGallery)
+   are hidden in v3.9.4 — handlers stay wired in JS for safety, but the
+   dock is now the canonical surface.
+   ===================================================================== */
+
+#mobileDock {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  #mobileDock {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 110;
+    background: #fdfcf9;
+    border-top: 1.5px solid #1f1d1b;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  .md-btn {
+    background: transparent;
+    border: none;
+    padding: 6px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--ink-soft, #4a4540);
+    cursor: pointer;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 500;
+    transition: background 0.12s, color 0.12s;
+    min-height: 48px;
+  }
+  .md-btn svg {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+  .md-label {
+    line-height: 1;
+    font-size: 10px;
+    letter-spacing: 0.2px;
+  }
+  .md-btn:hover { background: rgba(0, 0, 0, 0.04); color: #1f1d1b; }
+  .md-btn:active { background: rgba(0, 0, 0, 0.08); }
+  .md-btn.active {
+    color: var(--accent, #ff7a45);
+    background: rgba(255, 122, 69, 0.1);
+  }
+  .md-btn.active svg {
+    /* Active button gets a subtle accent stroke */
+    filter: drop-shadow(0 0 1px rgba(255, 122, 69, 0.3));
+  }
+
+  /* Hide the now-redundant mobile topbar buttons. v3.9.5 will remove them
+     from the DOM entirely once the dock has stabilised in production. */
+  #mtbRefs,
+  #mtbLayers,
+  #mtbGallery {
+    display: none !important;
+  }
+
+  /* Make room for the dock at the bottom — pad the canvas area so it
+     doesn't get covered. The dock height is ~58px including safe-area. */
+  #canvasArea {
+    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Lift fitPresets so they don't overlap the dock */
+  #fitPresets {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
