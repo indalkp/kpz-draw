@@ -197,8 +197,34 @@ export function setZoom(s, cx, cy) {
 export function renderDisplay() {
   ensureDom();
   const p = App.project;
-  if (display.width  !== p.width)  display.width  = p.width;
-  if (display.height !== p.height) display.height = p.height;
+
+  // v3.14.1 Phase 6: DPR-aware display canvas.
+  //
+  // The display canvas's internal buffer is sized at project pixels ×
+  // devicePixelRatio. Its CSS size stays at project dimensions, so the
+  // browser shrinks the high-res buffer back down to native screen
+  // pixels — producing crisp 1:1 device-pixel rendering on Retina /
+  // HiDPI displays instead of the previous bilinear upscale of a
+  // project-resolution buffer.
+  //
+  // dctx is scaled by DPR so every subsequent drawImage / drawing
+  // primitive in the function uses project-space coordinates, exactly
+  // like before the change. Layer canvases stay at project resolution
+  // to avoid memory bloat (a 4096×4096 project on a DPR=3 device would
+  // otherwise allocate 144 MB per layer).
+  //
+  // CSS transforms on canvasWrap (pan / zoom) still work — they scale
+  // the rendered output as before; the bigger internal buffer just
+  // means there's more pixel data to sample from when the user zooms in.
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const targetW = p.width  * dpr;
+  const targetH = p.height * dpr;
+  if (display.width  !== targetW) display.width  = targetW;
+  if (display.height !== targetH) display.height = targetH;
+  if (display.style.width  !== p.width + 'px')  display.style.width  = p.width + 'px';
+  if (display.style.height !== p.height + 'px') display.style.height = p.height + 'px';
+  // Reset to identity then scale by DPR so coordinates remain project-space.
+  dctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   dctx.clearRect(0, 0, p.width, p.height);
 
   const panel = curPanel();
