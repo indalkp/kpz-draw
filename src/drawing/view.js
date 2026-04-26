@@ -30,6 +30,41 @@ function ensureDom() {
 let eraserPreview = null;
 let eraserPreviewCtx = null;
 
+// v3.11.1: rAF-throttled render scheduler.
+//
+// The previous behavior was: every browser pointermove event called
+// renderDisplay() synchronously, which clears the entire display canvas
+// and re-drawImage's every layer of the active panel (plus optional
+// eraser preview offscreen and onion-skin overlay). On iPad with a 120Hz
+// pencil and 4+ layers, that's 120 full N-layer recomposites per second
+// — the dominant per-frame cost and the main reason fast strokes felt
+// laggy compared to Procreate / Clip Studio.
+//
+// scheduleRender() coalesces any number of render requests within a
+// single frame into one renderDisplay() call at the next vsync. Stamping
+// into the per-stroke offscreen buffer (canvas.js) stays synchronous so
+// no coalesced samples are lost; only the EXPENSIVE display recomposite
+// is throttled. cancelScheduledRender() is used by endStroke so we don't
+// get a stale rAF firing AFTER flushStrokeBuffer has already moved the
+// pixels onto the layer.
+let _renderRafId = null;
+
+export function scheduleRender() {
+  // Already a frame queued — just let the existing one run.
+  if (_renderRafId !== null) return;
+  _renderRafId = requestAnimationFrame(() => {
+    _renderRafId = null;
+    renderDisplay();
+  });
+}
+
+export function cancelScheduledRender() {
+  if (_renderRafId !== null) {
+    cancelAnimationFrame(_renderRafId);
+    _renderRafId = null;
+  }
+}
+
 export function applyView() {
   ensureDom();
   canvasWrap.style.transform =

@@ -30,7 +30,7 @@ import { App } from '../core/state.js';
 import { curLayer, curPanel } from './panels.js';
 import { pushHistory } from './history.js';
 import { drawQuadSegment, drawSegment, drawDot } from './brush.js';
-import { pointerToCanvas, renderDisplay, startPan, doPan, endPan, pickColor } from './view.js';
+import { pointerToCanvas, renderDisplay, scheduleRender, cancelScheduledRender, startPan, doPan, endPan, pickColor } from './view.js';
 import { updateLayerThumb } from '../ui/layers-panel.js';
 import { updateSaveStatus } from '../ui/topbar.js';
 import { updateCursor, hideCursor } from '../ui/cursor-overlay.js';
@@ -251,7 +251,18 @@ function moveStroke(e) {
     App.lastPoint = sp;
   }
 
-  renderDisplay();
+  // v3.11.1: rAF-throttle the display recomposite. The expensive part of
+  // moveStroke is renderDisplay() — it clears the entire #displayCanvas
+  // and re-drawImage's every layer of the active panel. At 120Hz pen
+  // input rate that runs 120x/sec, eats most of the frame budget on
+  // multi-layer panels, and is the single biggest source of perceived
+  // lag vs Procreate / Clip Studio.
+  //
+  // Stamping into strokeBuffer above stays synchronous so coalesced
+  // samples land in order; only the display composite is deferred to
+  // the next vsync. scheduleRender() is idempotent: many calls within
+  // one frame collapse to a single renderDisplay() call.
+  scheduleRender();
 }
 
 function endStroke(e) {
@@ -287,6 +298,13 @@ function endStroke(e) {
   App.activePointerType = null;
   smoother = null;
 
+  // v3.11.1: cancel any rAF-scheduled mid-stroke render before we paint
+  // the final committed state. Without this, a queued frame from the
+  // last moveStroke could fire AFTER flushStrokeBuffer has already moved
+  // the pixels onto the active layer — the second paint would be
+  // identical to the first but waste a frame and could briefly flash
+  // wrong opacity if a layer-state update interleaved.
+  cancelScheduledRender();
   renderDisplay();
   updateLayerThumb(curPanel().activeLayer);
   scheduleAutosave();
