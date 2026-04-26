@@ -44,6 +44,23 @@ import { InputPoint, Stroke } from './stroke.js';
 let strokeBuffer = null;
 let strokeBufferCtx = null;
 
+// v3.13.2 Phase 2: speculative-tip overlay buffer.
+//
+// PointerEvent.getPredictedEvents() returns 1–3 samples ahead of the
+// current real position based on velocity / trajectory. Rendering those
+// predicted samples optimistically each frame lets the visible stroke
+// endpoint track the cursor in real time, masking the browser's input →
+// display latency (typically 1–2 frames on iPad/Pencil and Wacom-on-PC).
+//
+// The predicted buffer is a separate offscreen canvas, cleared and
+// re-rasterized on every moveStroke. It composites on top of the real
+// strokeBuffer in renderDisplay. When the next real sample arrives at
+// (or near) a previously-predicted position, the predicted overlay gets
+// replaced — no double-stamping because the predicted buffer was cleared
+// before re-render.
+let predictedBuffer = null;
+let predictedBufferCtx = null;
+
 // v3.7.0: smoothing filter pair, rebuilt at each stroke start
 let smoother = null;
 
@@ -196,6 +213,80 @@ if (typeof window !== 'undefined') {
   window.__KPZ_strokeBuffer = getStrokeBuffer;
 }
 
+// v3.13.2 Phase 2: helpers for the speculative-tip overlay.
+function ensurePredictedBuffer() {
+  if (!strokeBuffer) return null;
+  const w = strokeBuffer.width;
+  const h = strokeBuffer.height;
+  if (!predictedBuffer || predictedBuffer.width !== w || predictedBuffer.height !== h) {
+    predictedBuffer = document.createElement('canvas');
+    predictedBuffer.width  = w;
+    predictedBuffer.height = h;
+    predictedBufferCtx = predictedBuffer.getContext('2d');
+  }
+  return predictedBufferCtx;
+}
+
+function clearPredictedBuffer() {
+  if (predictedBuffer && predictedBufferCtx) {
+    predictedBufferCtx.clearRect(0, 0, predictedBuffer.width, predictedBuffer.height);
+  }
+}
+
+export function getPredictedBuffer() {
+  return App.isDrawing ? predictedBuffer : null;
+}
+if (typeof window !== 'undefined') {
+  window.__KPZ_predictedBuffer = getPredictedBuffer;
+}
+
+// v3.13.2 Phase 3: re-rasterize the entire active stroke from its
+// stored point array. Called when a "suspicious gap" is detected in
+// moveStroke (large position jump or time gap suggests a dropped
+// sample). Clears strokeBuffer and replays every InputPoint through
+// a fresh smoother + the same pressure-ramp / clamp / bezier pipeline
+// as the live render path.
+//
+// This is the architectural fix for the skipping class: a dropped
+// sample is now a one-frame visual hiccup that auto-corrects on the
+// next event, instead of a permanent gap that no amount of subsequent
+// samples can recover.
+function rerasterizeFromPoints() {
+  if (!App.activeStroke || !strokeBufferCtx) return;
+  const points = App.activeStroke.points;
+  if (points.length === 0) return;
+
+  // Wipe the buffer; we're rebuilding the whole stroke from scratch.
+  strokeBufferCtx.clearRect(0, 0, strokeBuffer.width, strokeBuffer.height);
+
+  // Fresh smoother per re-render (One-Euro state would otherwise be
+  // mid-stream from the live path).
+  const sm = makeStrokeSmoother(App.activeStroke.brush.smoothing);
+  let prev = null;
+  let lastRaw = null;
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const sx = sm.fx.filter(p.x, p.time);
+    const sy = sm.fy.filter(p.y, p.time);
+    const elapsed = p.time - (App.strokeStartTime || p.time);
+    const rampFactor = strokeRampFactor(elapsed);
+
+    let pressure;
+    if (lastRaw === null) {
+      pressure = p.pressure * RAMP_UP_START_FACTOR;
+      lastRaw = p.pressure;
+    } else {
+      const clampedRaw = clampPressureDelta(p.pressure, lastRaw);
+      lastRaw = clampedRaw;
+      pressure = clampedRaw * rampFactor;
+    }
+
+    const sp = { x: sx, y: sy, pressure };
+    if (prev) drawSegment(strokeBufferCtx, prev, sp);
+    prev = sp;
+  }
+}
+
 function startStroke(e) {
   // v3.9.10: any pointer-down on the canvas stops animatic playback. Drawing
   // and auto-cycling-panels would fight each other; user wins. We import
@@ -316,7 +407,9 @@ function startStroke(e) {
       App.strokeStartRawPressure = null;
       App.lastRawPressure = null;
       // v3.13.0: drop the abandoned stroke's data object too.
+      // v3.13.2: clear predicted-tip overlay.
       App.activeStroke = null;
+      clearPredictedBuffer();
       // v3.8.3 (L3): optional-chain the clear, and guard strokeBuffer access
       // separately — the property read on null would still throw.
       if (strokeBuffer && strokeBufferCtx) {
@@ -490,6 +583,7 @@ function startStroke(e) {
       App.activePointerType = null;
       smoother = null;
       App.activeStroke = null; // v3.13.0: long-press abandoned the stroke
+      clearPredictedBuffer();  // v3.13.2: clear speculative overlay
       clearStrokeRect();
       cancelScheduledRender();
       renderDisplay();
@@ -542,11 +636,35 @@ function moveStroke(e) {
 
     // v3.13.0 Phase 1: capture this real sample in the stroke data model.
     // The point gets pushed BEFORE any smoothing / clamping / ramping so
-    // the data array is the unmodified ground truth. Phase 3 will use this
-    // to re-rasterize the stroke from scratch when a sample drop is
-    // suspected. The existing rendering pipeline below is unchanged.
+    // the data array is the unmodified ground truth.
     if (App.activeStroke) {
       App.activeStroke.add(new InputPoint(raw.x, raw.y, raw.pressure, ev.timeStamp));
+
+      // v3.13.2 Phase 3: suspicious-gap detection. A real human pen
+      // motion stays under ~200 canvas-px between consecutive samples
+      // and ~50ms apart. Anything larger is almost certainly a dropped
+      // sample (firmware glitch, OS scheduling hiccup, browser pointer-
+      // event drop). Re-rasterize the whole stroke from the point
+      // array — this fills the gap and recovers any earlier corruption
+      // the live render path may have accumulated.
+      const pts = App.activeStroke.points;
+      if (pts.length >= 2) {
+        const a = pts[pts.length - 2];
+        const b = pts[pts.length - 1];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const distSq = dx * dx + dy * dy;
+        const timeGap = b.time - a.time;
+        if (distSq > 40000 || timeGap > 50) {
+          rerasterizeFromPoints();
+          // After re-rasterization, App.lastPoint / App.lastMid / etc.
+          // reflect the OLD render-path state, but the buffer is now
+          // freshly correct. Reset the bezier-midpoint cache so the
+          // forward path starts clean from the latest sample.
+          App.lastMid = null;
+          App.prevPoint = null;
+        }
+      }
     }
 
     // v3.12.10: sub-pixel noise filter REMOVED.
@@ -613,13 +731,21 @@ function moveStroke(e) {
     App.lastPoint = sp;
   }
 
-  // v3.13.0 Phase 1: capture predicted samples for the next frame.
+  // v3.13.0 Phase 1 + v3.13.2 Phase 2: capture predicted samples and
+  // rasterize them into the speculative-tip overlay.
+  //
   // PointerEvent.getPredictedEvents() returns 1–3 samples ahead of the
-  // current real position based on velocity / trajectory. Stored in
-  // App.activeStroke.predicted (replaced each call, never accumulated).
-  // Phase 1 just stores them — Phase 2 (v3.13.1) will render them into
-  // a speculative-tip overlay each frame to mask browser input → display
-  // latency. Empty on non-supporting browsers; safely no-ops there.
+  // current real position based on velocity / trajectory. We render
+  // them into predictedBuffer (a separate offscreen canvas) which gets
+  // composited on top of strokeBuffer in renderDisplay. Because the
+  // predicted buffer is cleared and re-rasterized on every moveStroke,
+  // the latest prediction always shows; old predictions disappear when
+  // new real samples arrive.
+  //
+  // Net effect: visible stroke endpoint tracks the cursor in real
+  // time, masking browser input → display latency on iPad/Pencil
+  // and Wacom-on-PC. Empty / no-op on browsers without
+  // getPredictedEvents support.
   if (App.activeStroke && typeof e.getPredictedEvents === 'function') {
     const rawPredicted = e.getPredictedEvents();
     const predictedPoints = [];
@@ -628,6 +754,26 @@ function moveStroke(e) {
       predictedPoints.push(new InputPoint(p.x, p.y, p.pressure, pe.timeStamp, true));
     }
     App.activeStroke.setPredicted(predictedPoints);
+
+    const predCtx = ensurePredictedBuffer();
+    if (predCtx) {
+      // Always start from a clean overlay so old predictions don't
+      // accumulate as the user moves.
+      clearPredictedBuffer();
+
+      // Bridge from the last accepted real sample through each
+      // predicted point. Use the same pressure as the last real
+      // sample (predicted points don't have meaningful pressure
+      // dynamics — they're trajectory extrapolation).
+      let prev = App.lastPoint;
+      if (prev && predictedPoints.length > 0) {
+        for (const pred of predictedPoints) {
+          const sp = { x: pred.x, y: pred.y, pressure: prev.pressure };
+          drawSegment(predCtx, prev, sp);
+          prev = sp;
+        }
+      }
+    }
   }
 
   // v3.11.1: rAF-throttle the display recomposite. The expensive part of
@@ -712,8 +858,10 @@ function endStroke(e) {
   App.strokeStartRawPressure = null; // v3.12.9
   App.lastRawPressure = null;        // v3.12.9
   // v3.13.0 Phase 1: stroke is now committed to the layer; clear the
-  // data object. (Phase 3 may keep it longer for re-render-from-data.)
+  // data object. v3.13.2 Phase 2: clear the predicted-tip overlay too
+  // so it doesn't linger past the stroke's end.
   App.activeStroke = null;
+  clearPredictedBuffer();
   activePointerId = null;
   App.activePointerType = null;
   smoother = null;
