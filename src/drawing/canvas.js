@@ -522,15 +522,22 @@ function moveStroke(e) {
   for (const ev of events) {
     const raw = pointerToCanvas(ev);
 
-    // Sub-pixel noise filter.
-    // v3.12.3: relaxed from 0.5 → 0.2 canvas-px linear threshold so that
-    // slow precision strokes with small brushes don't lose samples below
-    // the old 0.5px floor. Stamps into the offscreen buffer are cheap
-    // (single radial-gradient draw); per-frame compositing is still
-    // rAF-throttled so rendering cost is unaffected.
-    const dx0 = raw.x - App.lastPoint.x;
-    const dy0 = raw.y - App.lastPoint.y;
-    if (dx0 * dx0 + dy0 * dy0 < 0.04) continue; // 0.2 canvas-px squared
+    // v3.12.10: sub-pixel noise filter REMOVED.
+    //
+    // The old `if (dx² + dy² < 0.04) continue;` was dropping every coalesced
+    // sample whose movement from the previous sample was < 0.2 canvas-px.
+    // On PC this dropped legitimate fine-detail input — drawing a tiny dot,
+    // circling in a small area for a pupil, or holding the cursor steady
+    // with hand tremor produced no visible stamps because every sample fell
+    // under the threshold. iPad didn't hit this because Pencil events at
+    // 240 Hz over 1 mm of motion always exceed 0.2 canvas-px between samples.
+    //
+    // Same-position overlap is correct: stamps land at the same spot in
+    // the offscreen buffer and the radial-gradient edges accumulate to a
+    // slightly-saturated dot — exactly what a "small dot" should look like.
+    // Per-frame composite cost is rAF-throttled so processing every sample
+    // (including identical-position ones) has negligible overhead. Canvas
+    // 2D arc+fill at sub-pixel precision is fast.
 
     // v3.7.0: smooth via One-Euro (adaptive). Each event carries its own
     // timeStamp so variable frame rates are handled correctly.
