@@ -80,20 +80,16 @@ const MICRO_LIFT_MAX_DIST_SQ = 196; // 14 * 14 in canvas px
 let lastStrokeEnd = null;          // { x, y, pressure, t, pointerType }
 let isContinuation = false;        // true while the current stroke is a micro-lift continuation
 
-// v3.12.8: per-sample pressure delta clamp. Apple Pencil and some Wacom
-// drivers fire occasional pressure spike outliers — a single sample reading
-// 0.9–1.0 surrounded by 0.3s. At brush sizes 50+ those single-sample spikes
-// produce visibly oversized stamps. Capping the per-sample change at ±0.5
-// attenuates spikes by half on the spike sample (0.3 → 0.95 becomes 0.3 →
-// 0.8) without affecting natural pressure ramps (deltas of 0.05–0.15
-// between samples are far below the cap).
-//
-// Why not One-Euro filtering instead? One-Euro smooths steady signals but
-// lags real ramps — Wacom users on PC reported lines not thinning when
-// they pressed lighter, because the filter was pulling new low-pressure
-// samples back toward the higher previous value. Delta-clamp has zero lag
-// on real ramps; it only acts on fast outlier samples.
-const PRESSURE_DELTA_LIMIT = 0.5;
+// v3.12.8: per-sample pressure delta clamp.
+// v3.12.9: tightened from ±0.5 to ±0.2. With brush sizes 50+, even a clamp
+// of ±0.5 produced visible spike stamps (a clamped value of 0.8 on brush
+// 100 still draws an 80-px stamp surrounded by 30-px steady-state stamps —
+// clearly visible "spike dot" artifact). ±0.2 limits a single-sample spike
+// to half the visible diameter increase, which combined with the stroke
+// ramp-up below eliminates the "big black blob" pattern at large brush
+// sizes. Natural pressure ramps in normal drawing are ~0.05–0.10/sample
+// at 120Hz, well under the ±0.2 cap.
+const PRESSURE_DELTA_LIMIT = 0.2;
 
 function clampPressureDelta(newP, oldP) {
   const delta = newP - oldP;
@@ -101,6 +97,33 @@ function clampPressureDelta(newP, oldP) {
     return oldP + Math.sign(delta) * PRESSURE_DELTA_LIMIT;
   }
   return newP;
+}
+
+// v3.12.9: stroke ramp-up factor.
+//
+// Pen first-contact pressure is hardware-noisy. Apple Pencil firmware and
+// many Wacom drivers report pressure 0.9–1.0 for the first sample of a
+// stroke, then settle to whatever the user is actually pressing within
+// 30–80 ms. Using that raw first-sample pressure produces the "large
+// black dot at the start of every stroke" pattern that the user reports
+// at brush sizes 50+ on both iPad and PC.
+//
+// Procreate / Krita / Clip Studio all apply a "lead-in damping" — the
+// first ~60 ms of a stroke uses a fade-in pressure factor (start at 30%,
+// linear ramp to 100%). The first stamp is small even if the OS reports
+// full pressure; by the time the user has actually moved a few mm the
+// hardware-stable pressure has taken over.
+//
+// Tap-to-dot is preserved separately: drawDot uses App.strokeStartRawPressure
+// (the unramped first-sample pressure) so quick taps still produce a
+// visible dot at the natural size.
+const RAMP_UP_MS = 60;
+const RAMP_UP_START_FACTOR = 0.3;
+
+function strokeRampFactor(elapsedMs) {
+  if (elapsedMs >= RAMP_UP_MS) return 1;
+  const t = Math.max(0, elapsedMs) / RAMP_UP_MS;
+  return RAMP_UP_START_FACTOR + (1 - RAMP_UP_START_FACTOR) * t;
 }
 
 // v3.12.0: long-press color-pick gesture. After a hold without significant
@@ -225,7 +248,20 @@ function startStroke(e) {
       // gestures still land much farther than 100px from a moving pen,
       // so this stays unambiguous.
       const PHANTOM_RESTART_DIST_SQ = 10000; // 100 canvas-px squared
-      if (dx * dx + dy * dy < PHANTOM_RESTART_DIST_SQ) {
+      // v3.12.9: also require pressure-similarity. Real firmware phantoms
+      // (pen tip stays in contact, OS just dropped pointerup) preserve
+      // pressure across the glitch. A new pointerdown landing close in
+      // space but with very different pressure is almost certainly a
+      // genuine new stroke disguised by a missing pointerup — not a
+      // phantom — and adopting it would carry the new pressure forward,
+      // producing the "thick burst mid-stroke" artifact at large brush
+      // sizes. If pressures differ by > 0.3, fall through to the normal
+      // pen-priority / palm-rejection path so the stroke ends cleanly.
+      const newP   = (e.pressure != null && e.pressure > 0) ? e.pressure : 0.5;
+      const oldP   = (lastP.pressure != null) ? lastP.pressure : 0.5;
+      const PRESSURE_SIMILARITY_THRESHOLD = 0.3;
+      const pressuresSimilar = Math.abs(newP - oldP) < PRESSURE_SIMILARITY_THRESHOLD;
+      if (dx * dx + dy * dy < PHANTOM_RESTART_DIST_SQ && pressuresSimilar) {
         // Phantom restart: adopt the new pointer, keep the same stroke.
         // setPointerCapture on a fresh pointerId implicitly releases the
         // old capture; if it throws (rare on some browsers), we still
@@ -273,6 +309,11 @@ function startStroke(e) {
       // Abandon the touch stroke silently (no commit)
       App.isDrawing = false;
       isContinuation = false;
+      // v3.12.9: clear pressure-ramp state too so the abandoned stroke
+      // doesn't leak its raw-pressure tracker into the next stroke.
+      App.strokeStartTime = null;
+      App.strokeStartRawPressure = null;
+      App.lastRawPressure = null;
       // v3.8.3 (L3): optional-chain the clear, and guard strokeBuffer access
       // separately — the property read on null would still throw.
       if (strokeBuffer && strokeBufferCtx) {
@@ -360,12 +401,21 @@ function startStroke(e) {
 
   // Feed the first sample through the smoother so subsequent samples have a
   // reference. Returned value equals p on first call.
-  // v3.12.8: pressure goes through unfiltered for the first sample; the
-  // delta-clamp logic only kicks in from the second sample onwards in
-  // moveStroke, comparing each new pressure to the last accepted one.
+  // v3.12.9: capture stroke-start timestamp, raw first-pressure, and
+  // initialize the raw-pressure tracker for the delta-clamp logic.
+  // First stamp's *visual* pressure is at the ramp-start factor (30%
+  // of raw) so we never start a stroke with a full-pressure stamp.
+  // App.strokeStartRawPressure preserves the unramped first pressure
+  // for endStroke's tap-to-dot path.
+  App.strokeStartTime = e.timeStamp;
+  App.strokeStartRawPressure = p.pressure;
+  App.lastRawPressure = p.pressure;
   const sx = smoother.fx.filter(p.x, e.timeStamp);
   const sy = smoother.fy.filter(p.y, e.timeStamp);
-  const first = { x: sx, y: sy, pressure: p.pressure };
+  const first = {
+    x: sx, y: sy,
+    pressure: p.pressure * RAMP_UP_START_FACTOR,
+  };
 
   // v3.12.0: when continuing across a micro-lift, pre-stamp a short
   // connecting segment from the saved end point to the new entry point
@@ -484,14 +534,26 @@ function moveStroke(e) {
 
     // v3.7.0: smooth via One-Euro (adaptive). Each event carries its own
     // timeStamp so variable frame rates are handled correctly.
-    // v3.12.8: pressure goes through delta-clamp (not One-Euro) to
-    // attenuate spike outliers without lagging genuine pressure ramps.
+    //
+    // Pressure pipeline (v3.12.8 + v3.12.9):
+    //   raw → delta-clamp against previous raw (spike rejection)
+    //       → multiply by ramp factor (stroke fade-in)
+    //       → store as sp.pressure (used for stamp size)
+    //
+    // Raw and ramped values are tracked separately. Spike rejection
+    // operates on raw deltas (so it doesn't get confused by the ramp
+    // factor changing each sample); the ramp factor is a pure final
+    // multiplier that decays to 1.0 after 60ms.
     const t = ev.timeStamp;
-    const lastPressure = App.lastPoint ? App.lastPoint.pressure : raw.pressure;
+    const elapsedSinceStart = t - (App.strokeStartTime || t);
+    const rampFactor = strokeRampFactor(elapsedSinceStart);
+    const lastRaw = (App.lastRawPressure != null) ? App.lastRawPressure : raw.pressure;
+    const clampedRaw = clampPressureDelta(raw.pressure, lastRaw);
+    App.lastRawPressure = clampedRaw;
     const sp = {
       x: smoother.fx.filter(raw.x, t),
       y: smoother.fy.filter(raw.y, t),
-      pressure: clampPressureDelta(raw.pressure, lastPressure),
+      pressure: clampedRaw * rampFactor,
     };
 
     // v3.7.0: draw as quadratic Bézier curve through the samples, not as
@@ -553,10 +615,20 @@ function endStroke(e) {
     drawSegment(strokeBufferCtx, App.lastMid, App.lastPoint);
   }
 
-  // Tap-to-dot — unchanged. Skipped on continuations because the previous
-  // stroke already produced the dot (or its contribution).
+  // Tap-to-dot. Skipped on continuations because the previous stroke
+  // already produced the dot (or its contribution).
+  // v3.12.9: tap-to-dot uses the UNRAMPED first-contact pressure
+  // (App.strokeStartRawPressure), not the ramped strokeStart.pressure.
+  // A quick tap should produce a visible dot at the natural pressure
+  // size; the ramp-up only applies to actively moving strokes where
+  // the first-contact spike artifact is visible.
   if (!App.strokeHasMoved && App.strokeStart && strokeBufferCtx && !isContinuation) {
-    drawDot(strokeBufferCtx, App.strokeStart);
+    const dotPoint = {
+      x: App.strokeStart.x,
+      y: App.strokeStart.y,
+      pressure: App.strokeStartRawPressure ?? App.strokeStart.pressure,
+    };
+    drawDot(strokeBufferCtx, dotPoint);
   }
 
   flushStrokeBuffer();
@@ -585,6 +657,9 @@ function endStroke(e) {
   App.prevPoint   = null;
   App.lastMid     = null;
   App.strokeStart = null;
+  App.strokeStartTime = null;        // v3.12.9
+  App.strokeStartRawPressure = null; // v3.12.9
+  App.lastRawPressure = null;        // v3.12.9
   activePointerId = null;
   App.activePointerType = null;
   smoother = null;
