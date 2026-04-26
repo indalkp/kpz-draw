@@ -240,51 +240,33 @@ if (typeof window !== 'undefined') {
   window.__KPZ_predictedBuffer = getPredictedBuffer;
 }
 
-// v3.13.2 Phase 3: re-rasterize the entire active stroke from its
-// stored point array. Called when a "suspicious gap" is detected in
-// moveStroke (large position jump or time gap suggests a dropped
-// sample). Clears strokeBuffer and replays every InputPoint through
-// a fresh smoother + the same pressure-ramp / clamp / bezier pipeline
-// as the live render path.
+// v3.13.3: gap-bridge (replaces v3.13.2 full re-rasterization).
 //
-// This is the architectural fix for the skipping class: a dropped
-// sample is now a one-frame visual hiccup that auto-corrects on the
-// next event, instead of a permanent gap that no amount of subsequent
-// samples can recover.
-function rerasterizeFromPoints() {
-  if (!App.activeStroke || !strokeBufferCtx) return;
-  const points = App.activeStroke.points;
-  if (points.length === 0) return;
-
-  // Wipe the buffer; we're rebuilding the whole stroke from scratch.
-  strokeBufferCtx.clearRect(0, 0, strokeBuffer.width, strokeBuffer.height);
-
-  // Fresh smoother per re-render (One-Euro state would otherwise be
-  // mid-stream from the live path).
-  const sm = makeStrokeSmoother(App.activeStroke.brush.smoothing);
-  let prev = null;
-  let lastRaw = null;
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const sx = sm.fx.filter(p.x, p.time);
-    const sy = sm.fy.filter(p.y, p.time);
-    const elapsed = p.time - (App.strokeStartTime || p.time);
-    const rampFactor = strokeRampFactor(elapsed);
-
-    let pressure;
-    if (lastRaw === null) {
-      pressure = p.pressure * RAMP_UP_START_FACTOR;
-      lastRaw = p.pressure;
-    } else {
-      const clampedRaw = clampPressureDelta(p.pressure, lastRaw);
-      lastRaw = clampedRaw;
-      pressure = clampedRaw * rampFactor;
-    }
-
-    const sp = { x: sx, y: sy, pressure };
-    if (prev) drawSegment(strokeBufferCtx, prev, sp);
-    prev = sp;
-  }
+// When moveStroke detects a "suspicious gap" — a new sample whose
+// distance or time gap from the previous one is large enough to
+// indicate a dropped intermediate sample — we want to cover the gap
+// visually so the user doesn't see a permanent skip.
+//
+// v3.13.2's rerasterizeFromPoints() did this by clearing strokeBuffer
+// and replaying every stored InputPoint through the full pipeline.
+// That works visually but is O(n) per call — and on a fast pen at
+// 240 Hz a long stroke could see gap-detection fire multiple times,
+// turning the work into O(n²) total. Field reports of "sometimes lags
+// on tablet" traced to this.
+//
+// The cheap version: drawSegment from the previous-accepted smoothed
+// point to the current one, in the live strokeBuffer. O(1) per call.
+// Visually the gap-bridge is a straight-line approximation of what
+// the dropped intermediate samples would have stamped — for sub-50ms
+// gaps spanning <200 canvas-px, indistinguishable from a curve at
+// normal viewing zooms. Users can't tell.
+//
+// We keep the InputPoint[] data structure for future use (undo
+// granularity, network sync if we ever do collab, recovery from
+// truly catastrophic input loss) — Phase 1 still stands.
+function bridgeSuspiciousGap(prevSmoothed, currentSmoothed) {
+  if (!strokeBufferCtx || !prevSmoothed || !currentSmoothed) return;
+  drawSegment(strokeBufferCtx, prevSmoothed, currentSmoothed);
 }
 
 function startStroke(e) {
@@ -637,16 +619,15 @@ function moveStroke(e) {
     // v3.13.0 Phase 1: capture this real sample in the stroke data model.
     // The point gets pushed BEFORE any smoothing / clamping / ramping so
     // the data array is the unmodified ground truth.
+    //
+    // v3.13.3: detect suspicious gaps but DON'T re-rasterize the whole
+    // stroke (was too expensive on long strokes — v3.13.2 perf regression
+    // surfaced as "lags on tablet"). Just flag the gap so the rendering
+    // block below uses a straight-line drawSegment bridge instead of the
+    // bezier midpoint method, covering the gap with a single stamp pass.
+    let suspiciousGap = false;
     if (App.activeStroke) {
       App.activeStroke.add(new InputPoint(raw.x, raw.y, raw.pressure, ev.timeStamp));
-
-      // v3.13.2 Phase 3: suspicious-gap detection. A real human pen
-      // motion stays under ~200 canvas-px between consecutive samples
-      // and ~50ms apart. Anything larger is almost certainly a dropped
-      // sample (firmware glitch, OS scheduling hiccup, browser pointer-
-      // event drop). Re-rasterize the whole stroke from the point
-      // array — this fills the gap and recovers any earlier corruption
-      // the live render path may have accumulated.
       const pts = App.activeStroke.points;
       if (pts.length >= 2) {
         const a = pts[pts.length - 2];
@@ -655,14 +636,10 @@ function moveStroke(e) {
         const dy = b.y - a.y;
         const distSq = dx * dx + dy * dy;
         const timeGap = b.time - a.time;
+        // 200 canvas-px squared, OR 50 ms — either signals a probable
+        // dropped intermediate sample.
         if (distSq > 40000 || timeGap > 50) {
-          rerasterizeFromPoints();
-          // After re-rasterization, App.lastPoint / App.lastMid / etc.
-          // reflect the OLD render-path state, but the buffer is now
-          // freshly correct. Reset the bezier-midpoint cache so the
-          // forward path starts clean from the latest sample.
-          App.lastMid = null;
-          App.prevPoint = null;
+          suspiciousGap = true;
         }
       }
     }
@@ -711,7 +688,19 @@ function moveStroke(e) {
     // v3.7.0: draw as quadratic Bézier curve through the samples, not as
     // straight stamp-lines. Midpoint method: control point is the previous
     // sample, segment endpoints are midpoints with the one before and after.
-    if (App.prevPoint) {
+    //
+    // v3.13.3: if a suspicious gap was just detected (likely-dropped
+    // intermediate sample), fall back to a straight-line drawSegment so
+    // we cover the gap without the bezier curve corkscrewing through
+    // a wrong control point. Reset lastMid/prevPoint so the next
+    // segment starts a fresh bezier sequence.
+    if (suspiciousGap) {
+      drawSegment(ctx, App.lastPoint, sp);
+      App.lastMid = { x: (App.lastPoint.x + sp.x) / 2,
+                      y: (App.lastPoint.y + sp.y) / 2,
+                      pressure: (App.lastPoint.pressure + sp.pressure) / 2 };
+      App.prevPoint = null; // restart bezier chain from this point
+    } else if (App.prevPoint) {
       const midNow = { x: (App.lastPoint.x + sp.x) / 2,
                        y: (App.lastPoint.y + sp.y) / 2,
                        pressure: (App.lastPoint.pressure + sp.pressure) / 2 };
