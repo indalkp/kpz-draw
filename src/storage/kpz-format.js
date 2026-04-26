@@ -60,6 +60,11 @@ export async function serializeKpz(opts = {}) {
       // playback silently no-ops. v3.9.18+ can either embed audio in
       // .kpz or sync via Wix file storage.
       audioId: p.audioId || null,
+      // v3.11.0: persist Wix Media Manager URL (set after a successful
+      // cloud upload). When this is non-null, cross-device load can fetch
+      // audio from the URL to repopulate IDB. Older .kpz files have no
+      // audioMediaUrl; defaults to null on load.
+      audioMediaUrl: p.audioMediaUrl || null,
       // v3.9.19: cached audio duration (seconds). Used by the playback
       // scheduler so audio-bearing panels hold for their full clip
       // length. Defaults to 0 = "use FPS timing" on older files.
@@ -175,6 +180,11 @@ export async function deserializeKpz(blob) {
       // an older .kpz file. The actual audio Blob is looked up from IDB
       // by topbar.js's playback path.
       audioId: typeof pmeta.audioId === 'string' ? pmeta.audioId : null,
+      // v3.11.0: Wix Media Manager URL for the audio. Restored if present.
+      // null on older .kpz files. After deserialize, ensurePanelAudioFromUrls
+      // (called from loadKpzBlob) fetches missing audio from these URLs so
+      // a project saved on device A "just works" when opened on device B.
+      audioMediaUrl: typeof pmeta.audioMediaUrl === 'string' ? pmeta.audioMediaUrl : null,
       // v3.9.19: cached audio duration in seconds. Older .kpz files have no
       // audioDuration field and default to 0 (= use FPS timing).
       audioDuration: typeof pmeta.audioDuration === 'number' ? pmeta.audioDuration : 0,
@@ -253,6 +263,20 @@ export async function loadKpzBlob(blob) {
     syncCaptionInput();
     App.dirty = false; updateSaveStatus();
     toast('Project loaded', 'ok');
+
+    // v3.11.0: in the background, fetch any panel audio that has a
+    // Wix Media URL but isn't in this device's IDB yet. This makes
+    // cross-device cloud projects "just work" — drawings load fast,
+    // audio populates as it arrives. Errors swallow per-panel; a panel
+    // that fails to fetch just plays silently (matches v3.9.21 UX).
+    (async () => {
+      try {
+        const { ensurePanelAudioFromUrls } = await import('./cloud-audio.js');
+        await ensurePanelAudioFromUrls(project.panels);
+      } catch (err) {
+        console.warn('cloud-audio: ensurePanelAudioFromUrls failed', err);
+      }
+    })();
   } catch (err) { toast('Load failed: ' + err.message, 'error'); }
 }
 

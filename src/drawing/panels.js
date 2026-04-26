@@ -47,7 +47,19 @@ export function createPanel(w, h) {
   // panel for at least this long during playback / export — useful for dramatic
   // pauses on silent panels without bumping global FPS. 0 = "auto" (use audio
   // length if present, else 1/fps).
-  return { layers: [bg, layer], activeLayer: 1, caption: '', audioId: null, audioDuration: 0, duration: 0 };
+  // v3.11.0: audioMediaUrl is the public Wix Media Manager URL for the
+  // audio. Set after a successful upload via cloud-audio.uploadPanelAudio.
+  // Cloud saves carry only this URL (~100 bytes) instead of the audio
+  // bytes themselves; load fetches from the URL to repopulate IDB.
+  return {
+    layers: [bg, layer],
+    activeLayer: 1,
+    caption: '',
+    audioId: null,
+    audioMediaUrl: null,
+    audioDuration: 0,
+    duration: 0,
+  };
 }
 
 /** Returns the currently active panel. */

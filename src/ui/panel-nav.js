@@ -189,12 +189,17 @@ async function onAudioFileChosen(e) {
   const audioId = newAudioId();
   await setPanelAudio(audioId, file);
   panel.audioId = audioId;
+  panel.audioMediaUrl = null;   // v3.11.0: clear stale URL from previous attach
   panel.audioDuration = durationSec;
 
   syncCaptionInput();
   App.dirty = true; updateSaveStatus();
   const durNote = durationSec > 0 ? `, ${durationSec.toFixed(1)}s` : '';
   toast(`Voice-over attached (${(file.size / 1024).toFixed(0)} KB${durNote})`, 'ok');
+
+  // v3.11.0: kick off background upload to Wix Media Manager so a future
+  // cloud save can carry just the URL, not the audio bytes (avoids 413).
+  uploadAudioToCloud(panel, file, audioId);
 }
 
 // v3.9.20: in-browser recording. Same save path as upload — once recording
@@ -228,11 +233,16 @@ async function onRecordBtnClick() {
     const audioId = newAudioId();
     await setPanelAudio(audioId, blob);
     panel.audioId = audioId;
+    panel.audioMediaUrl = null;     // v3.11.0: clear stale URL
     panel.audioDuration = durationSec;
 
     syncCaptionInput();
     App.dirty = true; updateSaveStatus();
     toast(`Voice-over recorded (${durationSec.toFixed(1)}s)`, 'ok');
+
+    // v3.11.0: background upload to Wix Media Manager (fire-and-forget;
+    // cloud save can carry the URL once upload completes).
+    uploadAudioToCloud(panel, blob, audioId);
     return;
   }
 
@@ -286,6 +296,38 @@ function setRecordingUI(recording) {
  * Uses an Audio element + 'loadedmetadata' event because that's universally
  * supported and metadata loads cheaply (no full decode needed).
  */
+/**
+ * v3.11.0: fire-and-forget background upload of a panel's audio Blob to
+ * Wix Media Manager. On success, sets panel.audioMediaUrl + marks dirty
+ * so the next cloud save carries the URL. On failure, surfaces a one-time
+ * toast — the audio still works locally via IDB, just won't sync across
+ * devices via cloud save.
+ */
+function uploadAudioToCloud(panel, blob, audioId) {
+  if (!App.inWix || !App.isLoggedIn) return;   // no auth = local only
+  (async () => {
+    try {
+      const { uploadPanelAudio } = await import('../storage/cloud-audio.js');
+      const r = await uploadPanelAudio(blob, audioId);
+      if (r && r.success && r.fileUrl) {
+        // Verify the panel still has the same audioId (user could have
+        // re-attached or deleted while upload was in flight). If yes,
+        // bind the URL and mark dirty so the next save picks it up.
+        if (panel.audioId === audioId) {
+          panel.audioMediaUrl = r.fileUrl;
+          App.dirty = true;
+          updateSaveStatus();
+        }
+      } else {
+        console.warn('cloud-audio: upload failed', r);
+        toast('Audio attached locally — cloud upload failed. It will not sync to other devices.', 'error');
+      }
+    } catch (err) {
+      console.warn('cloud-audio: upload error', err);
+    }
+  })();
+}
+
 function probeAudioDuration(blob) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(blob);

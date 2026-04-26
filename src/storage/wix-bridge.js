@@ -176,13 +176,19 @@ export function saveToWix() {
 
     try {
       const { serializeKpz } = await import('./kpz-format.js');
-      let blob = await serializeKpz();
+      // v3.11.0: cloud saves never carry audio bytes. Audio lives in
+      // Wix Media Manager (uploaded at attach-time) and the .kpz meta
+      // carries only audioMediaUrl per panel. This keeps the cloud
+      // payload small regardless of how much voice-over the user has —
+      // 5 minutes of audio per panel doesn't change the save size.
+      // Local .kpz downloads (the "Download .kpz" save target) still
+      // bundle audio fully via the default serializeKpz() call in modals.js.
+      let blob = await serializeKpz({ excludeAudio: true });
 
-      // v3.10.1: Wix's backend rejects requests over ~4 MB with HTTP 413.
-      // Pre-flight the .kpz size before posting so the user gets a clear
-      // choice instead of a silent server-side failure. Threshold set to
-      // 3.5 MB to leave headroom for base64 overhead (~33%) + JSON wrapper
-      // + display PNG. If oversized, prompt the user.
+      // v3.10.1: defensive size guard kept as safety net even though
+      // v3.11.0 should keep payloads small. If excludeAudio:true still
+      // somehow exceeds the limit (giant layer PNGs, hundreds of panels),
+      // fall back to the same modal flow.
       const SIZE_LIMIT = 3.5 * 1024 * 1024;
       if (blob.size > SIZE_LIMIT) {
         const choice = await showOversizeChoice(blob.size);
