@@ -23,7 +23,22 @@ import { toast } from '../ui/toast.js';
 // on deserialize.
 import { getPanelAudio, setPanelAudio } from './panel-audio.js';
 
-export async function serializeKpz() {
+/**
+ * Serialize the current project to a .kpz Blob.
+ *
+ * @param {object} [opts]
+ * @param {boolean} [opts.excludeAudio=false]
+ *        When true, skip bundling audio bytes (audioBundleCount=0). Per-panel
+ *        meta still carries audioId + audioDuration so the project structure
+ *        round-trips, but the audio is NOT in the saved blob. Used by the
+ *        v3.10.1 cloud-save oversize fallback so a project that's too big for
+ *        Wix's request limit can still cloud-save its drawings + structure;
+ *        the audio bytes stay only in IDB on the local device.
+ *        For local .kpz downloads the default (false) is correct — we want
+ *        audio bundled so projects round-trip across devices.
+ */
+export async function serializeKpz(opts = {}) {
+  const excludeAudio = !!opts.excludeAudio;
   const meta = {
     name: App.project.name, width: App.project.width, height: App.project.height,
     version: 3,
@@ -74,19 +89,24 @@ export async function serializeKpz() {
   // section as trailing bytes they ignore. The new audioBundleCount sentinel
   // in `meta` tells new readers how many entries to read back.
   const audioEntries = [];
-  for (const panel of App.project.panels) {
-    if (!panel.audioId) continue;
-    try {
-      const blob = await getPanelAudio(panel.audioId);
-      if (blob && blob.size > 0) {
-        audioEntries.push({
-          audioId: panel.audioId,
-          mime: blob.type || 'audio/webm',
-          buf: new Uint8Array(await blob.arrayBuffer()),
-        });
+  // v3.10.1: optional audio-skip path. excludeAudio=true means we still
+  // record per-panel audioId/audioDuration in meta (so the structure
+  // round-trips), but no audio bytes are bundled. audioBundleCount=0.
+  if (!excludeAudio) {
+    for (const panel of App.project.panels) {
+      if (!panel.audioId) continue;
+      try {
+        const blob = await getPanelAudio(panel.audioId);
+        if (blob && blob.size > 0) {
+          audioEntries.push({
+            audioId: panel.audioId,
+            mime: blob.type || 'audio/webm',
+            buf: new Uint8Array(await blob.arrayBuffer()),
+          });
+        }
+      } catch (err) {
+        console.warn('serialize: failed to read audio for panel', panel.audioId, err);
       }
-    } catch (err) {
-      console.warn('serialize: failed to read audio for panel', panel.audioId, err);
     }
   }
   meta.audioBundleCount = audioEntries.length;

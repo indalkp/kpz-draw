@@ -1971,3 +1971,15 @@ body.animatic-playing #captionStrip {
   .strip-panel-caption { border-radius: 0; }
   #stripContainer { padding: 12px 0 60px; gap: 12px; }
 }
+
+
+/* v3.10.1: oversize-cloud-save prompt buttons. Same visual as .save-target
+ * (single source of truth would be cleaner, but the .save-target click
+ * handler in modals.js is scoped to #saveModal — using a different class
+ * keeps the click handlers cleanly separated). */
+.oversize-target { display: block; width: 100%; text-align: left; padding: 12px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+  color: var(--text); cursor: pointer; margin-bottom: 6px; }
+.oversize-target:hover { border-color: var(--accent); }
+.oversize-target strong { display: block; margin-bottom: 2px; }
+.oversize-target small { color: var(--muted); font-size: 11px; line-height: 1.4; display: block; }

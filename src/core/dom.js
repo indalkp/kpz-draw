@@ -17,7 +17,7 @@ export function buildAppDom(root) {
       back to the source. Hidden under 1100px to save space; the
       version badge stays.
     -->
-    <div class="brand">KPZ Draw <small>v3.10.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
+    <div class="brand">KPZ Draw <small>v3.10.1</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -720,6 +720,25 @@ export function buildAppDom(root) {
       <button class="btn" id="refLibraryCancel">Cancel</button>
       <button class="btn primary" id="refLibraryImport" style="display:none" disabled>Select refs to import</button>
     </div>
+  </div>
+</div>
+
+<!--
+  v3.10.1: Oversize-cloud-save prompt. Wix's backend rejects requests
+  larger than ~4 MB with HTTP 413. When the user's project (especially
+  audio) pushes the .kpz blob over a safety threshold, this modal lets
+  them: save without audio bytes (drawings + structure go to cloud,
+  audio stays in IDB locally), download the full .kpz instead, or
+  cancel. See storage/wix-bridge.js#saveToWix for the size-check call.
+-->
+<div class="modal-bg" id="oversizeSaveModal">
+  <div class="modal">
+    <h2>Project too large for cloud save</h2>
+    <p id="oversizeMsg">Your project is too large for Wix's cloud-save limit (~4 MB). The audio files are taking most of the space.</p>
+    <p style="color:var(--muted);font-size:13px">Choose how to proceed:</p>
+    <button class="oversize-target" data-oversize="no-audio"><strong>☁ Save to my Wix site (no audio)</strong><small>Saves your drawings, captions, and timing. Audio stays on this device only — re-attach it after loading.</small></button>
+    <button class="oversize-target" data-oversize="download"><strong>💾 Download .kpz file</strong><small>Full save including audio. Open later from "Open" — works across devices.</small></button>
+    <div class="modal-actions"><button class="btn" id="oversizeCancel">Cancel</button></div>
   </div>
 </div>
 

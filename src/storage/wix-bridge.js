@@ -95,7 +95,20 @@ export function initWixBridge() {
           showStaleModal(msg);
           resolveSave({ success: false, error: 'stale', stale: msg });
         } else {
-          toast('Save failed: ' + (msg.error || 'unknown'), 'error');
+          // v3.10.1: detect oversize errors from the server (in case our
+          // pre-flight estimate was off — e.g., display PNG, JSON wrapper,
+          // or some other contributor pushed past the limit). Surface a
+          // clearer message that points the user at the workaround.
+          const errStr = String(msg.error || '').toLowerCase();
+          const isOversize = errStr.includes('413') ||
+                             errStr.includes('too large') ||
+                             errStr.includes('payload too large') ||
+                             errStr.includes('request entity too large');
+          if (isOversize) {
+            toast('Project too big for cloud save. Use Save → Download .kpz instead, or remove audio and try again.', 'error');
+          } else {
+            toast('Save failed: ' + (msg.error || 'unknown'), 'error');
+          }
           resolveSave({ success: false, error: msg.error || 'unknown' });
         }
         break;
@@ -163,7 +176,46 @@ export function saveToWix() {
 
     try {
       const { serializeKpz } = await import('./kpz-format.js');
-      const blob = await serializeKpz();
+      let blob = await serializeKpz();
+
+      // v3.10.1: Wix's backend rejects requests over ~4 MB with HTTP 413.
+      // Pre-flight the .kpz size before posting so the user gets a clear
+      // choice instead of a silent server-side failure. Threshold set to
+      // 3.5 MB to leave headroom for base64 overhead (~33%) + JSON wrapper
+      // + display PNG. If oversized, prompt the user.
+      const SIZE_LIMIT = 3.5 * 1024 * 1024;
+      if (blob.size > SIZE_LIMIT) {
+        const choice = await showOversizeChoice(blob.size);
+        if (choice === 'cancel') {
+          App.saving = false;
+          updateSaveStatus();
+          resolveSave({ success: false, error: 'oversize-cancelled' });
+          return;
+        }
+        if (choice === 'download') {
+          // Save the FULL blob locally. Audio is preserved.
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = (App.project.name || 'untitled').replace(/[^\w.-]+/g, '_') + '.kpz';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+          App.saving = false;
+          updateSaveStatus();
+          toast('Downloaded .kpz with full audio', 'ok');
+          resolveSave({ success: true, downloadedLocally: true });
+          return;
+        }
+        // choice === 'no-audio': re-serialize without audio bytes. Per-panel
+        // audioId/audioDuration meta still rides along so the structure
+        // round-trips; the audio stays only in this device's IDB.
+        blob = await serializeKpz({ excludeAudio: true });
+        toast('Saving without audio (audio stays on this device)');
+      }
+
+      // Build base64 and send
       const buf = new Uint8Array(await blob.arrayBuffer());
       let bin = '';
       for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
@@ -197,6 +249,46 @@ export function saveToWix() {
       toast('Save failed: ' + err.message, 'error');
       resolveSave({ success: false, error: err.message });
     }
+  });
+}
+
+/**
+ * v3.10.1: Promise-based oversize-prompt modal. Resolves to one of:
+ *   'no-audio' — user wants cloud save without audio bytes
+ *   'download' — user wants local .kpz with full audio
+ *   'cancel'   — user dismissed
+ *
+ * Wires its own click listeners and tears them down on close so repeated
+ * opens don't stack handlers. The modal HTML lives in dom.js#oversizeSaveModal.
+ */
+function showOversizeChoice(blobBytes) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('oversizeSaveModal');
+    const msg = document.getElementById('oversizeMsg');
+    if (!modal) { resolve('cancel'); return; }
+    const sizeMB = (blobBytes / (1024 * 1024)).toFixed(1);
+    if (msg) {
+      msg.innerHTML = `Your project is <b>${sizeMB} MB</b>. Wix's cloud-save limit is about 4 MB. The audio files are taking up most of the space.`;
+    }
+    modal.classList.add('open');
+    const buttons = Array.from(modal.querySelectorAll('[data-oversize]'));
+    const cancelBtn = document.getElementById('oversizeCancel');
+    const cleanup = () => {
+      modal.classList.remove('open');
+      buttons.forEach(b => b.removeEventListener('click', onChoice));
+      cancelBtn?.removeEventListener('click', onCancel);
+      modal.removeEventListener('click', onBackdrop);
+    };
+    const onChoice = (e) => {
+      const c = e.currentTarget.dataset.oversize || 'cancel';
+      cleanup();
+      resolve(c);
+    };
+    const onCancel = () => { cleanup(); resolve('cancel'); };
+    const onBackdrop = (e) => { if (e.target === modal) onCancel(); };
+    buttons.forEach(b => b.addEventListener('click', onChoice));
+    cancelBtn?.addEventListener('click', onCancel);
+    modal.addEventListener('click', onBackdrop);
   });
 }
 
