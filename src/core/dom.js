@@ -11,7 +11,13 @@ export function buildAppDom(root) {
 <div id="app">
   <!-- ===== TOP BAR (desktop) ===== -->
   <div id="topbar">
-    <div class="brand">KPZ Draw <small>v3.9.25</small></div>
+    <!--
+      v3.9.26: brand stamp added. The "by Indal KP" credit links to
+      indalkp.com so anyone seeing a forked deployment can trace it
+      back to the source. Hidden under 1100px to save space; the
+      version badge stays.
+    -->
+    <div class="brand">KPZ Draw <small>v3.9.26</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>

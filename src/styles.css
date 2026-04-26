@@ -40,6 +40,11 @@
   #topbar::-webkit-scrollbar{height:0}
   .brand{font-family:var(--font-display);font-weight:800;color:var(--accent);margin-right:8px;white-space:nowrap;font-size:14px;letter-spacing:.01em}
   .brand small{font-family:var(--font-body);color:var(--muted);font-weight:400;font-size:10px;margin-left:4px}
+  /* v3.9.26: "by Indal KP" attribution next to version. Hidden under 1100px. */
+  .brand-by{font-family:var(--font-body);color:var(--muted);font-weight:400;font-size:11px;margin-left:8px}
+  .brand-by a{color:var(--accent);text-decoration:none}
+  .brand-by a:hover{text-decoration:underline}
+  @media (max-width:1099px){.brand-by{display:none}}
   .tb-group{display:flex;gap:2px;padding:0 6px;border-right:1px solid var(--line);
     height:28px;align-items:center}
   .tb-group:last-child{border-right:none}
