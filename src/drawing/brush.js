@@ -32,23 +32,42 @@ const MIN_EFFECTIVE_BRUSH_PX = 5;
 
 /** Stamp diameter at a given pressure level.
  *
- * v3.12.5: two clamps stacked.
+ * Two clamps:
  *
- * 1. Effective brush size floor at MIN_EFFECTIVE_BRUSH_PX. Slider 1–5
- *    all render as size 5 — guarantees the smallest selectable brush
- *    is always a visible thin pen, never sub-pixel invisible.
+ * 1. Effective brush size floor at MIN_EFFECTIVE_BRUSH_PX (= 5). Slider
+ *    values 1–5 all render as size 5 — guarantees the smallest
+ *    selectable brush is always a visible thin pen.
  *
- * 2. Pressure-modulated size floor at 20% of effective size. Light pen
- *    pressure on small brushes can no longer multiply the stamp down
- *    to invisibility (the symptom v3.12.4 left at brush ≤ 4). This is
- *    what Procreate / Krita do — pressure modulation is a curve with
- *    a floor, not a raw multiply.
+ * 2. Stamp size floor at MIN_VISIBLE_STAMP_PX (= 1, ABSOLUTE).
+ *
+ * v3.12.6 — IMPORTANT design correction: the v3.12.5 floor was 20%
+ * of brush size (`s * 0.2`), which scaled with the brush. At brush 30
+ * the floor was 6 px; at brush 100 it was 20 px. Light pressure
+ * could never produce thinner strokes than 20% of the nominal brush
+ * width, eating most of the dynamic range and killing the natural
+ * pressure-controls-line-weight feel that pro tablets are calibrated
+ * around.
+ *
+ * The correct design is an ABSOLUTE pixel floor — light pen pressure
+ * on a brush 30 should produce roughly the same thin line as light
+ * pressure on a brush 5, with the FULL-pressure stamp scaling with
+ * brush size. This is what Procreate / Krita / Clip Studio do:
+ *
+ *     stamp_size = max(min_visible_px, brush * pressure)
+ *
+ * The 1-px absolute floor only kicks in for extreme low-pressure
+ * cases (raw pressure < 1/brush_size), preventing total invisibility
+ * without otherwise affecting the pressure curve. Brush 30 with
+ * pressure 0.05 now produces a 1.5-px stamp; brush 30 with pressure
+ * 1.0 produces a 30-px stamp — full natural dynamic range restored.
  */
+const MIN_VISIBLE_STAMP_PX = 1;
+
 export function getStampSize(pressure) {
   const s = Math.max(MIN_EFFECTIVE_BRUSH_PX, App.brush.size);
   const inf = App.brush.presSize;
   const modulated = s * (1 - inf + inf * pressure);
-  return Math.max(s * 0.2, modulated);
+  return Math.max(MIN_VISIBLE_STAMP_PX, modulated);
 }
 
 /** In-stroke stamp alpha (target opacity is applied later at composite time). */
