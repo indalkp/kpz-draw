@@ -14,11 +14,41 @@
 import { App } from '../core/state.js';
 import { hexToRgb } from '../utils/color.js';
 
-/** Stamp diameter at a given pressure level. */
+/**
+ * v3.12.5: minimum effective brush diameter, in canvas-px.
+ *
+ * Below ~5 px, stamps fall into sub-pixel territory once pressure
+ * modulation kicks in: the radial-gradient + arc rasterization can
+ * only place tiny amounts of alpha at integer canvas coordinates,
+ * and at typical display zooms those alpha contributions sum to
+ * sub-display-pixel intensity → "stroke disappears" reports.
+ *
+ * Per-user feedback we calibrate brush size 1 to render with the
+ * same effective stamp size as the previous brush size 5. The slider
+ * still goes 1–200 for familiarity; values 1–5 are clamped to the
+ * 5-px minimum, values 6+ pass through unchanged.
+ */
+const MIN_EFFECTIVE_BRUSH_PX = 5;
+
+/** Stamp diameter at a given pressure level.
+ *
+ * v3.12.5: two clamps stacked.
+ *
+ * 1. Effective brush size floor at MIN_EFFECTIVE_BRUSH_PX. Slider 1–5
+ *    all render as size 5 — guarantees the smallest selectable brush
+ *    is always a visible thin pen, never sub-pixel invisible.
+ *
+ * 2. Pressure-modulated size floor at 20% of effective size. Light pen
+ *    pressure on small brushes can no longer multiply the stamp down
+ *    to invisibility (the symptom v3.12.4 left at brush ≤ 4). This is
+ *    what Procreate / Krita do — pressure modulation is a curve with
+ *    a floor, not a raw multiply.
+ */
 export function getStampSize(pressure) {
-  const s = App.brush.size;
+  const s = Math.max(MIN_EFFECTIVE_BRUSH_PX, App.brush.size);
   const inf = App.brush.presSize;
-  return s * (1 - inf + inf * pressure);
+  const modulated = s * (1 - inf + inf * pressure);
+  return Math.max(s * 0.2, modulated);
 }
 
 /** In-stroke stamp alpha (target opacity is applied later at composite time). */
@@ -46,14 +76,12 @@ export function getStampAlpha(pressure) {
  */
 export function stamp(ctx, x, y, size, alpha) {
   const r = size / 2;
-  // v3.12.4: lowered from 0.5 to 0.25 canvas-px. The old floor silently
-  // dropped stamps whenever brush size × pressure was less than 1 — a
-  // case that hits constantly with small brushes and light pressure
-  // ("draw line at brush 6, light tap" → radius 0.3 → invisible).
-  // 0.25 canvas-px is below the practical visibility floor on every
-  // current display anyway, so we lose nothing and gain consistent
-  // small-brush rendering.
-  if (r < 0.25) return;
+  // v3.12.5: lowered radius-skip floor from 0.25 to 0.15 canvas-px.
+  // Combined with getStampSize's two clamps (5px minimum brush, 20%
+  // pressure floor), this is essentially a no-op now — stamps that
+  // make it here are already guaranteed ≥0.5 radius. The floor stays
+  // as a defensive last resort against future regressions.
+  if (r < 0.15) return;
   const erase = App.tool === 'eraser';
   // v3.9.3: source-over always when stamping into the per-stroke buffer.
   ctx.globalCompositeOperation = 'source-over';
