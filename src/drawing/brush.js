@@ -46,7 +46,14 @@ export function getStampAlpha(pressure) {
  */
 export function stamp(ctx, x, y, size, alpha) {
   const r = size / 2;
-  if (r < 0.5) return;
+  // v3.12.4: lowered from 0.5 to 0.25 canvas-px. The old floor silently
+  // dropped stamps whenever brush size × pressure was less than 1 — a
+  // case that hits constantly with small brushes and light pressure
+  // ("draw line at brush 6, light tap" → radius 0.3 → invisible).
+  // 0.25 canvas-px is below the practical visibility floor on every
+  // current display anyway, so we lose nothing and gain consistent
+  // small-brush rendering.
+  if (r < 0.25) return;
   const erase = App.tool === 'eraser';
   // v3.9.3: source-over always when stamping into the per-stroke buffer.
   ctx.globalCompositeOperation = 'source-over';
@@ -78,11 +85,31 @@ export function drawDot(ctx, p) {
  *   - the second sample of a stroke (not enough points for a curve yet)
  *   - the stroke-end tail between the last midpoint and the final sample
  */
+// v3.12.4: small-brush spacing override.
+//
+// The default spacing factor of 0.15 of stamp diameter gives ~85%
+// stamp overlap, which is plenty when stamps are large enough that
+// adjacent stamps' anti-aliased edges paper over any single dropped
+// sample. Below ~10 px diameter that's no longer true: a single
+// dropped input sample at brush size 8 leaves a clear gap (~30% of
+// stroke width) because the small stamps don't have enough soft
+// edge to bridge it. Field reports at brush sizes ≤ 8 confirmed
+// "skipping" was directly tied to this perceptual threshold.
+//
+// Fix: drop the spacing factor to 0.08 (≈92% overlap) for small
+// brushes, plus a hard floor at 0.3 canvas-px so very small brushes
+// (size 2–3) still get sub-pixel-tight stamping. Large brushes
+// keep the cheaper 0.15 factor — they don't need the extra density.
+function smallBrushSpacing(sizeA) {
+  if (sizeA >= 12) return Math.max(0.5, sizeA * 0.15);
+  return Math.max(0.3, sizeA * 0.08);
+}
+
 export function drawSegment(ctx, a, b) {
   const dx = b.x - a.x, dy = b.y - a.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
   const sizeA = getStampSize(a.pressure);
-  const spacing = Math.max(0.5, sizeA * 0.15);
+  const spacing = smallBrushSpacing(sizeA);
   const steps = Math.max(1, Math.ceil(dist / spacing));
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
@@ -112,8 +139,9 @@ export function drawQuadSegment(ctx, a, cp, b) {
   const chord = Math.sqrt(dx1 * dx1 + dy1 * dy1) + Math.sqrt(dx2 * dx2 + dy2 * dy2);
 
   // Spacing matches the straight-line version so look is consistent.
+  // v3.12.4: same small-brush-aware spacing.
   const sizeA = getStampSize(a.pressure);
-  const spacing = Math.max(0.5, sizeA * 0.15);
+  const spacing = smallBrushSpacing(sizeA);
   const steps = Math.max(1, Math.ceil(chord / spacing));
 
   for (let i = 1; i <= steps; i++) {
