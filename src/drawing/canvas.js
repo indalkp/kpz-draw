@@ -80,14 +80,17 @@ const MICRO_LIFT_MAX_DIST_SQ = 196; // 14 * 14 in canvas px
 let lastStrokeEnd = null;          // { x, y, pressure, t, pointerType }
 let isContinuation = false;        // true while the current stroke is a micro-lift continuation
 
-// v3.12.0: long-press color-pick gesture. After 500ms of pointer down at
-// near-zero movement, we treat it as Procreate-style "touch-and-hold to
-// eyedrop" — sample the color under the pointer, abort the stroke, and
-// restore brush tool when the user lifts. The timer is armed at
-// startStroke and cleared whenever the user moves more than a few
-// pixels (so a normal stroke never accidentally triggers it).
-const LONG_PRESS_MS = 500;
-const LONG_PRESS_MOVE_TOL_SQ = 16; // 4px squared in CSS px
+// v3.12.0: long-press color-pick gesture. After a hold without significant
+// movement, we treat it as Procreate-style "touch-and-hold to eyedrop" —
+// sample the color under the pointer, abort the stroke.
+//
+// v3.12.3: thresholds widened after field reports of slow / precision /
+// passive-stylus drawing accidentally triggering this and silently
+// switching the brush colour to whatever was under the pointer (commonly
+// the white background → all subsequent strokes invisible). 12-px / 750-ms
+// keeps the gesture intentional without false-firing on careful detail work.
+const LONG_PRESS_MS = 750;
+const LONG_PRESS_MOVE_TOL_SQ = 144; // 12 CSS-px squared
 let longPressTimer = null;
 let longPressOriginCss = null;     // { x, y } in client/CSS px
 
@@ -194,7 +197,11 @@ function startStroke(e) {
     if (lastP) {
       const dx = p.x - lastP.x;
       const dy = p.y - lastP.y;
-      const PHANTOM_RESTART_DIST_SQ = 2500; // 50 canvas px squared
+      // v3.12.3: bumped from 50px to 100px after reports that some firmware
+      // glitches land farther apart during fast strokes. Real second-finger
+      // gestures still land much farther than 100px from a moving pen,
+      // so this stays unambiguous.
+      const PHANTOM_RESTART_DIST_SQ = 10000; // 100 canvas-px squared
       if (dx * dx + dy * dy < PHANTOM_RESTART_DIST_SQ) {
         // Phantom restart: adopt the new pointer, keep the same stroke.
         // setPointerCapture on a fresh pointerId implicitly releases the
@@ -426,15 +433,28 @@ function moveStroke(e) {
   const ctx = strokeBufferCtx;
   if (!ctx) return;
 
+  // v3.12.3: any pointermove that reaches this point means the pointer
+  // moved between the last sample and now (the browser fires pointermove
+  // only when position changes). Set strokeHasMoved BEFORE the sub-pixel
+  // noise filter, otherwise slow / precision drawing falls below the
+  // filter threshold, leaves strokeHasMoved=false, and the long-press
+  // eyedropper timer fires mid-stroke — silently swapping the brush
+  // colour to whatever was under the pointer (commonly the white
+  // background, producing invisible strokes thereafter).
+  App.strokeHasMoved = true;
+
   for (const ev of events) {
     const raw = pointerToCanvas(ev);
 
-    // Sub-pixel noise filter — unchanged from v3.5 fix
+    // Sub-pixel noise filter.
+    // v3.12.3: relaxed from 0.5 → 0.2 canvas-px linear threshold so that
+    // slow precision strokes with small brushes don't lose samples below
+    // the old 0.5px floor. Stamps into the offscreen buffer are cheap
+    // (single radial-gradient draw); per-frame compositing is still
+    // rAF-throttled so rendering cost is unaffected.
     const dx0 = raw.x - App.lastPoint.x;
     const dy0 = raw.y - App.lastPoint.y;
-    if (dx0 * dx0 + dy0 * dy0 < 0.25) continue;
-
-    App.strokeHasMoved = true;
+    if (dx0 * dx0 + dy0 * dy0 < 0.04) continue; // 0.2 canvas-px squared
 
     // v3.7.0: smooth via One-Euro (adaptive). Each event carries its own
     // timeStamp so variable frame rates are handled correctly.
