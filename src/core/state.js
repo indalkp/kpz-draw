@@ -92,6 +92,13 @@ export const App = {
   // state for storyboard timing review.
   playing: false,
   playFps: 2,
+
+  // v3.10.0: view mode. 'single' (default, classic single-panel-at-a-time
+  // editor) or 'strip' (vertical-scroll comic-strip layout — all panels
+  // visible stacked, click any panel to make it the active editable one).
+  // Toggled by the #btnStripMode toolbar button. UI-only state, not
+  // serialized into .kpz.
+  viewMode: 'single',
 };
 
 // Convenience accessors

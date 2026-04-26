@@ -28,6 +28,12 @@ export function initTopbar() {
   $('btnDelPanel')?.addEventListener('click', deletePanel);
   $('btnFit')?.addEventListener('click', () => fitView());
   $('btnFullscreen')?.addEventListener('click', toggleFullscreen);
+  // v3.10.0: strip mode toggle. Lazy-import the module so the strip-mode
+  // CSS doesn't pull in the JS until the first time the user clicks the
+  // toggle (one-shot import after first click; cached thereafter).
+  $('btnStripMode')?.addEventListener('click', () => {
+    import('./strip-mode.js').then(m => m.toggleStripMode());
+  });
   // v3.9.8: onion-skin cycling toggle. Click cycles through three states:
   //   off → past → both → off
   // Each click re-renders the display so the ghosts appear/disappear
@@ -413,6 +419,11 @@ function advancePlaybackPanel() {
       renderDisplay();
     }
   });
+  // v3.10.0: in strip mode, also follow the active panel down the strip
+  // so the user sees the playback head moving without manually scrolling.
+  if (App.viewMode === 'strip') {
+    import('./strip-mode.js').then(m => m.scrollActivePanelIntoView?.());
+  }
   // v3.9.17: trigger this panel's voice-over audio (if any). The previous
   // panel's audio is stopped first so they don't overlap.
   playCurrentPanelAudio(next);

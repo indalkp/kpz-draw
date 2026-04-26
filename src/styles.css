@@ -1811,3 +1811,163 @@ body.animatic-playing #captionStrip {
   font-size: 10px;
   opacity: 0.6;
 }
+
+
+/* ========================================================================
+ * v3.10.0 — Strip mode (vertical-scroll comic-strip layout)
+ * ========================================================================
+ * When the user clicks #btnStripMode in the toolbar, document.body gains
+ * .strip-mode and the layout flips:
+ *   - #canvasArea becomes vertically scrollable instead of pan/zoomable
+ *   - #canvasWrap is DOM-relocated into the active panel's strip slot
+ *   - All other panels render as static preview canvases stacked above /
+ *     below the active one
+ *   - Click any preview to make it the active editable panel
+ * Single-panel mode is the default; this mode is opt-in.
+ * ======================================================================== */
+
+/* Strip toggle button — sits next to Fit / Width / 100% in #fitPresets */
+#fitPresets #btnStripMode {
+  /* Inherits #fitPresets button base; emphasize active state */
+  font-weight: 600;
+}
+#fitPresets #btnStripMode.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* The strip container holds all panel slots. Hidden by default; flexed
+ * column when .strip-mode is on. */
+#stripContainer {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 16px 80px;     /* extra bottom pad so last panel can scroll above filmstrip */
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #0e0e0e;
+  scroll-behavior: smooth;
+}
+.strip-mode #stripContainer { display: flex; }
+
+/* Each panel slot — a card with a caption strip below */
+.strip-panel {
+  width: 100%;
+  max-width: 800px;
+  background: #1a1a1a;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  position: relative;
+}
+.strip-panel:hover { border-color: rgba(255, 122, 69, 0.4); }
+.strip-panel.active {
+  border-color: var(--accent);
+  cursor: default;
+  box-shadow: 0 4px 24px rgba(255, 122, 69, 0.3);
+}
+
+/* The image surface — preview canvas OR DOM-relocated #canvasWrap */
+.strip-panel-surface {
+  display: block;
+  width: 100%;
+  aspect-ratio: var(--strip-aspect, 16 / 9);
+  background: #fff;
+  overflow: hidden;
+  border-radius: 6px 6px 0 0;
+}
+.strip-panel-surface > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* Caption row below each panel */
+.strip-panel-caption {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  border-top: 1px solid #2a2a2a;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 0 0 6px 6px;
+}
+.strip-panel-caption-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.strip-panel-caption-empty { color: #555; font-style: italic; }
+.strip-panel-idx {
+  font-size: 11px;
+  color: #777;
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* Audio + duration badges */
+.strip-panel-badge {
+  font-size: 11px;
+  background: #2a2a2a;
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* When in strip mode, the existing #canvasWrap loses its absolute centering
+ * and transform — it lives inside the active strip-panel's surface div
+ * instead. Brush events still target #displayCanvas via getBoundingClientRect
+ * so the existing pipeline works unchanged. */
+.strip-mode #canvasWrap {
+  position: relative !important;
+  top: 0 !important;
+  left: 0 !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  box-shadow: none !important;
+}
+.strip-mode #canvasWrap > #displayCanvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Hide elements that don't make sense in strip mode */
+.strip-mode #fitPresets button[data-fit="fit"],
+.strip-mode #fitPresets button[data-fit="width"],
+.strip-mode #fitPresets button[data-fit="100"] { opacity: 0.4; pointer-events: none; }
+.strip-mode #btnOnion { display: none; }   /* onion-skin obsolete: prev panel is visible above */
+/* Caption strip stays visible in strip mode (inline editor for active panel). */
+
+/* Currently-playing panel during animatic gets a stronger glow */
+.strip-mode.animatic-playing .strip-panel.active {
+  box-shadow: 0 0 0 4px var(--accent), 0 4px 32px rgba(255, 122, 69, 0.5);
+  animation: stripPlayPulse 1.4s ease-in-out infinite;
+}
+@keyframes stripPlayPulse {
+  0%, 100% { box-shadow: 0 0 0 4px var(--accent), 0 4px 32px rgba(255, 122, 69, 0.5); }
+  50%      { box-shadow: 0 0 0 4px var(--accent), 0 4px 48px rgba(255, 122, 69, 0.85); }
+}
+
+/* Mobile: no max-width cap, panels go edge-to-edge */
+@media (max-width: 700px) {
+  .strip-panel { max-width: 100%; border-radius: 0; }
+  .strip-panel-surface { border-radius: 0; }
+  .strip-panel-caption { border-radius: 0; }
+  #stripContainer { padding: 12px 0 60px; gap: 12px; }
+}

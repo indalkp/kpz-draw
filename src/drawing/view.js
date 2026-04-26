@@ -209,6 +209,35 @@ export function renderDisplay() {
 }
 
 /**
+ * v3.10.0: paint any panel's layers onto an arbitrary canvas. Used by
+ * strip-mode.js to render preview canvases for inactive panels without
+ * touching the main #displayCanvas pipeline. Mirrors the layer-by-layer
+ * compositing logic in renderDisplay() but skips:
+ *   - In-progress stroke buffer overlay (only relevant to the active panel)
+ *   - Eraser preview offscreen (only active layer)
+ *   - Onion-skin overlay (strip mode shows neighbors directly)
+ *   - Caption burn (caption lives in the strip slot's caption row)
+ *
+ * The target canvas is sized to the project dimensions; CSS scales the
+ * displayed size via the parent .strip-panel-surface's width.
+ */
+export function renderPanelToCanvas(panel, canvas) {
+  if (!panel || !canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (canvas.width !== App.project.width)   canvas.width = App.project.width;
+  if (canvas.height !== App.project.height) canvas.height = App.project.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const layer of panel.layers) {
+    if (!layer.visible) continue;
+    ctx.globalAlpha = layer.opacity;
+    ctx.globalCompositeOperation = layer.blend || 'source-over';
+    ctx.drawImage(layer.canvas, 0, 0);
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+/**
  * v3.9.14: shared caption renderer. Draws a semi-transparent black
  * subtitle bar at the bottom of the canvas with the given text in white,
  * word-wrapped to fit within the canvas width. Used by:

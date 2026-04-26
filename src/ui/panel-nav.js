@@ -11,6 +11,10 @@ import { updateSaveStatus } from './topbar.js';
 import { toast } from './toast.js';
 import { newAudioId, setPanelAudio, deletePanelAudio } from '../storage/panel-audio.js';
 import { startRecording, stopRecording, cancelRecording, isRecording, detectMicAvailability } from './audio-recorder.js';
+// v3.10.0: strip-mode hooks. Lazy-imported via dynamic import where called
+// because most sessions never enter strip mode; static import is fine here
+// because strip-mode.js has no side effects at module init.
+import { relocateCanvasWrapTo, rebuildStripContainer, refreshStripPreview } from './strip-mode.js';
 
 export function initPanelNav() {
   // v3.9.11: caption input wiring. The input lives in #canvasArea above
@@ -24,6 +28,10 @@ export function initPanelNav() {
       if (!panel) return;
       panel.caption = e.target.value;
       App.dirty = true; updateSaveStatus();
+      // v3.10.0: in strip mode, mirror caption to the strip slot's
+      // read-only caption row so what the user types is also visible
+      // there (the strip is BELOW the bottom captionStrip on long lists).
+      if (App.viewMode === 'strip') refreshStripPreview(App.activePanelIdx);
     });
     // Initial population — main.js calls renderPanelNav after createProject /
     // loadKpzBlob, which now also calls syncCaptionInput, but seed it here
@@ -383,7 +391,14 @@ export function renderPanelNav() {
   if (pi) pi.textContent = `Panel ${App.activePanelIdx + 1} / ${App.project.panels.length}`;
 }
 
-function switchPanel(i) {
+export function switchPanel(i) {
+  // v3.10.0: in strip mode, relocate the live editing surface (#canvasWrap)
+  // to the new panel's slot BEFORE updating activePanelIdx + rendering, so
+  // renderDisplay paints into the correct visual location. Idempotent —
+  // no-op if already there.
+  if (App.viewMode === 'strip' && i !== App.activePanelIdx) {
+    relocateCanvasWrapTo(i);
+  }
   App.activePanelIdx = i;
   renderDisplay(); renderLayersUI(); renderPanelNav();
   scrollActiveThumbIntoView();
@@ -401,6 +416,11 @@ function switchPanel(i) {
  * shows the active panel's line of dialogue as panels cycle.
  */
 export function switchPanelForPlayback(i) {
+  // v3.10.0: also relocate live editing surface in strip mode so playback's
+  // active highlight visibly walks down the strip in real time.
+  if (App.viewMode === 'strip' && i !== App.activePanelIdx) {
+    relocateCanvasWrapTo(i);
+  }
   App.activePanelIdx = i;
   renderDisplay();
   renderPanelNav();
@@ -423,6 +443,8 @@ export function addPanel() {
   App.activePanelIdx = App.project.panels.length - 1;
   App.dirty = true; updateSaveStatus();
   renderDisplay(); renderLayersUI(); renderPanelNav();
+  // v3.10.0: rebuild the strip if it's open so the new panel slot appears
+  if (App.viewMode === 'strip') rebuildStripContainer();
 }
 
 /**
@@ -468,6 +490,8 @@ export function reorderPanel(from, to) {
   App.dirty = true; updateSaveStatus();
   renderDisplay(); renderLayersUI(); renderPanelNav();
   syncCaptionInput();
+  // v3.10.0: panel order changed — rebuild strip so slot order matches
+  if (App.viewMode === 'strip') rebuildStripContainer();
 }
 
 export function deletePanel() {
@@ -478,4 +502,8 @@ export function deletePanel() {
   App.activePanelIdx = Math.max(0, App.activePanelIdx - 1);
   App.dirty = true; updateSaveStatus();
   renderDisplay(); renderLayersUI(); renderPanelNav();
+  // v3.10.0: a panel disappeared — rebuild strip; relocateCanvasWrapTo
+  // is called inside rebuildStripContainer because it places #canvasWrap
+  // into the (new) active slot.
+  if (App.viewMode === 'strip') rebuildStripContainer();
 }

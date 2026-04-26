@@ -17,7 +17,7 @@ export function buildAppDom(root) {
       back to the source. Hidden under 1100px to save space; the
       version badge stays.
     -->
-    <div class="brand">KPZ Draw <small>v3.9.26</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
+    <div class="brand">KPZ Draw <small>v3.10.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -283,7 +283,22 @@ export function buildAppDom(root) {
         <button data-fit="fit" title="Fit to screen">Fit</button>
         <button data-fit="width" title="Fit width">Width</button>
         <button data-fit="100" title="100%">100%</button>
+        <!--
+          v3.10.0: Strip mode toggle. Switches the canvas area between the
+          classic single-panel editor and a vertical-scroll comic-strip
+          layout where all panels are visible stacked. Click any panel in
+          strip mode to make it the active editable one.
+        -->
+        <button id="btnStripMode" data-fit="strip" title="Strip mode (vertical-scroll comic-strip layout)" aria-pressed="false">Strip</button>
       </div>
+      <!--
+        v3.10.0: Strip-mode container. Hidden by default; shown only when
+        #app has class .strip-mode. Each panel is rendered as a child
+        .strip-panel div with its own canvas. The active panel's slot
+        receives #canvasWrap (DOM-relocated from the canvasArea) so the
+        existing brush/event pipeline works unchanged.
+      -->
+      <div id="stripContainer" aria-hidden="true"></div>
       <div id="panelBackdrop"></div>
     </div>
 

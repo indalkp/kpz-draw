@@ -35,6 +35,9 @@ import { initConfirmLeave } from './ui/confirm-leave.js';
 // v3.8.0 mobile modules — do nothing on desktop, take over chrome on <1100px
 import { initBrushDock } from './ui/brush-dock.js';
 import { initMobileChrome, updateMobileTopbar } from './ui/mobile-chrome.js';
+// v3.10.0: strip-mode initializes its DOM hooks but stays inactive until the
+// user clicks the toolbar toggle. Safe to wire on every load.
+import { initStripMode } from './ui/strip-mode.js';
 
 import { initWixBridge } from './storage/wix-bridge.js';
 import { tryRestoreAutosave } from './storage/autosave.js';
@@ -78,6 +81,7 @@ export async function init(rootSelector, opts = {}) {
   // no-ops on desktop (CSS hides the elements they wire up).
   initBrushDock();
   initMobileChrome();
+  initStripMode();   // v3.10.0
   wireGlobalEvents();
 
   // 4. Restore or create project
