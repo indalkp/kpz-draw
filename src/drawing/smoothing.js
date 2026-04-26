@@ -83,19 +83,21 @@ export class OneEuroFilter {
  *   smoothing = 0.4 → minCutoff=~4, beta=~0.05 → Procreate-like balanced
  *   smoothing = 1   → minCutoff=0.5, beta=0.12 → heavy lag-stabilised
  *
- * Returns a fresh {fx, fy, fp} triple — one filter per axis plus one for
- * pressure. fp is independently parameterized — it's NOT controlled by the
- * smoothing slider, because pressure jitter is a different phenomenon than
- * positional jitter and benefits from its own tuning.
+ * Returns a fresh {fx, fy} pair — one filter per axis. NEW pressure
+ * outlier handling lives in canvas.js (delta-clamp), not here.
  *
- * v3.12.7: added fp (pressure filter). Apple Pencil firmware fires
- * occasional pressure spikes — single-sample readings of ~1.0 surrounded
- * by samples of ~0.3. At small brushes the visual diameter difference
- * is invisible; at brush 50+ the same spike produces a 50-px stamp
- * surrounded by 15-px neighbors → "occasional unexpectedly large dot"
- * artifact reported on iPad. The One-Euro filter (minCutoff=30, beta=0.1)
- * is tuned to pass intentional pressure ramps unchanged but heavily
- * attenuate isolated single-sample outliers.
+ * v3.12.7 added an fp One-Euro filter for pressure to attenuate iPad
+ * pressure spikes. v3.12.8 reverted that approach: One-Euro introduces
+ * latency during real pressure ramps (Wacom users on PC reported the
+ * line not thinning when they pressed lighter — the filter was lagging
+ * the actual pressure decrease). One-Euro smooths *steady* signals
+ * well but is not the right tool for rejecting *single-sample* spikes;
+ * it both lags genuine ramps AND lets fast spikes mostly through.
+ *
+ * The replacement is a delta-clamp in canvas.js: per-sample pressure
+ * change is capped at ±0.5. Natural pressure ramps (deltas 0.05–0.15)
+ * pass through completely unaffected; spike outliers get attenuated
+ * by half on the spike sample with zero lag elsewhere.
  */
 export function makeStrokeSmoother(smoothing01) {
   const s = Math.max(0, Math.min(1, smoothing01));
@@ -105,8 +107,5 @@ export function makeStrokeSmoother(smoothing01) {
   return {
     fx: new OneEuroFilter(minCutoff, beta),
     fy: new OneEuroFilter(minCutoff, beta),
-    // High cutoff (30Hz) + moderate beta (0.1) — light filtering that lets
-    // genuine pressure dynamics through but smooths spike outliers.
-    fp: new OneEuroFilter(30, 0.1),
   };
 }

@@ -80,6 +80,29 @@ const MICRO_LIFT_MAX_DIST_SQ = 196; // 14 * 14 in canvas px
 let lastStrokeEnd = null;          // { x, y, pressure, t, pointerType }
 let isContinuation = false;        // true while the current stroke is a micro-lift continuation
 
+// v3.12.8: per-sample pressure delta clamp. Apple Pencil and some Wacom
+// drivers fire occasional pressure spike outliers — a single sample reading
+// 0.9–1.0 surrounded by 0.3s. At brush sizes 50+ those single-sample spikes
+// produce visibly oversized stamps. Capping the per-sample change at ±0.5
+// attenuates spikes by half on the spike sample (0.3 → 0.95 becomes 0.3 →
+// 0.8) without affecting natural pressure ramps (deltas of 0.05–0.15
+// between samples are far below the cap).
+//
+// Why not One-Euro filtering instead? One-Euro smooths steady signals but
+// lags real ramps — Wacom users on PC reported lines not thinning when
+// they pressed lighter, because the filter was pulling new low-pressure
+// samples back toward the higher previous value. Delta-clamp has zero lag
+// on real ramps; it only acts on fast outlier samples.
+const PRESSURE_DELTA_LIMIT = 0.5;
+
+function clampPressureDelta(newP, oldP) {
+  const delta = newP - oldP;
+  if (Math.abs(delta) > PRESSURE_DELTA_LIMIT) {
+    return oldP + Math.sign(delta) * PRESSURE_DELTA_LIMIT;
+  }
+  return newP;
+}
+
 // v3.12.0: long-press color-pick gesture. After a hold without significant
 // movement, we treat it as Procreate-style "touch-and-hold to eyedrop" —
 // sample the color under the pointer, abort the stroke.
@@ -337,13 +360,12 @@ function startStroke(e) {
 
   // Feed the first sample through the smoother so subsequent samples have a
   // reference. Returned value equals p on first call.
-  // v3.12.7: pressure now goes through its own One-Euro filter too —
-  // first call returns the raw pressure unchanged, but seeds the filter
-  // for subsequent samples to attenuate spike outliers.
+  // v3.12.8: pressure goes through unfiltered for the first sample; the
+  // delta-clamp logic only kicks in from the second sample onwards in
+  // moveStroke, comparing each new pressure to the last accepted one.
   const sx = smoother.fx.filter(p.x, e.timeStamp);
   const sy = smoother.fy.filter(p.y, e.timeStamp);
-  const sp0 = smoother.fp.filter(p.pressure, e.timeStamp);
-  const first = { x: sx, y: sy, pressure: sp0 };
+  const first = { x: sx, y: sy, pressure: p.pressure };
 
   // v3.12.0: when continuing across a micro-lift, pre-stamp a short
   // connecting segment from the saved end point to the new entry point
@@ -462,14 +484,14 @@ function moveStroke(e) {
 
     // v3.7.0: smooth via One-Euro (adaptive). Each event carries its own
     // timeStamp so variable frame rates are handled correctly.
-    // v3.12.7: pressure also goes through its own One-Euro filter to
-    // attenuate Apple Pencil firmware spikes that produced visible
-    // outlier stamps on brush sizes 50+.
+    // v3.12.8: pressure goes through delta-clamp (not One-Euro) to
+    // attenuate spike outliers without lagging genuine pressure ramps.
     const t = ev.timeStamp;
+    const lastPressure = App.lastPoint ? App.lastPoint.pressure : raw.pressure;
     const sp = {
       x: smoother.fx.filter(raw.x, t),
       y: smoother.fy.filter(raw.y, t),
-      pressure: smoother.fp.filter(raw.pressure, t),
+      pressure: clampPressureDelta(raw.pressure, lastPressure),
     };
 
     // v3.7.0: draw as quadratic Bézier curve through the samples, not as
