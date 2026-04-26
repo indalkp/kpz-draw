@@ -14,6 +14,58 @@
 import { App } from '../core/state.js';
 import { hexToRgb } from '../utils/color.js';
 
+// v3.15.0 Phase 4-lite: pre-rendered brush tip cache.
+//
+// The original stamp() rebuilt a CanvasRadialGradient + beginPath + arc +
+// fill on every single stamp. For a single fast stroke that's hundreds of
+// gradient allocations + path tessellations per second. Magma / Procreate
+// solve this on the GPU with a textured-quad shader; we get most of the
+// benefit on Canvas 2D by pre-rendering the brush tip ONCE at a canonical
+// size, then drawImage'ing it (with scale) on every stamp. Browsers
+// hardware-accelerate canvas-to-canvas drawImage; the cost drops to a
+// single textured blit per stamp.
+//
+// The cache invalidates only on color or hardness change. Size doesn't
+// matter — drawImage handles per-stamp scaling. Pressure-modulated size
+// just changes the destination rect, never invalidates the tip.
+//
+// Full WebGL2 rasterizer (Phase 4 proper) is a future v3.16+ task once
+// textured / scatter / dual brushes are on the roadmap.
+const TIP_CANONICAL_DIAMETER = 256;
+let tipCanvas = null;
+let tipCtx = null;
+let cachedTipKey = '';
+
+function ensureTipCanvas() {
+  const key = `${App.brush.color}|${App.brush.hardness}`;
+  if (cachedTipKey === key && tipCanvas) return tipCanvas;
+
+  if (!tipCanvas) {
+    tipCanvas = document.createElement('canvas');
+    tipCanvas.width  = TIP_CANONICAL_DIAMETER;
+    tipCanvas.height = TIP_CANONICAL_DIAMETER;
+    tipCtx = tipCanvas.getContext('2d');
+  }
+
+  const D = TIP_CANONICAL_DIAMETER;
+  const cx = D / 2, cy = D / 2;
+  const radius = D / 2;
+  const inner = radius * App.brush.hardness;
+
+  tipCtx.clearRect(0, 0, D, D);
+  const { r: R, g: G, b: B } = hexToRgb(App.brush.color);
+  const grad = tipCtx.createRadialGradient(cx, cy, inner, cx, cy, radius);
+  grad.addColorStop(0, `rgba(${R},${G},${B},1)`);
+  grad.addColorStop(1, `rgba(${R},${G},${B},0)`);
+  tipCtx.fillStyle = grad;
+  tipCtx.beginPath();
+  tipCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+  tipCtx.fill();
+
+  cachedTipKey = key;
+  return tipCanvas;
+}
+
 /**
  * v3.12.5: minimum effective brush diameter, in canvas-px.
  *
@@ -101,22 +153,18 @@ export function stamp(ctx, x, y, size, alpha) {
   // make it here are already guaranteed ≥0.5 radius. The floor stays
   // as a defensive last resort against future regressions.
   if (r < 0.15) return;
-  const erase = App.tool === 'eraser';
   // v3.9.3: source-over always when stamping into the per-stroke buffer.
+  // The eraser-vs-brush distinction is applied ONCE at flush time in
+  // flushStrokeBuffer (canvas.js); stamp() always paints into the
+  // accumulator. Eraser doesn't need a different colour here because
+  // destination-out at flush time uses only the buffer's alpha channel.
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = alpha;
-  const inner = r * App.brush.hardness;
-  const grad = ctx.createRadialGradient(x, y, inner, x, y, r);
-  // Color choice doesn't affect the eraser flush (destination-out only uses
-  // alpha), but black keeps the buffer image debuggable if inspected.
-  const col = erase ? '#000' : App.brush.color;
-  const { r: R, g: G, b: B } = hexToRgb(col);
-  grad.addColorStop(0, `rgba(${R},${G},${B},1)`);
-  grad.addColorStop(1, `rgba(${R},${G},${B},0)`);
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
+  // v3.15.0: drawImage from the cached canonical tip. Bilinear filter
+  // handles the per-stamp scaling for free; same visual output as the
+  // old radialGradient + arc + fill but a fraction of the cost.
+  const tip = ensureTipCanvas();
+  ctx.drawImage(tip, x - r, y - r, size, size);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
 }
