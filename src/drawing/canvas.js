@@ -337,9 +337,13 @@ function startStroke(e) {
 
   // Feed the first sample through the smoother so subsequent samples have a
   // reference. Returned value equals p on first call.
+  // v3.12.7: pressure now goes through its own One-Euro filter too —
+  // first call returns the raw pressure unchanged, but seeds the filter
+  // for subsequent samples to attenuate spike outliers.
   const sx = smoother.fx.filter(p.x, e.timeStamp);
   const sy = smoother.fy.filter(p.y, e.timeStamp);
-  const first = { x: sx, y: sy, pressure: p.pressure };
+  const sp0 = smoother.fp.filter(p.pressure, e.timeStamp);
+  const first = { x: sx, y: sy, pressure: sp0 };
 
   // v3.12.0: when continuing across a micro-lift, pre-stamp a short
   // connecting segment from the saved end point to the new entry point
@@ -458,11 +462,14 @@ function moveStroke(e) {
 
     // v3.7.0: smooth via One-Euro (adaptive). Each event carries its own
     // timeStamp so variable frame rates are handled correctly.
+    // v3.12.7: pressure also goes through its own One-Euro filter to
+    // attenuate Apple Pencil firmware spikes that produced visible
+    // outlier stamps on brush sizes 50+.
     const t = ev.timeStamp;
     const sp = {
       x: smoother.fx.filter(raw.x, t),
       y: smoother.fy.filter(raw.y, t),
-      pressure: raw.pressure,
+      pressure: smoother.fp.filter(raw.pressure, t),
     };
 
     // v3.7.0: draw as quadratic Bézier curve through the samples, not as
