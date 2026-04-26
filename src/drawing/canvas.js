@@ -166,6 +166,51 @@ function startStroke(e) {
     return;
   }
 
+  // v3.12.2: PHANTOM POINTERDOWN RESTART
+  //
+  // Apple Pencil firmware (and some other styluses + iOS Safari combos)
+  // fires a fresh pointerdown MID-STROKE without ever firing the matching
+  // pointerup for the original pointerId. The naive paths through this
+  // function were:
+  //   - same-type-pen branch → "Same-type non-touch... palm. Ignore." →
+  //     the new pointerId was dropped and our pointerId-lock rejected
+  //     all subsequent moveStroke events for it. The stroke became
+  //     invisible / "skipped". Field reports of ~80% pencil-only stroke
+  //     loss on iPad were exactly this path.
+  //   - same-type-touch branch (v3.12.1) → abandoned the stroke for
+  //     "gesture handoff", which manifested as fragmentary strokes.
+  //
+  // Procreate / Clip Studio handle this with a "phantom restart" —
+  // recognise that a same-type pointerdown landing very close in space
+  // to the current stroke is a firmware glitch, not a real second
+  // input. Adopt the new pointerId via setPointerCapture and let the
+  // stroke continue uninterrupted. Real second-finger gestures always
+  // land farther away from a moving pen, so the 50-canvas-px tolerance
+  // differentiates them safely (humans don't tap fingers atop a
+  // moving stylus tip).
+  if (App.isDrawing && App.activePointerType === e.pointerType) {
+    const p = pointerToCanvas(e);
+    const lastP = App.lastPoint || App.strokeStart;
+    if (lastP) {
+      const dx = p.x - lastP.x;
+      const dy = p.y - lastP.y;
+      const PHANTOM_RESTART_DIST_SQ = 2500; // 50 canvas px squared
+      if (dx * dx + dy * dy < PHANTOM_RESTART_DIST_SQ) {
+        // Phantom restart: adopt the new pointer, keep the same stroke.
+        // setPointerCapture on a fresh pointerId implicitly releases the
+        // old capture; if it throws (rare on some browsers), we still
+        // update activePointerId so the move handler accepts the new id.
+        try { $('displayCanvas').setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
+        activePointerId = e.pointerId;
+        // Cancel the long-press eyedropper timer — we're past the
+        // initial hold window once a phantom restart has fired (the
+        // user is clearly drawing, not holding still).
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        return;
+      }
+    }
+  }
+
   // v3.7.0: PEN PRIORITY. If a touch is currently drawing and a pen arrives,
   // drop the touch stroke and let the pen take over. Pencil always wins.
   // v3.12.1: ALSO drop the touch stroke if a SECOND finger arrives — that
