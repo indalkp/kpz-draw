@@ -38,6 +38,7 @@ import { scheduleAutosave } from '../storage/autosave.js';
 import { toast } from '../ui/toast.js';
 import { $ } from '../utils/dom-helpers.js';
 import { makeStrokeSmoother } from './smoothing.js';
+import { InputPoint, Stroke } from './stroke.js';
 
 // Per-stroke offscreen buffer (v3.6.3 opacity compositing, unchanged)
 let strokeBuffer = null;
@@ -314,6 +315,8 @@ function startStroke(e) {
       App.strokeStartTime = null;
       App.strokeStartRawPressure = null;
       App.lastRawPressure = null;
+      // v3.13.0: drop the abandoned stroke's data object too.
+      App.activeStroke = null;
       // v3.8.3 (L3): optional-chain the clear, and guard strokeBuffer access
       // separately — the property read on null would still throw.
       if (strokeBuffer && strokeBufferCtx) {
@@ -410,6 +413,20 @@ function startStroke(e) {
   App.strokeStartTime = e.timeStamp;
   App.strokeStartRawPressure = p.pressure;
   App.lastRawPressure = p.pressure;
+
+  // v3.13.0 Phase 1: instantiate the stroke data object. Every sample
+  // arriving in moveStroke gets pushed into App.activeStroke.points as
+  // an InputPoint. Predicted samples (from getPredictedEvents) get
+  // stored separately in App.activeStroke.predicted, replaced each
+  // frame. Phase 1 captures the data; Phases 2 and 3 will use it for
+  // speculative-tip overlay and re-render-from-data recovery
+  // respectively.
+  App.activeStroke = new Stroke(
+    { ...App.brush },          // immutable snapshot
+    App.activePanelIdx,
+    curPanel().activeLayer,
+  );
+  App.activeStroke.add(new InputPoint(p.x, p.y, p.pressure, e.timeStamp));
   const sx = smoother.fx.filter(p.x, e.timeStamp);
   const sy = smoother.fy.filter(p.y, e.timeStamp);
   const first = {
@@ -472,6 +489,7 @@ function startStroke(e) {
       activePointerId = null;
       App.activePointerType = null;
       smoother = null;
+      App.activeStroke = null; // v3.13.0: long-press abandoned the stroke
       clearStrokeRect();
       cancelScheduledRender();
       renderDisplay();
@@ -521,6 +539,15 @@ function moveStroke(e) {
 
   for (const ev of events) {
     const raw = pointerToCanvas(ev);
+
+    // v3.13.0 Phase 1: capture this real sample in the stroke data model.
+    // The point gets pushed BEFORE any smoothing / clamping / ramping so
+    // the data array is the unmodified ground truth. Phase 3 will use this
+    // to re-rasterize the stroke from scratch when a sample drop is
+    // suspected. The existing rendering pipeline below is unchanged.
+    if (App.activeStroke) {
+      App.activeStroke.add(new InputPoint(raw.x, raw.y, raw.pressure, ev.timeStamp));
+    }
 
     // v3.12.10: sub-pixel noise filter REMOVED.
     //
@@ -584,6 +611,23 @@ function moveStroke(e) {
 
     App.prevPoint = App.lastPoint;
     App.lastPoint = sp;
+  }
+
+  // v3.13.0 Phase 1: capture predicted samples for the next frame.
+  // PointerEvent.getPredictedEvents() returns 1–3 samples ahead of the
+  // current real position based on velocity / trajectory. Stored in
+  // App.activeStroke.predicted (replaced each call, never accumulated).
+  // Phase 1 just stores them — Phase 2 (v3.13.1) will render them into
+  // a speculative-tip overlay each frame to mask browser input → display
+  // latency. Empty on non-supporting browsers; safely no-ops there.
+  if (App.activeStroke && typeof e.getPredictedEvents === 'function') {
+    const rawPredicted = e.getPredictedEvents();
+    const predictedPoints = [];
+    for (const pe of rawPredicted) {
+      const p = pointerToCanvas(pe);
+      predictedPoints.push(new InputPoint(p.x, p.y, p.pressure, pe.timeStamp, true));
+    }
+    App.activeStroke.setPredicted(predictedPoints);
   }
 
   // v3.11.1: rAF-throttle the display recomposite. The expensive part of
@@ -667,6 +711,9 @@ function endStroke(e) {
   App.strokeStartTime = null;        // v3.12.9
   App.strokeStartRawPressure = null; // v3.12.9
   App.lastRawPressure = null;        // v3.12.9
+  // v3.13.0 Phase 1: stroke is now committed to the layer; clear the
+  // data object. (Phase 3 may keep it longer for re-render-from-data.)
+  App.activeStroke = null;
   activePointerId = null;
   App.activePointerType = null;
   smoother = null;
