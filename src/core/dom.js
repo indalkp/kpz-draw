@@ -17,7 +17,7 @@ export function buildAppDom(root) {
       back to the source. Hidden under 1100px to save space; the
       version badge stays.
     -->
-    <div class="brand">KPZ Draw <small>v3.11.1</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
+    <div class="brand">KPZ Draw <small>v3.12.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -614,7 +614,9 @@ export function buildAppDom(root) {
         <h3>Tools</h3>
         <div class="help-row"><span class="label">Brush</span><span class="key">B</span></div>
         <div class="help-row"><span class="label">Eraser</span><span class="key">E</span></div>
+        <div class="help-row"><span class="label">Swap brush ↔ eraser</span><span class="key">X</span></div>
         <div class="help-row"><span class="label">Eyedropper</span><span class="key">I</span></div>
+        <div class="help-row"><span class="label">Eyedropper (hold)</span><span class="key">Alt</span></div>
         <div class="help-row"><span class="label">Pan (hand)</span><span class="key">H / Space</span></div>
         <div class="help-row"><span class="label">Brush size −/+</span><span class="key">[ / ]</span></div>
       </div>
@@ -637,8 +639,11 @@ export function buildAppDom(root) {
       <div class="help-section">
         <h3>Touch</h3>
         <div class="help-row"><span class="label">Zoom / Pan canvas</span><span class="key">2 fingers</span></div>
-        <div class="help-row"><span class="label">Undo</span><span class="key">3 finger tap</span></div>
-        <div class="help-row"><span class="label">Fit to screen</span><span class="key">Double tap</span></div>
+        <div class="help-row"><span class="label">Undo</span><span class="key">2 finger tap</span></div>
+        <div class="help-row"><span class="label">Redo</span><span class="key">3 finger tap</span></div>
+        <div class="help-row"><span class="label">Toggle fullscreen</span><span class="key">4 finger tap</span></div>
+        <div class="help-row"><span class="label">Eyedropper</span><span class="key">Touch &amp; hold</span></div>
+        <div class="help-row"><span class="label">Fit to screen</span><span class="key">Double tap / quick pinch</span></div>
         <div class="help-row"><span class="label">Open References</span><span class="key">Swipe right</span></div>
         <div class="help-row"><span class="label">Open Layers</span><span class="key">Swipe left</span></div>
       </div>

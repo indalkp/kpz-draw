@@ -94,6 +94,11 @@ export function wireGlobalEvents() {
   });
 }
 
+// v3.12.0: state for the hold-Alt-for-eyedropper shortcut. We snapshot
+// the current tool when Alt is first pressed and restore it on release,
+// matching Procreate / Photoshop's "tap Alt to colour-pick" pattern.
+let _altEyedropperToolBefore = null;
+
 function handleKeyDown(e) {
   if (e.target.matches('input,textarea,select')) return;
   const ctrl = e.ctrlKey || e.metaKey;
@@ -103,6 +108,26 @@ function handleKeyDown(e) {
   if (ctrl && e.key.toLowerCase() === 's') { e.preventDefault(); $('saveModal')?.classList.add('open'); return; }
   if (ctrl && e.key.toLowerCase() === 'o') { e.preventDefault(); $('fileInput')?.click(); return; }
   if (ctrl && e.key.toLowerCase() === 'n') { e.preventDefault(); $('newModal')?.classList.add('open'); return; }
+
+  // v3.12.0: hold Alt (Option on macOS) to enter the eyedropper temporarily.
+  // The first Alt-down snapshots the current tool, switches to eyedropper,
+  // and the keyup handler restores. Repeats are suppressed so holding Alt
+  // doesn't repeatedly trigger setTool.
+  if (e.key === 'Alt' && !e.repeat && _altEyedropperToolBefore === null) {
+    e.preventDefault();
+    _altEyedropperToolBefore = App.tool;
+    setTool('eyedropper');
+    return;
+  }
+
+  // v3.12.0: X swaps brush ↔ eraser (Photoshop / Krita / Procreate-keyboard
+  // convention). Cycles only between the two paint tools — eyedropper /
+  // hand are unaffected.
+  if (e.key === 'x' || e.key === 'X') {
+    if (App.tool === 'brush') setTool('eraser');
+    else if (App.tool === 'eraser') setTool('brush');
+    return;
+  }
 
   if (e.key === 'Escape') {
     if ($('refViewer')?.classList.contains('open')) closeRefViewer();
@@ -151,6 +176,13 @@ function handleKeyUp(e) {
     App.spacePan = false;
     $('canvasArea').style.cursor = '';
   }
+  // v3.12.0: release Alt → restore the tool we had before the eyedropper
+  // hold. Keeps the pen-tablet flow snappy: peck Alt to sample, release
+  // to keep painting.
+  if (e.key === 'Alt' && _altEyedropperToolBefore !== null) {
+    setTool(_altEyedropperToolBefore);
+    _altEyedropperToolBefore = null;
+  }
 }
 
 function toggleFullscreen() {
@@ -159,15 +191,34 @@ function toggleFullscreen() {
 }
 
 // ============================================================================
-// Touch pinch/zoom on canvas — v3.7.0 hardened, v3.8.3 gesture fixes
+// Touch gestures on canvas — v3.12.0 Procreate-aligned mappings
+//
+//   1 finger          : draw / select (handled by pointer events in canvas.js,
+//                       not here)
+//   1 finger long-hold: eyedropper (also in canvas.js — long-press timer)
+//   2-finger tap      : undo
+//   3-finger tap      : redo
+//   4-finger tap      : toggle fullscreen / hide UI
+//   2-finger pinch    : pan + zoom canvas (sustained)
+//   Quick 2-finger    : fit to screen (touch + immediate release with
+//   "snap" pinch       a >20% scale change in <250ms)
+//   Double tap (1)    : fit to screen (kept from v3.7)
+//
+// State machine notes:
+//   - We collect tap intent on touchstart. Movement past ~10 CSS px or
+//     duration past 250ms invalidates the tap.
+//   - The 2-finger pinch path activates when tap intent is invalidated
+//     by movement (so a still 2-finger touch is a tap, not a pinch).
+//   - Apple Pencil touches (touchType === 'stylus') are filtered out
+//     entirely — pencil drawing flows through pointer events only.
 // ============================================================================
-let canvasTouchState = null;
+let canvasTouchState = null;        // sustained pinch state — set when 2-finger movement begins
 let lastTapTime = 0;
-// v3.8.3: debounce 3-finger undo. The old code re-fired undo on every
-// touchstart while fingers.length === 3, so a palm wobble ate several
-// history steps per gesture. Store the last time it fired and require a
-// spacing window before the next one.
-let lastThreeFingerUndoAt = 0;
+let tapIntent = null;               // { count, startTime, originX, originY, startScale, peakScale, troughScale }
+
+const TAP_MAX_MS         = 250;
+const TAP_MAX_MOVE_PX_SQ = 100;     // 10px squared
+const QUICK_PINCH_MIN_RATIO = 1.2;  // 20% scale change qualifies as a "snap pinch"
 
 /**
  * v3.7.0 helper: return only the "real finger" touches from a TouchEvent.
@@ -185,6 +236,18 @@ function fingerTouches(touchList) {
   return out;
 }
 
+/** Centroid + spread of a finger array (for pinch calculations). */
+function centroid(fingers) {
+  let sx = 0, sy = 0;
+  for (const f of fingers) { sx += f.clientX; sy += f.clientY; }
+  return { x: sx / fingers.length, y: sy / fingers.length };
+}
+function pinchSpread(fingers) {
+  if (fingers.length < 2) return 0;
+  const [a, b] = fingers;
+  return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+}
+
 function setupCanvasTouch() {
   const canvasArea = $('canvasArea');
 
@@ -193,35 +256,42 @@ function setupCanvasTouch() {
     // The pen (or the active finger) owns the canvas until it lifts.
     if (App.isDrawing) return;
 
-    // v3.7.0: ignore pencil touches entirely — they're handled via pointer
-    // events. Only fingers should ever trigger pinch / tap / 3-finger-undo.
     const fingers = fingerTouches(e.touches);
 
-    if (fingers.length === 2) {
+    // Multi-finger gesture: arm tap intent for the new finger count.
+    // We have to reset on every count change (e.g. 1→2, 2→3) so the
+    // user landing 3 fingers in quick succession registers as 3-finger,
+    // not 2-finger.
+    if (fingers.length >= 2 && fingers.length <= 4) {
       e.preventDefault();
-      // v3.8.3 (M1): clear lastTapTime so a pending double-tap-to-fit can't
-      // fire after a pinch ends. Pinch is a distinct gesture from tapping.
-      lastTapTime = 0;
-      const [a, b] = fingers;
-      canvasTouchState = {
-        d: Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY),
-        cx: (a.clientX + b.clientX) / 2, cy: (a.clientY + b.clientY) / 2,
-        vx: App.view.x, vy: App.view.y, scale: App.view.scale
+      lastTapTime = 0;  // pinch / multi-finger cancels any pending double-tap-to-fit
+      const c = centroid(fingers);
+      const spread = pinchSpread(fingers);
+      tapIntent = {
+        count: fingers.length,
+        startTime: Date.now(),
+        originX: c.x,
+        originY: c.y,
+        startScale: spread,
+        peakRatio: 1,
       };
-    } else if (fingers.length === 3) {
-      // v3.8.3 (C1): only fire undo once per 3-finger gesture. 400ms guard
-      // covers palm wobble, second touch settling, and re-detection loops
-      // where a finger briefly leaves and rejoins the touch list.
-      const now = Date.now();
-      if (now - lastThreeFingerUndoAt > 400) {
-        undo();
-        lastThreeFingerUndoAt = now;
+      // For 2-finger we ALSO seed pinch state so a sustained pinch (after
+      // tap intent is invalidated by movement) flows directly into pan/zoom.
+      if (fingers.length === 2) {
+        canvasTouchState = {
+          d: spread,
+          cx: c.x, cy: c.y,
+          vx: App.view.x, vy: App.view.y, scale: App.view.scale,
+        };
+      } else {
+        canvasTouchState = null;
       }
-      canvasTouchState = 'undo';
     } else if (fingers.length === 1) {
+      // Double-tap to fit — kept from earlier versions.
       const now = Date.now();
       if (now - lastTapTime < 320) { fitView(); e.preventDefault(); lastTapTime = 0; return; }
       lastTapTime = now;
+      tapIntent = null;
     }
   }, { passive: false });
 
@@ -230,7 +300,34 @@ function setupCanvasTouch() {
     if (App.isDrawing) return;
 
     const fingers = fingerTouches(e.touches);
-    if (fingers.length === 2 && canvasTouchState && canvasTouchState !== 'undo') {
+
+    // Track movement against tap intent — past the tolerance, the gesture
+    // is no longer a tap. Track peak scale ratio for quick-pinch detection.
+    if (tapIntent && fingers.length === tapIntent.count) {
+      const c = centroid(fingers);
+      const dx = c.x - tapIntent.originX;
+      const dy = c.y - tapIntent.originY;
+      if (dx * dx + dy * dy > TAP_MAX_MOVE_PX_SQ) {
+        // Centroid moved — definitely not a tap. Drop tap intent and let
+        // pinch handler take over below.
+        tapIntent = null;
+      } else if (fingers.length === 2) {
+        // Track scale ratio even if centroid hasn't moved (fingers spreading
+        // outward equidistantly leaves the centroid stationary).
+        const spread = pinchSpread(fingers);
+        if (tapIntent.startScale > 0) {
+          const r = spread / tapIntent.startScale;
+          if (r > tapIntent.peakRatio || (1/r) > tapIntent.peakRatio) {
+            tapIntent.peakRatio = Math.max(r, 1 / r);
+          }
+        }
+      }
+    }
+
+    // Sustained 2-finger pinch (pan + zoom). Activates only once tap
+    // intent has been invalidated by movement, so a still 2-finger touch
+    // doesn't accidentally jitter the view.
+    if (fingers.length === 2 && canvasTouchState && !tapIntent) {
       e.preventDefault();
       const [a, b] = fingers;
       const d = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
@@ -245,7 +342,39 @@ function setupCanvasTouch() {
 
   canvasArea.addEventListener('touchend', e => {
     const fingers = fingerTouches(e.touches);
+
+    // If tap intent is still alive AND duration was short AND fingers all
+    // lifted (or count is dropping), classify the gesture.
+    if (tapIntent && fingers.length < tapIntent.count) {
+      const elapsed = Date.now() - tapIntent.startTime;
+      if (elapsed < TAP_MAX_MS) {
+        // Quick 2-finger gesture: was it a tap (no scale change) or a
+        // snap-pinch (large scale change)?
+        if (tapIntent.count === 2) {
+          if (tapIntent.peakRatio >= QUICK_PINCH_MIN_RATIO) {
+            fitView();           // snap pinch → fit
+          } else {
+            undo();              // 2-finger tap → undo (Procreate canon)
+          }
+        } else if (tapIntent.count === 3) {
+          redo();                // 3-finger tap → redo (Procreate canon)
+        } else if (tapIntent.count === 4) {
+          toggleFullscreen();    // 4-finger tap → fullscreen toggle
+        }
+      }
+      tapIntent = null;
+    }
+
+    // Clear pinch state once we're back below 2 fingers.
     if (fingers.length < 2) canvasTouchState = null;
+  });
+
+  // touchcancel: defensive cleanup if iOS preempts the gesture (e.g. a
+  // system swipe-from-edge). Drop both states so the next gesture starts
+  // clean instead of continuing a stale pinch.
+  canvasArea.addEventListener('touchcancel', () => {
+    tapIntent = null;
+    canvasTouchState = null;
   });
 }
 

@@ -30,7 +30,7 @@ import { App } from '../core/state.js';
 import { curLayer, curPanel } from './panels.js';
 import { pushHistory } from './history.js';
 import { drawQuadSegment, drawSegment, drawDot } from './brush.js';
-import { pointerToCanvas, renderDisplay, scheduleRender, cancelScheduledRender, startPan, doPan, endPan, pickColor } from './view.js';
+import { pointerToCanvas, renderDisplay, scheduleRender, cancelScheduledRender, captureStrokeRect, clearStrokeRect, startPan, doPan, endPan, pickColor } from './view.js';
 import { updateLayerThumb } from '../ui/layers-panel.js';
 import { updateSaveStatus } from '../ui/topbar.js';
 import { updateCursor, hideCursor } from '../ui/cursor-overlay.js';
@@ -49,6 +49,42 @@ let smoother = null;
 // v3.7.0: id of the pointer that owns the active stroke. Anything with a
 // different pointerId is rejected until the stroke ends.
 let activePointerId = null;
+
+// v3.12.0: micro-lift tolerance window.
+//
+// Apple Pencil firmware (and some Wacom drivers under heavy load) can
+// momentarily fire pointerup followed by a fresh pointerdown at near-
+// identical coordinates within ~10–25ms during a single physical drag.
+// The naive code treats this as two separate strokes, which manifests
+// as a visible mid-stroke gap — the user's #1 reported issue on iPad.
+//
+// Procreate solves this by merging the new stroke onto the previous
+// one if the gap is small in BOTH time and space and the input type
+// matches. We do the same: stash the last stroke's terminal sample at
+// endStroke, and at startStroke check if the new pointerdown falls
+// within the merge window. If so we skip the history push and pre-
+// stamp a connecting segment in the new buffer so the seam is bridged.
+//
+// Tunable thresholds — chose conservatively so legitimate fast taps
+// don't accidentally merge into an old stroke:
+//   30ms time gap   — pen lifts longer than this are real strokes.
+//   8 canvas px     — 8 pixels at project resolution. Pen wobble is
+//                     usually < 2px; gestures are usually > 20px.
+const MICRO_LIFT_MAX_MS = 30;
+const MICRO_LIFT_MAX_DIST_SQ = 64; // 8 * 8 in canvas px
+let lastStrokeEnd = null;          // { x, y, pressure, t, pointerType }
+let isContinuation = false;        // true while the current stroke is a micro-lift continuation
+
+// v3.12.0: long-press color-pick gesture. After 500ms of pointer down at
+// near-zero movement, we treat it as Procreate-style "touch-and-hold to
+// eyedrop" — sample the color under the pointer, abort the stroke, and
+// restore brush tool when the user lifts. The timer is armed at
+// startStroke and cleared whenever the user moves more than a few
+// pixels (so a normal stroke never accidentally triggers it).
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_MOVE_TOL_SQ = 16; // 4px squared in CSS px
+let longPressTimer = null;
+let longPressOriginCss = null;     // { x, y } in client/CSS px
 
 export function initDrawing() {
   const disp = $('displayCanvas');
@@ -170,7 +206,33 @@ function startStroke(e) {
   activePointerId = e.pointerId;
   App.activePointerType = e.pointerType;  // 'pen' | 'touch' | 'mouse'
 
-  pushHistory();
+  // v3.12.0: cache the display canvas's bounding rect for the duration of
+  // this stroke so pointerToCanvas doesn't pay the layout cost on every
+  // sample (and so we can't be tripped by a mid-stroke layout reflow).
+  captureStrokeRect();
+
+  // v3.12.0: micro-lift continuation detection. If a pointerdown lands
+  // very close in time AND space to the previous stroke's terminal
+  // sample, AND the input type matches, treat it as a phantom up/down
+  // from Pencil firmware rather than a fresh stroke. This is the iPad
+  // skipping fix.
+  const p = pointerToCanvas(e);
+  isContinuation = false;
+  if (lastStrokeEnd
+      && e.pointerType === lastStrokeEnd.pointerType
+      && (e.timeStamp - lastStrokeEnd.t) < MICRO_LIFT_MAX_MS) {
+    const dx = p.x - lastStrokeEnd.x;
+    const dy = p.y - lastStrokeEnd.y;
+    if (dx * dx + dy * dy < MICRO_LIFT_MAX_DIST_SQ) {
+      isContinuation = true;
+    }
+  }
+
+  // Only push history for genuinely new strokes — continuations append to
+  // the previous stroke's history slot so Cmd+Z undoes the whole motion.
+  if (!isContinuation) {
+    pushHistory();
+  }
   App.isDrawing = true;
   App.dirty = true;
   updateSaveStatus();
@@ -181,19 +243,72 @@ function startStroke(e) {
   // existing smoothing slider — zero-config for the user.
   smoother = makeStrokeSmoother(App.brush.smoothing);
 
-  const p = pointerToCanvas(e);
   // Feed the first sample through the smoother so subsequent samples have a
   // reference. Returned value equals p on first call.
   const sx = smoother.fx.filter(p.x, e.timeStamp);
   const sy = smoother.fy.filter(p.y, e.timeStamp);
   const first = { x: sx, y: sy, pressure: p.pressure };
 
+  // v3.12.0: when continuing across a micro-lift, pre-stamp a short
+  // connecting segment from the saved end point to the new entry point
+  // so the visual seam is bridged. The segment goes into the fresh
+  // strokeBuffer and gets composited at brush.opacity along with the
+  // rest of the new sub-stroke.
+  if (isContinuation && strokeBufferCtx) {
+    const bridgeFrom = {
+      x: lastStrokeEnd.x,
+      y: lastStrokeEnd.y,
+      pressure: lastStrokeEnd.pressure,
+    };
+    drawSegment(strokeBufferCtx, bridgeFrom, first);
+  }
+
   App.lastPoint   = first;   // most recent smoothed sample (also the quad control point on next seg)
   App.prevPoint   = null;    // the one before that — needed for quad-bezier midpoint method
   App.lastMid     = null;    // cached midpoint(prev, last) — start of the next quad segment
   App.strokeStart = first;
-  App.strokeHasMoved = false;
+  App.strokeHasMoved = isContinuation;  // continuation already produced visible pixels
   // No dot drawn here — tap-to-dot is handled in endStroke if nothing moved.
+
+  // v3.12.0: arm the long-press eyedropper timer. If the user holds the
+  // pointer down for LONG_PRESS_MS without significant motion, we abort
+  // the stroke and pick the color under the pointer instead. This is the
+  // Procreate "touch and hold to color drop" gesture.
+  // Skip on continuation — those aren't the start of a deliberate hold.
+  longPressOriginCss = { x: e.clientX, y: e.clientY };
+  if (longPressTimer) clearTimeout(longPressTimer);
+  if (!isContinuation) {
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null;
+      // Only fire if we're still in the same stroke, no movement happened,
+      // and the pointer hasn't switched to something else mid-hold.
+      if (!App.isDrawing || App.strokeHasMoved) return;
+      // Convert the original pointerdown to canvas coords for picking.
+      // pickColor uses pointerToCanvas internally and reads the display
+      // canvas pixels — works as long as the canvas already shows what
+      // the user sees, which it does (no in-progress stamps yet).
+      pickColor(e);
+      // Cancel the in-progress stroke cleanly: clear the buffer, pop the
+      // history entry we pushed at startStroke (if any), and reset state.
+      App.isDrawing = false;
+      if (strokeBuffer && strokeBufferCtx) {
+        strokeBufferCtx.clearRect(0, 0, strokeBuffer.width, strokeBuffer.height);
+      }
+      if (!isContinuation) {
+        const hIdx = App.activePanelIdx;
+        if (App.history[hIdx]?.length) {
+          App.history[hIdx].pop();
+          App.historyIdx[hIdx] = App.history[hIdx].length;
+        }
+      }
+      activePointerId = null;
+      App.activePointerType = null;
+      smoother = null;
+      clearStrokeRect();
+      cancelScheduledRender();
+      renderDisplay();
+    }, LONG_PRESS_MS);
+  }
 }
 
 function moveStroke(e) {
@@ -205,7 +320,24 @@ function moveStroke(e) {
   // Silences palm touches and second fingers completely.
   if (e.pointerId !== activePointerId) return;
 
-  const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  // v3.12.0: cancel the long-press eyedropper timer the moment we see
+  // any real movement. The 4px CSS-px tolerance below distinguishes a
+  // user who's holding still vs starting a stroke.
+  if (longPressTimer && longPressOriginCss) {
+    const cdx = e.clientX - longPressOriginCss.x;
+    const cdy = e.clientY - longPressOriginCss.y;
+    if (cdx * cdx + cdy * cdy > LONG_PRESS_MOVE_TOL_SQ) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
+
+  // v3.12.0: getCoalescedEvents fallback. Some browser/version combos
+  // (older iOS Safari especially) return an empty array even when there
+  // are real coalesced samples in the underlying event. Treat empty as
+  // "use the parent event" so we never silently drop a sample.
+  let events = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+  if (!events || events.length === 0) events = [e];
   const ctx = strokeBufferCtx;
   if (!ctx) return;
 
@@ -274,6 +406,11 @@ function endStroke(e) {
   // but pointercancel always carries the correct id so the check is safe.
   if (e && e.pointerId != null && e.pointerId !== activePointerId) return;
 
+  // v3.12.0: cancel the long-press timer if it didn't fire — user lifted
+  // before the threshold, so they meant a tap-to-dot or short stroke.
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  longPressOriginCss = null;
+
   App.isDrawing = false;
 
   // v3.7.0: flush the last pending curve tail. Between the last midpoint and
@@ -282,13 +419,33 @@ function endStroke(e) {
     drawSegment(strokeBufferCtx, App.lastMid, App.lastPoint);
   }
 
-  // Tap-to-dot — unchanged
-  if (!App.strokeHasMoved && App.strokeStart && strokeBufferCtx) {
+  // Tap-to-dot — unchanged. Skipped on continuations because the previous
+  // stroke already produced the dot (or its contribution).
+  if (!App.strokeHasMoved && App.strokeStart && strokeBufferCtx && !isContinuation) {
     drawDot(strokeBufferCtx, App.strokeStart);
   }
 
   flushStrokeBuffer();
-  App.strokeCount = (App.strokeCount || 0) + 1;
+  // v3.12.0: only count this as a NEW stroke if it wasn't a micro-lift
+  // continuation of the previous one. Keeps stroke counts honest for
+  // analytics / dashboard surfaces.
+  if (!isContinuation) {
+    App.strokeCount = (App.strokeCount || 0) + 1;
+  }
+
+  // v3.12.0: stash the terminal sample for the next pointerdown's
+  // micro-lift check. Fall back to strokeStart for tap-and-release where
+  // lastPoint is the start point too.
+  const endPoint = App.lastPoint || App.strokeStart;
+  if (endPoint && e) {
+    lastStrokeEnd = {
+      x: endPoint.x,
+      y: endPoint.y,
+      pressure: endPoint.pressure ?? 0.5,
+      t: e.timeStamp,
+      pointerType: App.activePointerType,
+    };
+  }
 
   App.lastPoint   = null;
   App.prevPoint   = null;
@@ -297,6 +454,8 @@ function endStroke(e) {
   activePointerId = null;
   App.activePointerType = null;
   smoother = null;
+  isContinuation = false;
+  clearStrokeRect();
 
   // v3.11.1: cancel any rAF-scheduled mid-stroke render before we paint
   // the final committed state. Without this, a queued frame from the

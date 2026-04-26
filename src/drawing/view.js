@@ -332,6 +332,27 @@ export function drawCaptionSubtitle(ctx, text, w, h) {
   ctx.restore();
 }
 
+// v3.12.0: cached display rect for the duration of a stroke. The
+// previous behavior recomputed display.getBoundingClientRect() on every
+// pointermove (and every coalesced sample inside it), which is a known
+// layout-thrash trigger on iOS Safari and on mobile Chrome when the
+// address bar is settling — the cost is small but consistent, and
+// caching it for the stroke is a defensive, free win.
+//
+// captureStrokeRect() is called by canvas.js#startStroke. clearStrokeRect()
+// is called from canvas.js#endStroke. While set, pointerToCanvas reuses
+// the cached rect; otherwise it falls back to a fresh measurement.
+let _strokeRect = null;
+
+export function captureStrokeRect() {
+  ensureDom();
+  _strokeRect = display.getBoundingClientRect();
+}
+
+export function clearStrokeRect() {
+  _strokeRect = null;
+}
+
 /**
  * Convert a pointer event to canvas-space {x, y, pressure}.
  *
@@ -340,10 +361,12 @@ export function drawCaptionSubtitle(ctx, text, w, h) {
  * presSize=1 made every mouse stamp the full brush diameter — causing
  * the "big dot" / bloated stroke regression. v3.4.1 just used the raw
  * event pressure (browser reports 0.5 for mouse by default). Restored.
+ *
+ * v3.12.0: uses cached rect during a stroke (see captureStrokeRect).
  */
 export function pointerToCanvas(e) {
   ensureDom();
-  const rect = display.getBoundingClientRect();
+  const rect = _strokeRect || display.getBoundingClientRect();
   const x = (e.clientX - rect.left) / rect.width  * App.project.width;
   const y = (e.clientY - rect.top)  / rect.height * App.project.height;
   // Use raw event pressure. Only fall back to 0.5 if the browser

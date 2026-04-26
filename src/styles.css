@@ -1983,3 +1983,46 @@ body.animatic-playing #captionStrip {
 .oversize-target:hover { border-color: var(--accent); }
 .oversize-target strong { display: block; margin-bottom: 2px; }
 .oversize-target small { color: var(--muted); font-size: 11px; line-height: 1.4; display: block; }
+
+/* ===========================================================================
+ * v3.12.0 — universal touch / pen input hardening.
+ *
+ * THE iPad-Safari-skipping fix: telling the browser "I am handling all
+ * gestures on the canvas surfaces myself, do NOT pre-empt my pointer events
+ * for scroll / pinch / pan / pull-to-refresh recognition." Without this,
+ * iOS Safari briefly steals events mid-stroke while it decides whether
+ * the user's pen drag is going to become a scroll — that's the gap users
+ * see as a "skipped" stroke.
+ *
+ * Also kills:
+ *   - iOS callout (long-press magnifier / context menu) on touch-and-hold —
+ *     we use long-press for our own eyedropper gesture, so the OS one has
+ *     to be off.
+ *   - text selection that can fire when a finger drags across the canvas.
+ *   - pull-to-refresh / scroll chaining when a stroke goes past the canvas
+ *     edge.
+ *
+ * Applies to BOTH the inner display canvas and the wrapper / canvasArea
+ * because iOS bubbles gesture-recognition decisions through ancestors.
+ * ========================================================================= */
+#displayCanvas,
+#canvasArea,
+#canvasWrap,
+#cursorOverlay {
+  touch-action: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#canvasArea {
+  overscroll-behavior: none;
+  /* Prevents iOS Safari rubber-band scroll from kicking in when a pen
+   * stroke runs past the canvas edge. Combined with touch-action above,
+   * this keeps the canvas a fully-inert surface from the browser's
+   * gesture-recognition perspective. */
+}
+
