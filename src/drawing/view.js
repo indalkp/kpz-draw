@@ -30,6 +30,91 @@ function ensureDom() {
 let eraserPreview = null;
 let eraserPreviewCtx = null;
 
+// v3.14.0 Phase 5: three-cache layer compositing.
+//
+// During a stroke, only the active layer's pixels change. All layers
+// below and above are static. Pre-compositing them once at stroke
+// start and reusing the result for every frame of the stroke turns
+// the per-frame composite cost from O(N layers) to O(1) — independent
+// of layer count.
+//
+// Caches are scoped to a single stroke: built at startStroke, used
+// during moveStroke's renderDisplay loop, cleared at endStroke. Any
+// layer-state change (add / remove / reorder / visibility / opacity /
+// blend mode) takes effect on the next stroke automatically because
+// the next startStroke rebuilds the caches from scratch.
+let staticBelowCache = null;
+let staticBelowCacheCtx = null;
+let staticAboveCache = null;
+let staticAboveCacheCtx = null;
+let cacheActiveLayerIdx = -1;
+let cachePanelIdx = -1;
+
+function ensureLayerCachesAtSize(w, h) {
+  if (!staticBelowCache || staticBelowCache.width !== w || staticBelowCache.height !== h) {
+    staticBelowCache = document.createElement('canvas');
+    staticBelowCache.width  = w;
+    staticBelowCache.height = h;
+    staticBelowCacheCtx = staticBelowCache.getContext('2d');
+  }
+  if (!staticAboveCache || staticAboveCache.width !== w || staticAboveCache.height !== h) {
+    staticAboveCache = document.createElement('canvas');
+    staticAboveCache.width  = w;
+    staticAboveCache.height = h;
+    staticAboveCacheCtx = staticAboveCache.getContext('2d');
+  }
+}
+
+/** Pre-composite static layers (below + above the active one). Called
+ *  at startStroke. */
+export function buildStrokeStaticCaches() {
+  const p = App.project;
+  if (!p) return;
+  const panel = curPanel();
+  if (!panel) return;
+  ensureLayerCachesAtSize(p.width, p.height);
+  const activeIdx = panel.activeLayer;
+
+  // Below: layers 0 .. activeIdx-1
+  staticBelowCacheCtx.clearRect(0, 0, p.width, p.height);
+  for (let i = 0; i < activeIdx; i++) {
+    const layer = panel.layers[i];
+    if (!layer.visible) continue;
+    staticBelowCacheCtx.globalAlpha = layer.opacity;
+    staticBelowCacheCtx.globalCompositeOperation = layer.blend || 'source-over';
+    staticBelowCacheCtx.drawImage(layer.canvas, 0, 0);
+  }
+  staticBelowCacheCtx.globalAlpha = 1;
+  staticBelowCacheCtx.globalCompositeOperation = 'source-over';
+
+  // Above: layers activeIdx+1 .. last
+  staticAboveCacheCtx.clearRect(0, 0, p.width, p.height);
+  for (let i = activeIdx + 1; i < panel.layers.length; i++) {
+    const layer = panel.layers[i];
+    if (!layer.visible) continue;
+    staticAboveCacheCtx.globalAlpha = layer.opacity;
+    staticAboveCacheCtx.globalCompositeOperation = layer.blend || 'source-over';
+    staticAboveCacheCtx.drawImage(layer.canvas, 0, 0);
+  }
+  staticAboveCacheCtx.globalAlpha = 1;
+  staticAboveCacheCtx.globalCompositeOperation = 'source-over';
+
+  cacheActiveLayerIdx = activeIdx;
+  cachePanelIdx = App.activePanelIdx;
+}
+
+export function clearStrokeStaticCaches() {
+  cacheActiveLayerIdx = -1;
+  cachePanelIdx = -1;
+}
+
+function layerCachesValidFor(panel) {
+  return cacheActiveLayerIdx === panel.activeLayer
+    && cachePanelIdx === App.activePanelIdx
+    && staticBelowCache !== null
+    && staticAboveCache !== null;
+}
+
 // v3.11.1: rAF-throttled render scheduler.
 //
 // The previous behavior was: every browser pointermove event called
@@ -117,6 +202,95 @@ export function renderDisplay() {
   dctx.clearRect(0, 0, p.width, p.height);
 
   const panel = curPanel();
+
+  // v3.14.0 Phase 5: fast path — when a stroke is in progress and the
+  // pre-composited static-layer caches are valid for the current panel
+  // / active-layer, render via 4–5 drawImage calls instead of looping
+  // through every layer. Saves O(N layers - 1) drawImages per frame
+  // during a stroke, the dominant per-frame cost on multi-layer
+  // documents. Caches were built at startStroke and stay valid until
+  // endStroke clears them.
+  if (App.isDrawing && layerCachesValidFor(panel)) {
+    const activeIdx = panel.activeLayer;
+    const activeLayer = panel.layers[activeIdx];
+    const erasing = App.tool === 'eraser';
+
+    // 1. static layers below active
+    dctx.drawImage(staticBelowCache, 0, 0);
+
+    // 2. active layer (with eraser-preview if applicable)
+    let strokeBuf = null;
+    try { strokeBuf = window.__KPZ_strokeBuffer && window.__KPZ_strokeBuffer(); } catch (_) {}
+
+    if (strokeBuf && erasing && activeLayer && activeLayer.visible) {
+      // Eraser preview path — use the same masked-offscreen technique.
+      const lw = activeLayer.canvas.width;
+      const lh = activeLayer.canvas.height;
+      if (!eraserPreview || eraserPreview.width !== lw || eraserPreview.height !== lh) {
+        eraserPreview = document.createElement('canvas');
+        eraserPreview.width = lw; eraserPreview.height = lh;
+        eraserPreviewCtx = eraserPreview.getContext('2d');
+      }
+      eraserPreviewCtx.globalCompositeOperation = 'source-over';
+      eraserPreviewCtx.globalAlpha = 1;
+      eraserPreviewCtx.clearRect(0, 0, lw, lh);
+      eraserPreviewCtx.drawImage(activeLayer.canvas, 0, 0);
+      eraserPreviewCtx.globalCompositeOperation = 'destination-out';
+      eraserPreviewCtx.drawImage(strokeBuf, 0, 0);
+      dctx.globalAlpha = activeLayer.opacity;
+      dctx.globalCompositeOperation = activeLayer.blend || 'source-over';
+      dctx.drawImage(eraserPreview, 0, 0);
+    } else if (activeLayer && activeLayer.visible) {
+      // Normal active-layer draw + stroke buffer overlay.
+      dctx.globalAlpha = activeLayer.opacity;
+      dctx.globalCompositeOperation = activeLayer.blend || 'source-over';
+      dctx.drawImage(activeLayer.canvas, 0, 0);
+      if (strokeBuf && !erasing) {
+        dctx.globalAlpha = activeLayer.opacity * App.brush.opacity;
+        dctx.globalCompositeOperation = 'source-over';
+        dctx.drawImage(strokeBuf, 0, 0);
+        const predictedBuf = window.__KPZ_predictedBuffer && window.__KPZ_predictedBuffer();
+        if (predictedBuf) dctx.drawImage(predictedBuf, 0, 0);
+      }
+    }
+
+    // 3. static layers above active
+    dctx.globalAlpha = 1;
+    dctx.globalCompositeOperation = 'source-over';
+    dctx.drawImage(staticAboveCache, 0, 0);
+
+    // Onion skin overlay (unchanged behaviour).
+    const mode = App.onionMode || 'off';
+    if (mode !== 'off') {
+      const renderGhost = (ghostPanel) => {
+        if (!ghostPanel) return;
+        dctx.save();
+        dctx.globalAlpha = 0.28;
+        for (const layer of ghostPanel.layers) {
+          if (!layer.visible) continue;
+          if (layer.name === 'Background') continue;
+          dctx.globalCompositeOperation = layer.blend || 'source-over';
+          dctx.drawImage(layer.canvas, 0, 0);
+        }
+        dctx.restore();
+      };
+      if ((mode === 'past' || mode === 'both') && App.activePanelIdx > 0) {
+        renderGhost(p.panels[App.activePanelIdx - 1]);
+      }
+      if (mode === 'both' && App.activePanelIdx < p.panels.length - 1) {
+        renderGhost(p.panels[App.activePanelIdx + 1]);
+      }
+    }
+    if (App.playing && panel && panel.caption) {
+      drawCaptionSubtitle(dctx, panel.caption, p.width, p.height);
+    }
+    dctx.globalAlpha = 1;
+    dctx.globalCompositeOperation = 'source-over';
+    $('canvasInfo').textContent = `${p.width} × ${p.height}`;
+    return;
+  }
+  // — fallthrough to slow per-layer path when no caches available —
+
 
   // v3.6.3: During an in-progress stroke, we need to show the stroke buffer
   // on top of the active layer at the target opacity so the user sees what

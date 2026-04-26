@@ -30,7 +30,7 @@ import { App } from '../core/state.js';
 import { curLayer, curPanel } from './panels.js';
 import { pushHistory } from './history.js';
 import { drawQuadSegment, drawSegment, drawDot } from './brush.js';
-import { pointerToCanvas, renderDisplay, scheduleRender, cancelScheduledRender, captureStrokeRect, clearStrokeRect, startPan, doPan, endPan, pickColor } from './view.js';
+import { pointerToCanvas, renderDisplay, scheduleRender, cancelScheduledRender, captureStrokeRect, clearStrokeRect, startPan, doPan, endPan, pickColor, buildStrokeStaticCaches, clearStrokeStaticCaches } from './view.js';
 import { updateLayerThumb } from '../ui/layers-panel.js';
 import { updateSaveStatus } from '../ui/topbar.js';
 import { updateCursor, hideCursor } from '../ui/cursor-overlay.js';
@@ -390,8 +390,10 @@ function startStroke(e) {
       App.lastRawPressure = null;
       // v3.13.0: drop the abandoned stroke's data object too.
       // v3.13.2: clear predicted-tip overlay.
+      // v3.14.0: invalidate layer caches.
       App.activeStroke = null;
       clearPredictedBuffer();
+      clearStrokeStaticCaches();
       // v3.8.3 (L3): optional-chain the clear, and guard strokeBuffer access
       // separately — the property read on null would still throw.
       if (strokeBuffer && strokeBufferCtx) {
@@ -493,15 +495,21 @@ function startStroke(e) {
   // arriving in moveStroke gets pushed into App.activeStroke.points as
   // an InputPoint. Predicted samples (from getPredictedEvents) get
   // stored separately in App.activeStroke.predicted, replaced each
-  // frame. Phase 1 captures the data; Phases 2 and 3 will use it for
-  // speculative-tip overlay and re-render-from-data recovery
-  // respectively.
+  // frame.
   App.activeStroke = new Stroke(
     { ...App.brush },          // immutable snapshot
     App.activePanelIdx,
     curPanel().activeLayer,
   );
   App.activeStroke.add(new InputPoint(p.x, p.y, p.pressure, e.timeStamp));
+
+  // v3.14.0 Phase 5: pre-composite the static layers below + above the
+  // active one into reusable cache canvases. renderDisplay's fast path
+  // uses these throughout the stroke instead of looping every layer
+  // every frame. Caches are valid until endStroke clears them, so any
+  // mid-stroke layer-state change (which can't normally happen anyway)
+  // would not be picked up — but the next stroke rebuilds from scratch.
+  buildStrokeStaticCaches();
   const sx = smoother.fx.filter(p.x, e.timeStamp);
   const sy = smoother.fy.filter(p.y, e.timeStamp);
   const first = {
@@ -566,6 +574,7 @@ function startStroke(e) {
       smoother = null;
       App.activeStroke = null; // v3.13.0: long-press abandoned the stroke
       clearPredictedBuffer();  // v3.13.2: clear speculative overlay
+      clearStrokeStaticCaches(); // v3.14.0: invalidate layer caches
       clearStrokeRect();
       cancelScheduledRender();
       renderDisplay();
@@ -849,8 +858,11 @@ function endStroke(e) {
   // v3.13.0 Phase 1: stroke is now committed to the layer; clear the
   // data object. v3.13.2 Phase 2: clear the predicted-tip overlay too
   // so it doesn't linger past the stroke's end.
+  // v3.14.0 Phase 5: invalidate the layer caches so any subsequent
+  // layer-state change picks up cleanly on the next stroke.
   App.activeStroke = null;
   clearPredictedBuffer();
+  clearStrokeStaticCaches();
   activePointerId = null;
   App.activePointerType = null;
   smoother = null;
