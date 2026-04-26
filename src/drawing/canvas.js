@@ -67,11 +67,16 @@ let activePointerId = null;
 //
 // Tunable thresholds — chose conservatively so legitimate fast taps
 // don't accidentally merge into an old stroke:
-//   30ms time gap   — pen lifts longer than this are real strokes.
-//   8 canvas px     — 8 pixels at project resolution. Pen wobble is
-//                     usually < 2px; gestures are usually > 20px.
-const MICRO_LIFT_MAX_MS = 30;
-const MICRO_LIFT_MAX_DIST_SQ = 64; // 8 * 8 in canvas px
+//   60ms time gap   — pen lifts longer than this are real strokes.
+//                     v3.12.1: bumped from 30ms after field reports of
+//                     iPad strokes still escaping at 35–50ms phantom
+//                     up/down windows.
+//   14 canvas px    — 14 pixels at project resolution. Pen wobble is
+//                     usually < 2px; finger micro-lift can wobble more,
+//                     so the tolerance widens to absorb both. Real
+//                     gestures move > 30px, so no false merges.
+const MICRO_LIFT_MAX_MS = 60;
+const MICRO_LIFT_MAX_DIST_SQ = 196; // 14 * 14 in canvas px
 let lastStrokeEnd = null;          // { x, y, pressure, t, pointerType }
 let isContinuation = false;        // true while the current stroke is a micro-lift continuation
 
@@ -163,22 +168,36 @@ function startStroke(e) {
 
   // v3.7.0: PEN PRIORITY. If a touch is currently drawing and a pen arrives,
   // drop the touch stroke and let the pen take over. Pencil always wins.
+  // v3.12.1: ALSO drop the touch stroke if a SECOND finger arrives — that
+  // means the user wants a multi-finger gesture (pan / pinch / undo / redo /
+  // fullscreen / eyedropper-hold) rather than to keep drawing. Without this
+  // the second pointerdown was silently rejected, the touchstart in
+  // events.js bailed on isDrawing=true, and gestures became unreachable
+  // once any finger had touched the canvas. This is THE fix for "2-finger
+  // pinch and 2/3/4-finger taps don't work on iPad / Android tablet".
   if (App.isDrawing) {
     const wasTouch = App.activePointerType === 'touch';
-    const isPen = e.pointerType === 'pen';
-    if (wasTouch && isPen) {
+    const isPen   = e.pointerType === 'pen';
+    const isTouch = e.pointerType === 'touch';
+
+    if ((wasTouch && isPen) || (wasTouch && isTouch)) {
       // v3.8.3 (C2): the abandoned touch stroke pushed a history entry at
       // the top of its own startStroke. That entry was never paired with
       // a commit — Cmd+Z saw a phantom "nothing changed" undo step. Pop it
-      // before we take over with the pen. historyIdx always tracks length
-      // after a push (see pushHistory in history.js), so keep them aligned.
-      const hIdx = App.activePanelIdx;
-      if (App.history[hIdx]?.length) {
-        App.history[hIdx].pop();
-        App.historyIdx[hIdx] = App.history[hIdx].length;
+      // before we abandon. historyIdx always tracks length after a push
+      // (see pushHistory in history.js), so keep them aligned.
+      // (Skip if the abandoned stroke was itself a continuation — its
+      // history entry belongs to the previous stroke, not this one.)
+      if (!isContinuation) {
+        const hIdx = App.activePanelIdx;
+        if (App.history[hIdx]?.length) {
+          App.history[hIdx].pop();
+          App.historyIdx[hIdx] = App.history[hIdx].length;
+        }
       }
       // Abandon the touch stroke silently (no commit)
       App.isDrawing = false;
+      isContinuation = false;
       // v3.8.3 (L3): optional-chain the clear, and guard strokeBuffer access
       // separately — the property read on null would still throw.
       if (strokeBuffer && strokeBufferCtx) {
@@ -186,8 +205,29 @@ function startStroke(e) {
       }
       activePointerId = null;
       App.activePointerType = null;
+      // v3.12.1: long-press timer was armed for the abandoned stroke; cancel
+      // it so it doesn't fire mid-gesture and surprise the user with an
+      // eyedropper.
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+      longPressOriginCss = null;
+      // Cached display rect from captureStrokeRect goes stale if the
+      // gesture ends up changing the view (pan / zoom / fit) — invalidate.
+      clearStrokeRect();
+      // Repaint without the abandoned stroke buffer overlay.
+      cancelScheduledRender();
+      renderDisplay();
+
+      if (wasTouch && isTouch) {
+        // v3.12.1: critical — when the handoff is touch→touch, return
+        // WITHOUT starting a new stroke for this 2nd finger. Drawing
+        // resumes only when the user lifts all fingers and starts a
+        // fresh single-pointer gesture. The next touchstart in
+        // events.js will see isDrawing=false and arm tap/pinch state.
+        return;
+      }
+      // touch → pen: fall through to start a fresh pen stroke below.
     } else {
-      // Second pointer of same type → palm / extra finger. Ignore completely.
+      // Same-type non-touch (e.g. pen+pen, mouse+anything) → palm / extra. Ignore.
       return;
     }
   }
