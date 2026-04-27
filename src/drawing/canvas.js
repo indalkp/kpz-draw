@@ -922,8 +922,36 @@ function endStroke(e) {
 
   // v3.7.0: flush the last pending curve tail. Between the last midpoint and
   // the final sample there's a small unrendered stub — stamp it as a line.
+  //
+  // v3.18.1: cap the tail-segment's end pressure against a recent average
+  // to suppress Apple Pencil's LIFT-OFF pressure spike. The firmware
+  // briefly reports a high pressure value as the pen leaves the screen
+  // (mirror of the first-contact spike that ramp-up handles). Without
+  // this clamp the tail segment stamps a fat dot at the end of every
+  // fast stroke — exactly the "stamp at end of stroke" symptom users
+  // report on iPad. We compare the final sample's pressure against the
+  // average of the previous 4 raw samples; if it spikes upward by more
+  // than 10%, replace it with that average. Symmetric counterpart to
+  // the v3.12.9 stroke-start ramp-up.
   if (App.strokeHasMoved && App.lastMid && App.lastPoint && strokeBufferCtx) {
-    drawSegment(strokeBufferCtx, App.lastMid, App.lastPoint);
+    let tailEnd = App.lastPoint;
+    if (App.activeStroke && App.activeStroke.points.length >= 4) {
+      const pts = App.activeStroke.points;
+      const slice = pts.slice(-5, -1); // up to 4 samples before the final
+      if (slice.length > 0) {
+        let sum = 0;
+        for (const p of slice) sum += p.pressure;
+        const avgP = sum / slice.length;
+        if (App.lastPoint.pressure > avgP * 1.1) {
+          tailEnd = {
+            x: App.lastPoint.x,
+            y: App.lastPoint.y,
+            pressure: avgP,
+          };
+        }
+      }
+    }
+    drawSegment(strokeBufferCtx, App.lastMid, tailEnd);
   }
 
   // Tap-to-dot. Skipped on continuations because the previous stroke
