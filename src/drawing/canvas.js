@@ -39,6 +39,19 @@ import { toast } from '../ui/toast.js';
 import { $ } from '../utils/dom-helpers.js';
 import { makeStrokeSmoother } from './smoothing.js';
 import { InputPoint, Stroke } from './stroke.js';
+import { createGLBrush } from './gl-brush.js';
+import { setActiveGLBrush } from './brush.js';
+import { hexToRgb } from '../utils/color.js';
+
+// v3.17.0 Phase 4: WebGL2 brush rasterizer state.
+//
+// glBrush is a singleton lazily created on first ensureStrokeBuffer call.
+// If WebGL2 is unavailable on the user's browser/GPU, createGLBrush
+// returns null and we keep using the Canvas 2D strokeBuffer path
+// transparently — every code path that touches strokeBuffer has both
+// branches.
+let glBrush = null;
+let useGLBrush = false;
 
 // Per-stroke offscreen buffer (v3.6.3 opacity compositing, unchanged)
 let strokeBuffer = null;
@@ -178,6 +191,21 @@ function ensureStrokeBuffer() {
   if (!layer) return null;
   const w = layer.canvas.width;
   const h = layer.canvas.height;
+
+  // v3.17.0 Phase 4: try GL brush first. Singleton, created lazily on
+  // first stroke. resize() is cheap if dimensions unchanged.
+  if (glBrush === null) {
+    glBrush = createGLBrush(w, h) || false;  // false sentinel = tried & failed
+    useGLBrush = !!glBrush;
+  }
+  if (useGLBrush && glBrush) {
+    glBrush.resize(w, h);
+    glBrush.clear();
+  }
+
+  // Always allocate the Canvas 2D fallback too — used when GL isn't
+  // available, and as the destination for brush-tip-cache drawImage
+  // in brush.js's Canvas 2D path.
   if (!strokeBuffer || strokeBuffer.width !== w || strokeBuffer.height !== h) {
     strokeBuffer = document.createElement('canvas');
     strokeBuffer.width = w;
@@ -196,7 +224,16 @@ function ensureStrokeBuffer() {
 
 // Composite the buffer onto the active layer once, at target opacity. Same as v3.6.3.
 function flushStrokeBuffer() {
-  if (!strokeBuffer) return;
+  // v3.17.0 Phase 4: pick the right source canvas. With GL brush active,
+  // pending instances must be flushed to the GL canvas first so its
+  // pixels are up-to-date when we drawImage from it.
+  let buf = strokeBuffer;
+  if (useGLBrush && glBrush) {
+    glBrush.flush();
+    buf = glBrush.canvas;
+  }
+  if (!buf) return;
+
   const layerCtx = curLayer().canvas.getContext('2d');
   const erase = App.tool === 'eraser';
   layerCtx.save();
@@ -207,13 +244,23 @@ function flushStrokeBuffer() {
     layerCtx.globalCompositeOperation = 'source-over';
     layerCtx.globalAlpha = App.brush.opacity;
   }
-  layerCtx.drawImage(strokeBuffer, 0, 0);
+  layerCtx.drawImage(buf, 0, 0);
   layerCtx.restore();
-  strokeBufferCtx.clearRect(0, 0, strokeBuffer.width, strokeBuffer.height);
+
+  // Clear whichever buffer we actually used.
+  if (useGLBrush && glBrush) glBrush.clear();
+  if (strokeBufferCtx) strokeBufferCtx.clearRect(0, 0, strokeBuffer.width, strokeBuffer.height);
 }
 
 export function getStrokeBuffer() {
-  return App.isDrawing ? strokeBuffer : null;
+  if (!App.isDrawing) return null;
+  // v3.17.0: when GL brush is active, return its canvas (after flushing
+  // pending instances so the canvas pixels are up-to-date for drawImage).
+  if (useGLBrush && glBrush) {
+    glBrush.flush();
+    return glBrush.canvas;
+  }
+  return strokeBuffer;
 }
 if (typeof window !== 'undefined') {
   window.__KPZ_strokeBuffer = getStrokeBuffer;
@@ -399,6 +446,7 @@ function startStroke(e) {
       App.strokeStartRawPressure = null;
       App.lastRawPressure = null;
       App.lazyPos = null;
+      setActiveGLBrush(null); // v3.17.0
       // v3.13.0: drop the abandoned stroke's data object too.
       // v3.13.2: clear predicted-tip overlay.
       // v3.14.0: invalidate layer caches.
@@ -485,6 +533,19 @@ function startStroke(e) {
   updateSaveStatus();
 
   ensureStrokeBuffer();
+
+  // v3.17.0 Phase 4: prep the GL brush for this stroke and route
+  // brush.js stamp() through it. Color + hardness are set per-stroke;
+  // mid-stroke changes won't take effect until the next stroke (the
+  // typical UX — color picker is between strokes, not during).
+  if (useGLBrush && glBrush) {
+    glBrush.ensureTip(App.brush.hardness);
+    const rgb = hexToRgb(App.brush.color);
+    glBrush.setColor([rgb.r / 255, rgb.g / 255, rgb.b / 255]);
+    setActiveGLBrush(glBrush);
+  } else {
+    setActiveGLBrush(null);
+  }
 
   // v3.7.0: fresh smoother per stroke. Parameters are derived from the
   // existing smoothing slider — zero-config for the user.
@@ -586,6 +647,8 @@ function startStroke(e) {
       smoother = null;
       App.activeStroke = null; // v3.13.0: long-press abandoned the stroke
       App.lazyPos = null;      // v3.16.0: clear lazy-mouse state
+      setActiveGLBrush(null);  // v3.17.0
+      if (useGLBrush && glBrush) glBrush.clear();
       clearPredictedBuffer();  // v3.13.2: clear speculative overlay
       clearStrokeStaticCaches(); // v3.14.0: invalidate layer caches
       clearStrokeRect();
@@ -892,6 +955,7 @@ function endStroke(e) {
   App.strokeStartRawPressure = null; // v3.12.9
   App.lastRawPressure = null;        // v3.12.9
   App.lazyPos = null;                // v3.16.0
+  setActiveGLBrush(null);            // v3.17.0: detach GL brush at stroke end
   // v3.13.0 Phase 1: stroke is now committed to the layer; clear the
   // data object. v3.13.2 Phase 2: clear the predicted-tip overlay too
   // so it doesn't linger past the stroke's end.

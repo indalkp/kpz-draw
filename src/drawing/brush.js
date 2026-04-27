@@ -14,6 +14,12 @@
 import { App } from '../core/state.js';
 import { hexToRgb } from '../utils/color.js';
 
+// v3.17.0 Phase 4: when the GL brush rasterizer is active, stamp() routes
+// to it instead of using the Canvas 2D drawImage path. canvas.js sets the
+// reference at startStroke and clears it at endStroke / abandon.
+let activeGLBrush = null;
+export function setActiveGLBrush(gl) { activeGLBrush = gl; }
+
 // v3.15.0 Phase 4-lite: pre-rendered brush tip cache.
 //
 // The original stamp() rebuilt a CanvasRadialGradient + beginPath + arc +
@@ -152,22 +158,25 @@ export function getStampAlpha(pressure) {
  */
 export function stamp(ctx, x, y, size, alpha) {
   const r = size / 2;
-  // v3.12.5: lowered radius-skip floor from 0.25 to 0.15 canvas-px.
-  // Combined with getStampSize's two clamps (5px minimum brush, 20%
-  // pressure floor), this is essentially a no-op now — stamps that
-  // make it here are already guaranteed ≥0.5 radius. The floor stays
-  // as a defensive last resort against future regressions.
+  // v3.12.5: defensive floor; getStampSize's clamps make this a no-op
+  // for normal usage but keep the guard.
   if (r < 0.15) return;
-  // v3.9.3: source-over always when stamping into the per-stroke buffer.
-  // The eraser-vs-brush distinction is applied ONCE at flush time in
-  // flushStrokeBuffer (canvas.js); stamp() always paints into the
-  // accumulator. Eraser doesn't need a different colour here because
-  // destination-out at flush time uses only the buffer's alpha channel.
+
+  // v3.17.0: when GL brush is active, queue the stamp on the GPU and
+  // bail. Color, hardness, blend mode are all set up by canvas.js at
+  // startStroke; we just need x/y/size/alpha here. The instance buffer
+  // gets flushed by canvas.js#flushStrokeBuffer, by getStrokeBuffer
+  // when view.js asks for the current pixels, or automatically when
+  // MAX_INSTANCES is reached.
+  if (activeGLBrush && activeGLBrush.supported) {
+    activeGLBrush.stamp(x, y, size, alpha);
+    return;
+  }
+
+  // Canvas 2D fallback path (used when WebGL2 unavailable on user's
+  // browser/GPU — same drawImage pattern as v3.15.0).
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = alpha;
-  // v3.15.0: drawImage from the cached canonical tip. Bilinear filter
-  // handles the per-stamp scaling for free; same visual output as the
-  // old radialGradient + arc + fill but a fraction of the cost.
   const tip = ensureTipCanvas();
   ctx.drawImage(tip, x - r, y - r, size, size);
   ctx.globalAlpha = 1;
