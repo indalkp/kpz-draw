@@ -178,6 +178,10 @@ export function createGLBrush(width, height) {
   let cachedTipHardness = -1;
   let cachedColorRgb = [0, 0, 0];
   let pendingCount = 0;
+  // v3.19.0: DPR factor — every stamp coord/size is multiplied by this
+  // when written to the instance buffer so the GPU rasterizes at native
+  // device pixels even though canvas.js calls stamp() with project coords.
+  let dpr = 1;
 
   function ensureTip(hardness) {
     if (cachedTipHardness === hardness && tipTexture) return;
@@ -190,7 +194,14 @@ export function createGLBrush(width, height) {
     cachedColorRgb = rgb; // {r,g,b} in 0..1
   }
 
-  function resize(w, h) {
+  // v3.19.0: resize takes project-coord dimensions and a DPR factor.
+  // The actual canvas internal buffer is project*DPR so stamps rasterize
+  // at native screen pixels. canvas.js calls stamp() with project coords;
+  // we multiply by `dpr` when packing into the instance buffer.
+  function resize(projW, projH, scaleFactor = 1) {
+    dpr = Math.max(1, scaleFactor);
+    const w = Math.round(projW * dpr);
+    const h = Math.round(projH * dpr);
     if (canvas.width !== w) canvas.width = w;
     if (canvas.height !== h) canvas.height = h;
     gl.viewport(0, 0, w, h);
@@ -206,9 +217,12 @@ export function createGLBrush(width, height) {
   function stamp(x, y, size, alpha) {
     if (pendingCount >= MAX_INSTANCES) flushBatch();
     const off = pendingCount * 4;
-    instanceData[off]     = x;
-    instanceData[off + 1] = y;
-    instanceData[off + 2] = size;
+    // v3.19.0: scale to canvas-pixel coords via DPR. The shader uses
+    // uResolution = canvas.width/height, so stamp positions/sizes must
+    // also be in canvas pixels for the math to align.
+    instanceData[off]     = x * dpr;
+    instanceData[off + 1] = y * dpr;
+    instanceData[off + 2] = size * dpr;
     instanceData[off + 3] = alpha;
     pendingCount++;
   }

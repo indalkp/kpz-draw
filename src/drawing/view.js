@@ -274,7 +274,9 @@ export function renderDisplay() {
       eraserPreviewCtx.clearRect(0, 0, lw, lh);
       eraserPreviewCtx.drawImage(activeLayer.canvas, 0, 0);
       eraserPreviewCtx.globalCompositeOperation = 'destination-out';
-      eraserPreviewCtx.drawImage(strokeBuf, 0, 0);
+      // v3.19.0: explicit dest — strokeBuf is project × DPR, eraserPreview
+      // is project. Downsample via drawImage's bilinear filter.
+      eraserPreviewCtx.drawImage(strokeBuf, 0, 0, strokeBuf.width, strokeBuf.height, 0, 0, lw, lh);
       dctx.globalAlpha = activeLayer.opacity;
       dctx.globalCompositeOperation = activeLayer.blend || 'source-over';
       dctx.drawImage(eraserPreview, 0, 0);
@@ -286,9 +288,16 @@ export function renderDisplay() {
       if (strokeBuf && !erasing) {
         dctx.globalAlpha = activeLayer.opacity * App.brush.opacity;
         dctx.globalCompositeOperation = 'source-over';
-        dctx.drawImage(strokeBuf, 0, 0);
+        // v3.19.0: explicit dest size — the stroke buffer is now at
+        // project × DPR resolution while the dctx is in project coords
+        // (via setTransform(dpr,...)). Drawing at (0,0,p.width,p.height)
+        // places the high-res buffer pixel-for-pixel into the high-res
+        // display, no additional bilinear stretch.
+        dctx.drawImage(strokeBuf, 0, 0, strokeBuf.width, strokeBuf.height, 0, 0, p.width, p.height);
         const predictedBuf = window.__KPZ_predictedBuffer && window.__KPZ_predictedBuffer();
-        if (predictedBuf) dctx.drawImage(predictedBuf, 0, 0);
+        if (predictedBuf) {
+          dctx.drawImage(predictedBuf, 0, 0, predictedBuf.width, predictedBuf.height, 0, 0, p.width, p.height);
+        }
       }
     }
 
@@ -395,7 +404,9 @@ export function renderDisplay() {
     if (strokeBuf && i === activeLayerIdx && !erasing) {
       dctx.globalAlpha = layer.opacity * App.brush.opacity;
       dctx.globalCompositeOperation = 'source-over';
-      dctx.drawImage(strokeBuf, 0, 0);
+      // v3.19.0: explicit dest — stroke buffer is project × DPR, dctx in
+      // project coords. Same as the fast path's drawImage above.
+      dctx.drawImage(strokeBuf, 0, 0, strokeBuf.width, strokeBuf.height, 0, 0, p.width, p.height);
 
       // v3.13.2 Phase 2: speculative-tip overlay. Renders predicted
       // samples 1-3 frames ahead of the actual pen position to mask
@@ -404,7 +415,7 @@ export function renderDisplay() {
       // Cleared and re-rasterized in canvas.js#moveStroke each event.
       const predictedBuf = window.__KPZ_predictedBuffer && window.__KPZ_predictedBuffer();
       if (predictedBuf) {
-        dctx.drawImage(predictedBuf, 0, 0);
+        dctx.drawImage(predictedBuf, 0, 0, predictedBuf.width, predictedBuf.height, 0, 0, p.width, p.height);
       }
     }
   }

@@ -189,35 +189,45 @@ export function initDrawing() {
 function ensureStrokeBuffer() {
   const layer = curLayer();
   if (!layer) return null;
-  const w = layer.canvas.width;
+  const w = layer.canvas.width;       // project coords
   const h = layer.canvas.height;
+  // v3.19.0: stroke buffer renders at native screen resolution. The
+  // backing buffer is project × DPR, but stamping continues to use
+  // project coords (we scale internally so call sites don't have to
+  // change). After flushStrokeBuffer downsamples to the project-res
+  // layer canvas, a slight visible "snap" from crisp to soft happens
+  // at endStroke — Phase 7b vector storage will eliminate that.
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const bufW = Math.round(w * dpr);
+  const bufH = Math.round(h * dpr);
 
   // v3.17.0 Phase 4: try GL brush first. Singleton, created lazily on
   // first stroke. resize() is cheap if dimensions unchanged.
   if (glBrush === null) {
-    glBrush = createGLBrush(w, h) || false;  // false sentinel = tried & failed
+    glBrush = createGLBrush(bufW, bufH) || false;
     useGLBrush = !!glBrush;
   }
   if (useGLBrush && glBrush) {
-    glBrush.resize(w, h);
+    glBrush.resize(w, h, dpr);
     glBrush.clear();
   }
 
   // Always allocate the Canvas 2D fallback too — used when GL isn't
   // available, and as the destination for brush-tip-cache drawImage
   // in brush.js's Canvas 2D path.
-  if (!strokeBuffer || strokeBuffer.width !== w || strokeBuffer.height !== h) {
+  if (!strokeBuffer || strokeBuffer.width !== bufW || strokeBuffer.height !== bufH) {
     strokeBuffer = document.createElement('canvas');
-    strokeBuffer.width = w;
-    strokeBuffer.height = h;
+    strokeBuffer.width = bufW;
+    strokeBuffer.height = bufH;
     strokeBufferCtx = strokeBuffer.getContext('2d');
-    // v3.15.1: high-quality smoothing for the per-stamp drawImage from
-    // the cached brush tip (256-px tip down-sampled to the stamp's
-    // diameter). Default quality on most browsers is 'low' which
-    // visibly aliases at small stamp sizes.
     strokeBufferCtx.imageSmoothingEnabled = true;
     strokeBufferCtx.imageSmoothingQuality = 'high';
+    // v3.19.0: scale subsequent ops by DPR so brush.js can keep calling
+    // stamp() with project coordinates. The buffer holds DPR×project
+    // pixels but every Canvas 2D primitive draws as if at project size.
+    strokeBufferCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
+  // clearRect uses project coords because of the setTransform above.
   strokeBufferCtx.clearRect(0, 0, w, h);
   return strokeBufferCtx;
 }
@@ -234,7 +244,8 @@ function flushStrokeBuffer() {
   }
   if (!buf) return;
 
-  const layerCtx = curLayer().canvas.getContext('2d');
+  const layer = curLayer();
+  const layerCtx = layer.canvas.getContext('2d');
   const erase = App.tool === 'eraser';
   layerCtx.save();
   if (erase) {
@@ -244,12 +255,20 @@ function flushStrokeBuffer() {
     layerCtx.globalCompositeOperation = 'source-over';
     layerCtx.globalAlpha = App.brush.opacity;
   }
-  layerCtx.drawImage(buf, 0, 0);
+  // v3.19.0: explicit destination size for the downsample from the
+  // project × DPR stroke buffer to the project-res layer canvas.
+  // imageSmoothingQuality on the layer ctx (set by Canvas 2D defaults)
+  // handles the bilinear filter for the downscale.
+  layerCtx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, layer.canvas.width, layer.canvas.height);
   layerCtx.restore();
 
   // Clear whichever buffer we actually used.
   if (useGLBrush && glBrush) glBrush.clear();
-  if (strokeBufferCtx) strokeBufferCtx.clearRect(0, 0, strokeBuffer.width, strokeBuffer.height);
+  if (strokeBufferCtx) {
+    // strokeBufferCtx has setTransform(dpr,...) so clearRect at project
+    // coords clears the full buffer.
+    strokeBufferCtx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+  }
 }
 
 export function getStrokeBuffer() {
