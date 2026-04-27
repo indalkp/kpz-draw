@@ -56,12 +56,17 @@ function ensureLayerCachesAtSize(w, h) {
     staticBelowCache.width  = w;
     staticBelowCache.height = h;
     staticBelowCacheCtx = staticBelowCache.getContext('2d');
+    // v3.15.1: high-quality smoothing on the layer-cache compositing too.
+    staticBelowCacheCtx.imageSmoothingEnabled = true;
+    staticBelowCacheCtx.imageSmoothingQuality = 'high';
   }
   if (!staticAboveCache || staticAboveCache.width !== w || staticAboveCache.height !== h) {
     staticAboveCache = document.createElement('canvas');
     staticAboveCache.width  = w;
     staticAboveCache.height = h;
     staticAboveCacheCtx = staticAboveCache.getContext('2d');
+    staticAboveCacheCtx.imageSmoothingEnabled = true;
+    staticAboveCacheCtx.imageSmoothingQuality = 'high';
   }
 }
 
@@ -225,6 +230,13 @@ export function renderDisplay() {
   if (display.style.height !== p.height + 'px') display.style.height = p.height + 'px';
   // Reset to identity then scale by DPR so coordinates remain project-space.
   dctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // v3.15.1: 'high' smoothing for the bilinear upscale from project-res
+  // layers / strokeBuffer to the DPR-scaled display canvas. Browser
+  // defaults are 'low' or 'medium' on Canvas 2D and produce visibly
+  // blocky artifacts at sub-pixel positions; 'high' uses a better
+  // filter kernel and looks meaningfully cleaner at no measurable cost.
+  dctx.imageSmoothingEnabled = true;
+  dctx.imageSmoothingQuality = 'high';
   dctx.clearRect(0, 0, p.width, p.height);
 
   const panel = curPanel();

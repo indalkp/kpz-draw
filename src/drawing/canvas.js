@@ -183,6 +183,12 @@ function ensureStrokeBuffer() {
     strokeBuffer.width = w;
     strokeBuffer.height = h;
     strokeBufferCtx = strokeBuffer.getContext('2d');
+    // v3.15.1: high-quality smoothing for the per-stamp drawImage from
+    // the cached brush tip (256-px tip down-sampled to the stamp's
+    // diameter). Default quality on most browsers is 'low' which
+    // visibly aliases at small stamp sizes.
+    strokeBufferCtx.imageSmoothingEnabled = true;
+    strokeBufferCtx.imageSmoothingQuality = 'high';
   }
   strokeBufferCtx.clearRect(0, 0, w, h);
   return strokeBufferCtx;
@@ -223,6 +229,10 @@ function ensurePredictedBuffer() {
     predictedBuffer.width  = w;
     predictedBuffer.height = h;
     predictedBufferCtx = predictedBuffer.getContext('2d');
+    // v3.15.1: same high-quality smoothing as strokeBuffer so the
+    // speculative-tip overlay matches the real stroke's anti-aliasing.
+    predictedBufferCtx.imageSmoothingEnabled = true;
+    predictedBufferCtx.imageSmoothingQuality = 'high';
   }
   return predictedBufferCtx;
 }

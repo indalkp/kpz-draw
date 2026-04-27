@@ -45,6 +45,11 @@ function ensureTipCanvas() {
     tipCanvas.width  = TIP_CANONICAL_DIAMETER;
     tipCanvas.height = TIP_CANONICAL_DIAMETER;
     tipCtx = tipCanvas.getContext('2d');
+    // v3.15.1: ensure the canonical-tip rasterization itself uses the
+    // best filter kernel available (only matters for the gradient/arc
+    // primitives below, but free to set).
+    tipCtx.imageSmoothingEnabled = true;
+    tipCtx.imageSmoothingQuality = 'high';
   }
 
   const D = TIP_CANONICAL_DIAMETER;
