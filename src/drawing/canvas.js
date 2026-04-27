@@ -701,6 +701,23 @@ function moveStroke(e) {
   for (const ev of events) {
     const raw = pointerToCanvas(ev);
 
+    // v3.18.0 Phase 9: pressure-curve remap. Apply BEFORE any downstream
+    // pressure logic so the entire pipeline (delta-clamp, ramp, modulation,
+    // stamping) operates on the user-calibrated curve.
+    //
+    //   curve = App.brush.pressureCurve  ∈ [0, 1], default 0.5
+    //   exponent = 16^curve / 4
+    //     curve=0   → 0.25 (very soft: light press feels heavy)
+    //     curve=0.5 → 1.0  (linear, default)
+    //     curve=1   → 4.0  (firm: more force needed for full size)
+    //
+    // Magma's pressure curve does the same thing (Aug 2025 release notes).
+    const _pc = App.brush.pressureCurve ?? 0.5;
+    if (_pc !== 0.5) {
+      const exponent = Math.pow(16, _pc) / 4;
+      raw.pressure = Math.pow(Math.max(0, Math.min(1, raw.pressure)), exponent);
+    }
+
     // v3.13.0 Phase 1: capture this real sample in the stroke data model.
     // The point gets pushed BEFORE any smoothing / clamping / ramping so
     // the data array is the unmodified ground truth.

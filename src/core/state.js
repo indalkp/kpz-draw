@@ -25,6 +25,14 @@ export const App = {
     // Higher values make the rendered stroke lag the cursor with exponential
     // smoothing, producing intentional, shake-free inking lines. 0 = off.
     stabilization: 0,
+    // v3.18.0 Phase 9: pressure-response curve. 0..1, default 0.5 = linear
+    // response. Mapped to a power exponent at moveStroke time:
+    //   exponent = 16^curve / 4
+    //   curve=0   → exponent=0.25 (very soft: light press feels heavy)
+    //   curve=0.5 → exponent=1.0  (linear, current default behaviour)
+    //   curve=1   → exponent=4.0  (very firm: need more force for full size)
+    // Magma's pressure-curve feature (Aug 2025 release) does the same thing.
+    pressureCurve: 0.5,
   },
 
   // v3.16.0 Phase 7a: lazy-mouse position used to apply stabilization lag.
