@@ -17,7 +17,7 @@ export function buildAppDom(root) {
       back to the source. Hidden under 1100px to save space; the
       version badge stays.
     -->
-    <div class="brand">KPZ Draw <small>v3.15.1</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
+    <div class="brand">KPZ Draw <small>v3.16.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -332,6 +332,7 @@ export function buildAppDom(root) {
           <div class="prop"><label>Opacity <span id="opacityVal">100%</span></label><input type="range" id="brushOpacity" min="1" max="100" value="100"></div>
           <div class="prop"><label>Hardness <span id="hardnessVal">80%</span></label><input type="range" id="brushHardness" min="0" max="100" value="80"></div>
           <div class="prop"><label>Smoothing <span id="smoothingVal">40%</span></label><input type="range" id="brushSmoothing" min="0" max="100" value="40"></div>
+          <div class="prop"><label>Stabilization <span id="stabilizationVal">0%</span></label><input type="range" id="brushStabilization" min="0" max="100" value="0"></div>
           <div class="prop"><label>Pressure → Size <span id="presSizeVal">100%</span></label><input type="range" id="presSize" min="0" max="100" value="100"></div>
           <div class="prop"><label>Pressure → Opacity <span id="presOpVal">0%</span></label><input type="range" id="presOp" min="0" max="100" value="0"></div>
         </div>
@@ -559,6 +560,10 @@ export function buildAppDom(root) {
       <div class="bp-prop">
         <label>Smoothing <span class="bp-val" id="bpSmoothingVal">40%</span></label>
         <input type="range" id="bpSmoothing" min="0" max="100" value="40">
+      </div>
+      <div class="bp-prop">
+        <label>Stabilization <span class="bp-val" id="bpStabilizationVal">0%</span></label>
+        <input type="range" id="bpStabilization" min="0" max="100" value="0">
       </div>
     </div>
     <!-- Pressure tab content -->

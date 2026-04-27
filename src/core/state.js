@@ -21,7 +21,15 @@ export const App = {
     presSize: 1,              // how much pressure affects size
     presOp: 0,                // how much pressure affects opacity
     color: '#000000',
+    // v3.16.0 Phase 7a: stabilization (0..1). Procreate-style "Streamline".
+    // Higher values make the rendered stroke lag the cursor with exponential
+    // smoothing, producing intentional, shake-free inking lines. 0 = off.
+    stabilization: 0,
   },
+
+  // v3.16.0 Phase 7a: lazy-mouse position used to apply stabilization lag.
+  // Initialized fresh at every startStroke; cleared at endStroke.
+  lazyPos: null,
 
   // View transform
   view: { scale: 1, x: 0, y: 0 },

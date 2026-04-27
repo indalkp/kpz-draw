@@ -65,6 +65,8 @@ export function initBrushPanel() {
   $('brushOpacity')?.addEventListener('input', e => { App.brush.opacity = +e.target.value / 100; updateBrushUI(); });
   $('brushHardness')?.addEventListener('input', e => { App.brush.hardness = +e.target.value / 100; updateBrushUI(); });
   $('brushSmoothing')?.addEventListener('input', e => { App.brush.smoothing = +e.target.value / 100; updateBrushUI(); });
+  // v3.16.0 Phase 7a: stabilization slider (Procreate-style line lag).
+  $('brushStabilization')?.addEventListener('input', e => { App.brush.stabilization = +e.target.value / 100; updateBrushUI(); });
   $('presSize')?.addEventListener('input', e => { App.brush.presSize = +e.target.value / 100; updateBrushUI(); });
   $('presOp')?.addEventListener('input', e => { App.brush.presOp = +e.target.value / 100; updateBrushUI(); });
   // v3.8.3 (M3): route through setBrushColor so mobile surfaces stay in sync
@@ -142,6 +144,8 @@ function initBrushPopover() {
   $('bpOpacity')?.addEventListener('input', e => { App.brush.opacity = +e.target.value / 100; updateBrushUI(); });
   $('bpHardness')?.addEventListener('input', e => { App.brush.hardness = +e.target.value / 100; updateBrushUI(); });
   $('bpSmoothing')?.addEventListener('input', e => { App.brush.smoothing = +e.target.value / 100; updateBrushUI(); });
+  // v3.16.0 Phase 7a: parallel stabilization slider in popover.
+  $('bpStabilization')?.addEventListener('input', e => { App.brush.stabilization = +e.target.value / 100; updateBrushUI(); });
   $('bpPresSize')?.addEventListener('input', e => { App.brush.presSize = +e.target.value / 100; updateBrushUI(); });
   $('bpPresOp')?.addEventListener('input', e => { App.brush.presOp = +e.target.value / 100; updateBrushUI(); });
   $('bpColorPicker')?.addEventListener('input', e => setBrushColor(e.target.value));
@@ -215,6 +219,7 @@ export function updateBrushUI() {
   set('opacityVal', Math.round(App.brush.opacity * 100) + '%');
   set('hardnessVal', Math.round(App.brush.hardness * 100) + '%');
   set('smoothingVal', Math.round(App.brush.smoothing * 100) + '%');
+  set('stabilizationVal', Math.round((App.brush.stabilization || 0) * 100) + '%');
   set('presSizeVal', Math.round(App.brush.presSize * 100) + '%');
   set('presOpVal', Math.round(App.brush.presOp * 100) + '%');
 
@@ -229,12 +234,14 @@ export function updateBrushUI() {
   setVal('bpOpacity', Math.round(App.brush.opacity * 100));
   setVal('bpHardness', Math.round(App.brush.hardness * 100));
   setVal('bpSmoothing', Math.round(App.brush.smoothing * 100));
+  setVal('bpStabilization', Math.round((App.brush.stabilization || 0) * 100));
   setVal('bpPresSize', Math.round(App.brush.presSize * 100));
   setVal('bpPresOp', Math.round(App.brush.presOp * 100));
   set('bpSizeVal', App.brush.size + ' px');
   set('bpOpacityVal', Math.round(App.brush.opacity * 100) + '%');
   set('bpHardnessVal', Math.round(App.brush.hardness * 100) + '%');
   set('bpSmoothingVal', Math.round(App.brush.smoothing * 100) + '%');
+  set('bpStabilizationVal', Math.round((App.brush.stabilization || 0) * 100) + '%');
   set('bpPresSizeVal', Math.round(App.brush.presSize * 100) + '%');
   set('bpPresOpVal', Math.round(App.brush.presOp * 100) + '%');
 

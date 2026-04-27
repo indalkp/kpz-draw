@@ -398,6 +398,7 @@ function startStroke(e) {
       App.strokeStartTime = null;
       App.strokeStartRawPressure = null;
       App.lastRawPressure = null;
+      App.lazyPos = null;
       // v3.13.0: drop the abandoned stroke's data object too.
       // v3.13.2: clear predicted-tip overlay.
       // v3.14.0: invalidate layer caches.
@@ -500,6 +501,7 @@ function startStroke(e) {
   App.strokeStartTime = e.timeStamp;
   App.strokeStartRawPressure = p.pressure;
   App.lastRawPressure = p.pressure;
+  App.lazyPos = null; // v3.16.0: fresh lazy-mouse position per stroke
 
   // v3.13.0 Phase 1: instantiate the stroke data object. Every sample
   // arriving in moveStroke gets pushed into App.activeStroke.points as
@@ -583,6 +585,7 @@ function startStroke(e) {
       App.activePointerType = null;
       smoother = null;
       App.activeStroke = null; // v3.13.0: long-press abandoned the stroke
+      App.lazyPos = null;      // v3.16.0: clear lazy-mouse state
       clearPredictedBuffer();  // v3.13.2: clear speculative overlay
       clearStrokeStaticCaches(); // v3.14.0: invalidate layer caches
       clearStrokeRect();
@@ -703,6 +706,29 @@ function moveStroke(e) {
       y: smoother.fy.filter(raw.y, t),
       pressure: clampedRaw * rampFactor,
     };
+
+    // v3.16.0 Phase 7a: stabilization (lazy-mouse). When the stabilization
+    // slider is > 0, the rendered position chases the One-Euro-smoothed
+    // position with exponential lag — Procreate's "Streamline" pattern.
+    // The user sees their cursor pull a smoothly-trailing line that
+    // ignores hand jitter entirely. App.lazyPos holds the lagged
+    // position; cleared at startStroke / endStroke so each stroke
+    // starts fresh.
+    //
+    // Mapped so stabilization=0 → lazyAlpha=1 (no lag), stabilization=1
+    // → lazyAlpha=0.05 (very heavy lag but still finite — never fully
+    // freezes). Predicted-tip overlay is unaffected; it uses
+    // App.lastPoint = lazyPos so it naturally leads from the lagged
+    // position rather than the raw cursor.
+    const stab = App.brush.stabilization || 0;
+    if (stab > 0) {
+      if (!App.lazyPos) App.lazyPos = { x: sp.x, y: sp.y };
+      const lazyAlpha = 1 - stab * 0.95;
+      App.lazyPos.x += (sp.x - App.lazyPos.x) * lazyAlpha;
+      App.lazyPos.y += (sp.y - App.lazyPos.y) * lazyAlpha;
+      sp.x = App.lazyPos.x;
+      sp.y = App.lazyPos.y;
+    }
 
     // v3.7.0: draw as quadratic Bézier curve through the samples, not as
     // straight stamp-lines. Midpoint method: control point is the previous
@@ -865,6 +891,7 @@ function endStroke(e) {
   App.strokeStartTime = null;        // v3.12.9
   App.strokeStartRawPressure = null; // v3.12.9
   App.lastRawPressure = null;        // v3.12.9
+  App.lazyPos = null;                // v3.16.0
   // v3.13.0 Phase 1: stroke is now committed to the layer; clear the
   // data object. v3.13.2 Phase 2: clear the predicted-tip overlay too
   // so it doesn't linger past the stroke's end.
