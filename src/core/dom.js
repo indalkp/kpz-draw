@@ -41,6 +41,7 @@ export function buildAppDom(root) {
       <button class="btn brush-chip" id="brushChip" title="Brush settings (Ctrl+B)">
         <span class="brush-chip-swatch" id="brushChipSwatch" style="background:#1a1a1a"></span>
         <span class="brush-chip-size" id="brushChipSize">8px</span>
+        <span class="brush-chip-tool" id="brushChipTool">Brush</span>
         <span class="brush-chip-gear">⚙</span>
       </button>
     </div>
