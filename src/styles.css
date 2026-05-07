@@ -990,6 +990,13 @@
   min-width: 28px;
   text-align: center;
 }
+/* v3.20.0: active-tool name in chip — separated from size with a thin divider */
+.brush-chip-tool {
+  font-weight: 500;
+  color: var(--ink-soft, #4a4540);
+  padding-left: 6px;
+  border-left: 1px solid rgba(0, 0, 0, 0.15);
+}
 .brush-chip-gear {
   font-size: 11px;
   color: var(--ink-soft, #4a4540);

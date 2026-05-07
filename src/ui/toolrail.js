@@ -11,6 +11,11 @@ import { updateLayerThumb } from './layers-panel.js';
 import { updateSaveStatus } from './topbar.js';
 import { toast } from './toast.js';
 
+// v3.20.0: brush chip mirrors the active tool so users can see at a glance
+// which tool is wired through the chip's size/color readout. Single source
+// of truth — labels are 1:1 with the four tool ids.
+const TOOL_LABELS = { brush: 'Brush', eraser: 'Eraser', eyedropper: 'Picker', hand: 'Pan' };
+
 export function initToolRail() {
   // Tool buttons
   $$('.tool-btn[data-tool]').forEach(b => {
@@ -53,4 +58,6 @@ export function setTool(t) {
   $$('.tool-btn[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
   const disp = $('displayCanvas');
   if (disp) disp.style.cursor = (t === 'hand') ? 'grab' : 'crosshair';
+  const chipTool = $('brushChipTool');
+  if (chipTool) chipTool.textContent = TOOL_LABELS[t] || t;
 }
