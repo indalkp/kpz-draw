@@ -38,6 +38,8 @@ import { initMobileChrome, updateMobileTopbar } from './ui/mobile-chrome.js';
 // v3.10.0: strip-mode initializes its DOM hooks but stays inactive until the
 // user clicks the toolbar toggle. Safe to wire on every load.
 import { initStripMode } from './ui/strip-mode.js';
+// v4.0.0-rc.1: v3 design preview, opt-in via ?v3=1 query param. No-op when off.
+import { initV3Shell } from './ui/v3-shell.js';
 
 import { initWixBridge } from './storage/wix-bridge.js';
 import { tryRestoreAutosave } from './storage/autosave.js';
@@ -82,6 +84,9 @@ export async function init(rootSelector, opts = {}) {
   initBrushDock();
   initMobileChrome();
   initStripMode();   // v3.10.0
+  // v4.0.0-rc.1: v3 design preview shell. Returns false when ?v3=1 not set,
+  // so default v3.19.0 surface is unchanged for production users.
+  initV3Shell({ baseUrl: opts.baseUrl });
   wireGlobalEvents();
 
   // 4. Restore or create project
