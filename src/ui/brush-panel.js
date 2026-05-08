@@ -20,6 +20,8 @@
 // chip so the parent/child relationship is visually obvious.
 
 import { App } from '../core/state.js';
+// v4.0.0-rc.2: brush presets — Default (v3.17) vs Grass Brush (v3.19)
+import { setActivePreset, getActivePreset, BRUSH_PRESETS } from '../drawing/brush-presets.js';
 import { $, $$ } from '../utils/dom-helpers.js';
 import { updateBrushDock } from './brush-dock.js';   // v3.8.0
 
@@ -70,6 +72,13 @@ export function initBrushPanel() {
   // v3.18.0 Phase 9: pressure curve. Stored as 0..1; mapped to a power
   // exponent at apply time in canvas.js#moveStroke.
   $('brushPressureCurve')?.addEventListener('input', e => { App.brush.pressureCurve = +e.target.value / 100; updateBrushUI(); });
+  // v4.0.0-rc.2: brush preset selector (right-panel). Switching the preset
+  // applies the preset's overrides to App.brush and re-syncs both the panel
+  // and popover via updateBrushUI(). Persists to localStorage.
+  $('brushPreset')?.addEventListener('change', e => {
+    setActivePreset(e.target.value);
+    updateBrushUI();
+  });
   $('presSize')?.addEventListener('input', e => { App.brush.presSize = +e.target.value / 100; updateBrushUI(); });
   $('presOp')?.addEventListener('input', e => { App.brush.presOp = +e.target.value / 100; updateBrushUI(); });
   // v3.8.3 (M3): route through setBrushColor so mobile surfaces stay in sync
@@ -151,6 +160,11 @@ function initBrushPopover() {
   $('bpStabilization')?.addEventListener('input', e => { App.brush.stabilization = +e.target.value / 100; updateBrushUI(); });
   // v3.18.0 Phase 9: parallel pressure curve slider in popover.
   $('bpPressureCurve')?.addEventListener('input', e => { App.brush.pressureCurve = +e.target.value / 100; updateBrushUI(); });
+  // v4.0.0-rc.2: parallel preset selector in the popover.
+  $('bpPreset')?.addEventListener('change', e => {
+    setActivePreset(e.target.value);
+    updateBrushUI();
+  });
   $('bpPresSize')?.addEventListener('input', e => { App.brush.presSize = +e.target.value / 100; updateBrushUI(); });
   $('bpPresOp')?.addEventListener('input', e => { App.brush.presOp = +e.target.value / 100; updateBrushUI(); });
   $('bpColorPicker')?.addEventListener('input', e => setBrushColor(e.target.value));
@@ -235,6 +249,11 @@ export function updateBrushUI() {
   set('smoothingVal', Math.round(App.brush.smoothing * 100) + '%');
   set('stabilizationVal', Math.round((App.brush.stabilization || 0) * 100) + '%');
   set('pressureCurveVal', pressureCurveLabel(App.brush.pressureCurve));
+  // v4.0.0-rc.2: reflect current preset in panel + popover selects + label
+  const _activePreset = getActivePreset();
+  setVal('brushPreset', _activePreset.id);
+  setVal('bpPreset', _activePreset.id);
+  set('bpPresetVal', _activePreset.name.split(' ')[0]);   // 'Default' or 'Grass'
   set('presSizeVal', Math.round(App.brush.presSize * 100) + '%');
   set('presOpVal', Math.round(App.brush.presOp * 100) + '%');
 

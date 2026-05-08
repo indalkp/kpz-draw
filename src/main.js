@@ -44,6 +44,8 @@ import { initV3Shell } from './ui/v3-shell.js';
 import { initWixBridge } from './storage/wix-bridge.js';
 import { tryRestoreAutosave } from './storage/autosave.js';
 import { restorePersistentRefs, restorePersistentCharacters } from './storage/persistent-refs.js';
+// v4.0.0-rc.2: brush preset registry. Apply persisted selection at boot.
+import { applyInitialPreset } from './drawing/brush-presets.js';
 
 /**
  * Initialize KPZ Draw inside the given root element.
@@ -78,6 +80,9 @@ export async function init(rootSelector, opts = {}) {
   initModals();
   initLibraryModal();
   initConfirmLeave();
+  // v4.0.0-rc.2: apply the user's persisted brush preset BEFORE initDrawing
+  // so the engine sees the right gates from the very first stroke.
+  applyInitialPreset();
   initDrawing();
   // v3.8.0: mobile chrome after all the desktop modules are wired. These are
   // no-ops on desktop (CSS hides the elements they wire up).
