@@ -84,6 +84,19 @@ export async function init(rootSelector, opts = {}) {
   initStripMode();   // v3.10.0
   wireGlobalEvents();
 
+  // v3.26.0 — Essential mode toggle. Activates only on the v3 surface
+  // (?v3=1). The bootstrap sets body[data-v3="1"] before this point, so a
+  // straight check is safe. Default surface skips the dynamic import
+  // entirely so the v3.18.1 baseline pays zero cost.
+  if (document.body.getAttribute('data-v3') === '1') {
+    try {
+      const mod = await import('./v3-mode-toggle.js');
+      mod.initV3ModeToggle();
+    } catch (e) {
+      console.warn('[KPZ] v3 mode toggle failed to init:', e);
+    }
+  }
+
   // 4. Restore or create project
   const restored = await tryRestoreAutosave();
   if (!restored) {

@@ -349,3 +349,151 @@ body[data-v3="1"] ::-webkit-scrollbar-thumb{
 body[data-v3="1"] ::-webkit-scrollbar-thumb:hover{
   background: rgba(31,29,27,.40);
 }
+
+/* ============================================================
+  15. v3.26.0 — Mode toggle pill (Both / Canvas / Script)
+   ------------------------------------------------------------
+   Stadium-shaped 3-segment pill. Sketchy paper styling, hand-set
+   Caveat label per segment, current segment highlighted with the
+   accent ink. Hidden by default; shown only under v3.
+   ============================================================ */
+#v3ModeToggle{ display: none; }
+body[data-v3="1"] #v3ModeToggle{
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 0 auto 0 12px;       /* centerward of brand */
+  padding: 3px;
+  background: var(--v3-paper-2);
+  border: 1.5px solid var(--v3-ink);
+  border-radius: 999px / 999px; /* stadium */
+  box-shadow: 1px 2px 0 rgba(31,29,27,.14);
+  font-family: var(--v3-font-hand);
+  user-select: none;
+}
+body[data-v3="1"] #v3ModeToggle .v3-mode-seg{
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 4px 14px;
+  min-width: 60px;
+  font: 600 15px var(--v3-font-hand);
+  color: var(--v3-ink-soft);
+  cursor: pointer;
+  border-radius: 999px;
+  transition: background-color .12s ease, color .12s ease;
+  letter-spacing: .2px;
+}
+body[data-v3="1"] #v3ModeToggle .v3-mode-seg:hover{
+  color: var(--v3-ink);
+}
+body[data-v3="1"] #v3ModeToggle .v3-mode-seg[aria-selected="true"]{
+  background: var(--v3-paper);
+  color: var(--v3-ink);
+  box-shadow:
+    inset 0 0 0 1.5px var(--v3-ink),
+    1px 1px 0 rgba(31,29,27,.10);
+}
+body[data-v3="1"] #v3ModeToggle .v3-mode-seg:focus-visible{
+  outline: 2px solid var(--v3-accent);
+  outline-offset: 2px;
+}
+
+/* Hide on tight mobile widths — toggle is desktop-only for v3.26.0. */
+@media (max-width: 1100px){
+  body[data-v3="1"] #v3ModeToggle{ display: none; }
+}
+
+/* ============================================================
+  16. v3.26.0 — Script panel placeholder
+   ------------------------------------------------------------
+   The script panel is a regular grid item in #main when v3 is on.
+   Default surface (no v3) keeps it hidden via display:none so the
+   v3.18.1 6-column grid stays untouched.
+   ============================================================ */
+#scriptPanel{ display: none; }   /* default surface — hidden, never participates in grid */
+
+body[data-v3="1"] #scriptPanel{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--v3-paper-2);
+  border-left: 1.5px dashed var(--v3-ink);
+  overflow: hidden;
+  min-width: 0;                  /* allow grid column to shrink to 0 in canvas mode */
+  position: relative;
+}
+body[data-v3="1"] #scriptPanel::before{
+  /* Subtle paper-grain echo of the panels in section 2 */
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(transparent 95%, rgba(31,29,27,.06) 95%),
+    linear-gradient(90deg, transparent 95%, rgba(31,29,27,.04) 95%);
+  background-size: 22px 22px, 22px 22px;
+  pointer-events: none;
+  opacity: .55;
+}
+body[data-v3="1"] .v3-script-placeholder{
+  position: relative;
+  text-align: center;
+  padding: 24px 32px;
+  background: var(--v3-paper);
+  border: 1.5px solid var(--v3-ink);
+  border-radius: 14px 18px 12px 16px / 16px 12px 18px 14px;
+  box-shadow: 1px 2px 0 rgba(31,29,27,.12);
+  max-width: 320px;
+  font-family: var(--v3-font-hand);
+}
+body[data-v3="1"] .v3-script-placeholder-title{
+  font: 700 22px var(--v3-font-hand);
+  color: var(--v3-ink);
+  margin-bottom: 6px;
+  letter-spacing: .3px;
+}
+body[data-v3="1"] .v3-script-placeholder-body{
+  font: 500 16px var(--v3-font-hand);
+  color: var(--v3-ink-soft);
+  line-height: 1.35;
+}
+
+/* ============================================================
+  17. v3.26.0 — Layout switch via body[data-mode="..."]
+   ------------------------------------------------------------
+   Default surface (no v3) keeps #main's 6-column grid intact.
+   Under v3, redefine #main as a 7-column grid. The new column
+   between canvasArea (col 4) and resizeRight (col 6) is the
+   script panel (col 5). data-mode controls the col 4 / col 5
+   widths. data-mode="canvas"  → col 5 collapses to 0.
+                  data-mode="script"  → col 4 collapses to 0.
+                  data-mode="both"    → 60% / 40% split.
+   ============================================================ */
+body[data-v3="1"] #main{
+  /* leftPanel | resize | toolRail | canvasArea | scriptPanel | resize | rightPanel */
+  grid-template-columns:
+    var(--leftW)
+    4px
+    var(--railW)
+    var(--v3-canvas-col, 1.5fr)
+    var(--v3-script-col, 1fr)
+    4px
+    var(--rightW);
+}
+body[data-v3="1"][data-mode="both"]   #main{ --v3-canvas-col: 1.5fr; --v3-script-col: 1fr; }
+body[data-v3="1"][data-mode="canvas"] #main{ --v3-canvas-col: 1fr;   --v3-script-col: 0;   }
+body[data-v3="1"][data-mode="script"] #main{ --v3-canvas-col: 0;     --v3-script-col: 1fr; }
+
+/* Hide #scriptPanel completely when its column is 0 so the dashed border
+   doesn't draw a thin stripe at the join. */
+body[data-v3="1"][data-mode="canvas"] #scriptPanel{ display: none; }
+body[data-v3="1"][data-mode="script"] #canvasArea{ display: none; }
+
+/* Mobile under v3 — stay single-column, scriptPanel hidden, mode toggle hidden.
+   Mobile chrome ships in a later v3 increment (v3.28.0+). */
+@media (max-width: 1100px){
+  body[data-v3="1"] #main{
+    grid-template-columns: 0 0 var(--railW) 1fr 0 0 0;
+  }
+  body[data-v3="1"] #scriptPanel{ display: none; }
+}

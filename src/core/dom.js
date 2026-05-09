@@ -17,7 +17,7 @@ export function buildAppDom(root) {
       back to the source. Hidden under 1100px to save space; the
       version badge stays.
     -->
-    <div class="brand">KPZ Draw <small>v3.25.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
+    <div class="brand">KPZ Draw <small>v3.26.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -91,6 +91,18 @@ export function buildAppDom(root) {
         <button id="pmMyWork"><span>🎨</span> My Work</button>
         <button id="pmLogout"><span>↩</span> Log out</button>
       </div>
+    </div>
+
+    <!--
+      v3.26.0 — Essential mode-toggle pill (Both / Canvas / Script).
+      Hidden by default. Visible only under body[data-v3="1"], which the
+      bootstrap sets when ?v3=1 is in the URL. Clicks update body[data-mode]
+      via src/v3-mode-toggle.js — pure UI, no engine impact.
+    -->
+    <div class="v3-mode-toggle" id="v3ModeToggle" role="tablist" aria-label="Workspace mode">
+      <button class="v3-mode-seg" data-mode="both"   role="tab" aria-selected="true"  title="Canvas + Script">Both</button>
+      <button class="v3-mode-seg" data-mode="canvas" role="tab" aria-selected="false" title="Canvas only">Canvas</button>
+      <button class="v3-mode-seg" data-mode="script" role="tab" aria-selected="false" title="Script only">Script</button>
     </div>
   </div>
 
@@ -300,6 +312,21 @@ export function buildAppDom(root) {
       -->
       <div id="stripContainer" aria-hidden="true"></div>
       <div id="panelBackdrop"></div>
+    </div>
+
+    <!--
+      v3.26.0 — Script panel placeholder.
+      Inserted as a sibling of #canvasArea so it occupies its own grid
+      column under v3 (#main grid template gains a 7th column under
+      body[data-v3="1"]). Hidden via display:none on the default surface
+      so the v3.18.1 baseline grid (6 columns) is preserved bit-for-bit.
+      Real script-editor UI ships in v3.26.0+1 (v3.27.0).
+    -->
+    <div id="scriptPanel" aria-label="Script panel">
+      <div class="v3-script-placeholder">
+        <div class="v3-script-placeholder-title">Script</div>
+        <div class="v3-script-placeholder-body">Coming v3.27.0 — the script editor lives here.</div>
+      </div>
     </div>
 
     <div class="resize-handle" id="resizeRight" title="Drag to resize"></div>
