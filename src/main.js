@@ -95,6 +95,16 @@ export async function init(rootSelector, opts = {}) {
     } catch (e) {
       console.warn('[KPZ] v3 mode toggle failed to init:', e);
     }
+    // v3.27.0 — Essential series · Script mode UI. Mounts the script
+    // editor into #scriptPanel (replacing v3.26.0's placeholder card)
+    // and listens for panel-changed signals so the script tracks the
+    // active canvas panel. Pure UI — no engine code touched.
+    try {
+      const mod = await import('./v3-script.js');
+      mod.initV3Script();
+    } catch (e) {
+      console.warn('[KPZ] v3 script panel failed to init:', e);
+    }
   }
 
   // 4. Restore or create project

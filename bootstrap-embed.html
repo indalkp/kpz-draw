@@ -68,7 +68,7 @@
 
   <script type="module">
     // Version pin — change only when deploying a new release
-    const VERSION = 'v3.26.0';
+    const VERSION = 'v3.27.0';
     const REPO    = 'indalkp/kpz-draw';
     const BASE    = `https://cdn.jsdelivr.net/gh/${REPO}@${VERSION}/src`;
 
@@ -81,6 +81,12 @@
       link.rel  = 'stylesheet';
       link.href = `${BASE}/v3-theme.css`;
       document.head.appendChild(link);
+      // v3.27.0 — script-mode editor stylesheet. Loaded under the same
+      // ?v3=1 gate so the default surface stays bit-for-bit untouched.
+      const link2 = document.createElement('link');
+      link2.rel  = 'stylesheet';
+      link2.href = `${BASE}/v3-script.css`;
+      document.head.appendChild(link2);
     }
 
     try {

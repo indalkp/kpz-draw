@@ -1,0 +1,267 @@
+/* ============================================================================
+   src/v3-script.css
+   KPZ Draw — v3.27.0 Essential series · Script mode UI
+   ----------------------------------------------------------------------------
+   Extends src/v3-theme.css. Only loaded when body[data-v3="1"] (i.e. ?v3=1)
+   so the v3.18.1 default surface stays bit-for-bit untouched.
+
+   The script body is monospace (Courier Prime, free Google Font) — film
+   script convention. UI chrome (titles, save cue, footer hint) keeps the
+   v3-theme hand-fonts so the panel still feels part of the v3 paper world.
+
+   Indentation per screenplay convention, expressed as percentage of the
+   editable column so the layout breathes from the 600px Both-mode width up
+   to the full-screen Script-only mode without blowing out at edges.
+   ============================================================================ */
+
+/* --- Google Font: Courier Prime ------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+
+/* --- Tokens (extend v3-theme) --------------------------------------------- */
+body[data-v3="1"] {
+  --v3-script-mono: 'Courier Prime', 'Courier New', Courier, monospace;
+  --v3-script-line-h: 1.55;
+  --v3-script-bg: #fffaf0;          /* warm paper, matches wireframe */
+  --v3-script-rule: rgba(31, 29, 27, 0.10);
+  --v3-script-pill-bg: rgba(31, 29, 27, 0.06);
+  --v3-script-pill-bg-active: var(--v3-accent, #ff7a45);
+  --v3-script-pill-fg: var(--v3-ink-soft, #514d47);
+  --v3-script-current-bg: #fff48a;  /* highlight echo from wireframe */
+  --v3-script-current-rule: var(--v3-accent, #ff7a45);
+}
+
+/* --- Override v3.26.0 placeholder host styles when the editor mounts ------ */
+/* The placeholder centred its content; the real editor needs flex column. */
+body[data-v3="1"] #scriptPanel:has(.v3-script) {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  background: var(--v3-script-bg);
+}
+/* Fallback for browsers without :has — set on the inner wrapper directly. */
+body[data-v3="1"] .v3-script {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--v3-script-bg);
+  color: var(--v3-ink, #1f1d1b);
+}
+
+/* --- Header --------------------------------------------------------------- */
+body[data-v3="1"] .v3-script-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px 10px;
+  border-bottom: 1.2px dashed var(--v3-ink-mute, rgba(31, 29, 27, 0.25));
+  background:
+    linear-gradient(transparent 95%, var(--v3-script-rule) 95%) repeat-y;
+  background-size: 100% 22px;
+}
+body[data-v3="1"] .v3-script-titlewrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+body[data-v3="1"] .v3-script-title {
+  font: 700 22px var(--v3-font-hand, 'Caveat', cursive);
+  letter-spacing: 0.3px;
+  color: var(--v3-ink, #1f1d1b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70vw;
+}
+body[data-v3="1"] .v3-script-subtitle {
+  font: 500 13px var(--v3-font-hand, 'Kalam', cursive);
+  color: var(--v3-ink-soft, #514d47);
+  letter-spacing: 0.2px;
+}
+body[data-v3="1"] .v3-script-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+body[data-v3="1"] .v3-script-savecue {
+  font: 500 11px var(--v3-font-hand, 'Kalam', cursive);
+  padding: 2px 9px;
+  border-radius: 14px;
+  border: 1px solid var(--v3-ink, #1f1d1b);
+  background: #e8f4e6;
+  color: #6fb56a;
+  transition: opacity .35s, color .25s, background .25s;
+  white-space: nowrap;
+}
+body[data-v3="1"] .v3-script-savecue[data-state="saving"]  { background: #fbe8d4; color: #e0884a; }
+body[data-v3="1"] .v3-script-savecue[data-state="offline"] { background: #e8e6e0; color: #8a857d; }
+body[data-v3="1"] .v3-script-savecue.idle { opacity: 0.55; }
+
+/* --- Body (the actual editable script) ----------------------------------- */
+body[data-v3="1"] .v3-script-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 0 80px;
+  font-family: var(--v3-script-mono);
+  font-size: 14px;
+  line-height: var(--v3-script-line-h);
+  color: var(--v3-ink, #1f1d1b);
+  /* Light blue-line ruling under each line — typewriter-page feel. */
+  background:
+    linear-gradient(transparent calc(100% - 1px), var(--v3-script-rule) 100%) repeat-y;
+  background-size: 100% calc(14px * var(--v3-script-line-h));
+}
+
+/* --- Lines ---------------------------------------------------------------- */
+body[data-v3="1"] .v3-script-line {
+  position: relative;
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 4px 24px 4px 18px;
+  margin: 2px 0;
+  transition: background .15s;
+}
+body[data-v3="1"] .v3-script-line:hover { background: rgba(31, 29, 27, 0.025); }
+body[data-v3="1"] .v3-script-line:focus-within {
+  background: var(--v3-script-current-bg);
+  box-shadow: inset 3px 0 0 var(--v3-script-current-rule);
+}
+
+/* Type pill (gutter) */
+body[data-v3="1"] .v3-line-pill {
+  font: 500 10.5px var(--v3-font-hand, 'Kalam', cursive);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 9px;
+  border-radius: 11px;
+  border: 1px solid var(--v3-ink, #1f1d1b);
+  background: var(--v3-script-pill-bg);
+  color: var(--v3-script-pill-fg);
+  cursor: pointer;
+  align-self: start;
+  margin-top: 3px;
+  white-space: nowrap;
+  transition: background .15s, color .15s;
+}
+body[data-v3="1"] .v3-line-pill:hover {
+  background: var(--v3-script-pill-bg-active);
+  color: #fff;
+}
+body[data-v3="1"] .v3-script-line:focus-within .v3-line-pill {
+  background: var(--v3-script-pill-bg-active);
+  color: #fff;
+}
+
+/* Editable text — base style; per-type rules override below */
+body[data-v3="1"] .v3-line-text {
+  outline: none;
+  min-height: calc(14px * var(--v3-script-line-h));
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  caret-color: var(--v3-accent, #ff7a45);
+  padding: 1px 2px;
+}
+body[data-v3="1"] .v3-line-text:empty::before {
+  content: attr(data-placeholder);
+  color: var(--v3-ink-mute, rgba(31, 29, 27, 0.4));
+  font-style: italic;
+  pointer-events: none;
+}
+
+/* --- Per-type screenplay formatting --------------------------------------- */
+
+/* Scene Heading — flush left, bold, uppercase. */
+body[data-v3="1"] .v3-line-scene .v3-line-text {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-left: 0;
+  margin-top: 8px;
+}
+
+/* Action — flush left, regular weight. */
+body[data-v3="1"] .v3-line-action .v3-line-text {
+  margin-left: 0;
+}
+
+/* Character — indented ~22%, uppercase, bold. */
+body[data-v3="1"] .v3-line-character .v3-line-text {
+  margin-left: 22%;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  margin-top: 6px;
+}
+
+/* Dialogue — indented ~10%, max width ~60% so it reads as a column. */
+body[data-v3="1"] .v3-line-dialogue .v3-line-text {
+  margin-left: 10%;
+  max-width: 62%;
+}
+
+/* Parenthetical — indented further, italic. */
+body[data-v3="1"] .v3-line-parenthetical .v3-line-text {
+  margin-left: 17%;
+  max-width: 55%;
+  font-style: italic;
+  color: var(--v3-ink-soft, #514d47);
+}
+
+/* Transition — flush right, uppercase. */
+body[data-v3="1"] .v3-line-transition {
+  /* Push the editable column to the right edge by reordering grid cells. */
+}
+body[data-v3="1"] .v3-line-transition .v3-line-text {
+  text-align: right;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+}
+
+/* --- Footer --------------------------------------------------------------- */
+body[data-v3="1"] .v3-script-footer {
+  flex-shrink: 0;
+  padding: 8px 18px;
+  border-top: 1.2px dashed var(--v3-ink-mute, rgba(31, 29, 27, 0.25));
+  background: rgba(255, 255, 255, 0.55);
+}
+body[data-v3="1"] .v3-script-hint {
+  font: 500 11.5px var(--v3-font-hand, 'Kalam', cursive);
+  color: var(--v3-ink-soft, #514d47);
+  letter-spacing: 0.2px;
+}
+
+/* --- Layout adjustments per mode ----------------------------------------- */
+/* In script-only mode, give the body a centered max-width like a real page. */
+body[data-v3="1"][data-mode="script"] .v3-script-body {
+  padding-left: max(18px, calc((100% - 760px) / 2));
+  padding-right: max(18px, calc((100% - 760px) / 2));
+}
+
+/* In Both mode the panel is narrower — collapse the gutter so the text gets
+   more room and the indents still read as screenplay-shaped. */
+@media (max-width: 1400px) {
+  body[data-v3="1"][data-mode="both"] .v3-script-line {
+    grid-template-columns: 100px 1fr;
+    padding-left: 10px;
+    padding-right: 12px;
+  }
+  body[data-v3="1"][data-mode="both"] .v3-line-character     .v3-line-text { margin-left: 14%; }
+  body[data-v3="1"][data-mode="both"] .v3-line-dialogue      .v3-line-text { margin-left: 6%;  max-width: 80%; }
+  body[data-v3="1"][data-mode="both"] .v3-line-parenthetical .v3-line-text { margin-left: 11%; max-width: 75%; }
+}
+
+/* --- Mobile under v3 — hidden by section 17 of v3-theme.css. No rules
+       needed here, but keep the editor responsive in case the panel ever
+       does appear on a narrow surface (e.g. preview tablet). */
+@media (max-width: 700px) {
+  body[data-v3="1"] .v3-script-line {
+    grid-template-columns: 80px 1fr;
+    padding-left: 8px;
+    padding-right: 10px;
+    gap: 6px;
+  }
+  body[data-v3="1"] .v3-line-pill { font-size: 9px; padding: 1px 6px; }
+  body[data-v3="1"] .v3-line-character     .v3-line-text { margin-left: 8%; }
+  body[data-v3="1"] .v3-line-dialogue      .v3-line-text { margin-left: 4%; max-width: 92%; }
+  body[data-v3="1"] .v3-line-parenthetical .v3-line-text { margin-left: 7%; max-width: 85%; }
+}
