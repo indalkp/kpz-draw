@@ -9,11 +9,13 @@
 //
 //    - flags.pressureCurveRemap   (v3.18.0 — pow remap in moveStroke)
 //    - flags.liftOffClamp         (v3.18.1 — Apple Pencil tail-pressure clamp)
-//
-//  The DPR stroke buffer (v3.19.0) is rendering fidelity, not stroke
-//  kinematics, so it is NOT gated by the preset — it always renders at
-//  native screen resolution. See 20260508_kpzdraw_brush_v317_vs_v319.md
-//  for the design call.
+//    - flags.dprStrokeBuffer      (v3.19.0 — project*DPR stroke buffer w/
+//                                  bilinear downsample at flushStrokeBuffer.
+//                                  Re-categorised at rc.3 from "fidelity-only"
+//                                  to "engine-affecting": the low-quality
+//                                  downsample produces visible artefacts on
+//                                  every input device, including mouse, and
+//                                  IS what the user calls the "grass" effect.)
 //
 //  Default preset: "default" — reproduces v3.17.0 movement behaviour.
 //  Optional preset: "grass"   — reproduces v3.19.0 movement behaviour
@@ -30,6 +32,14 @@ export const BRUSH_PRESETS = Object.freeze({
     flags: Object.freeze({
       pressureCurveRemap: false,    // skip the v3.18.0 pow remap in moveStroke
       liftOffClamp:       false,    // skip the v3.18.1 tail-pressure clamp
+      dprStrokeBuffer:    false,    // v4.0.0-rc.3: skip the v3.19.0 project*DPR
+                                    // stroke buffer. The DPR buffer + low-quality
+                                    // bilinear downsample at flushStrokeBuffer is
+                                    // the actual cause of the v3.19 "grass" effect
+                                    // — visible on every input device including
+                                    // mouse, not just stylus pressure paths.
+                                    // Default preset uses a project-res buffer
+                                    // like v3.17, no downsample step.
     }),
     overrides: Object.freeze({
       pressureCurve: 0.5,           // forced linear (no-op) when remap is off
@@ -42,6 +52,8 @@ export const BRUSH_PRESETS = Object.freeze({
     flags: Object.freeze({
       pressureCurveRemap: true,
       liftOffClamp:       true,
+      dprStrokeBuffer:    true,     // v4.0.0-rc.3: preserve the v3.19 grass
+                                    // effect as the bug-as-feature for this preset.
     }),
     overrides: Object.freeze({
       pressureCurve: 0.5,           // linear by default; user can adjust slider
