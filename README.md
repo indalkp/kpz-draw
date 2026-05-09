@@ -3,7 +3,9 @@
 > A browser drawing app built inside Wix. WebGL2 brush rasterizer, three-cache layer compositing, DPR-aware Retina rendering, Procreate-style line stabilization, Velo backend for save/load.
 
 **Live**: [indalkp.com/draw](https://www.indalkp.com/draw)
-**Source**: this repo · **Releases**: [tags](https://github.com/indalkp/kpz-draw/tags) (v3.19.0 latest) · **Built by**: [Indal KP](https://www.indalkp.com)
+**Source**: this repo · **Releases**: [tags](https://github.com/indalkp/kpz-draw/tags) (v3.19.0 latest, v4.0.0-rc.1 in design preview) · **Built by**: [Indal KP](https://www.indalkp.com)
+
+> **v4.0.0-rc.1 — v3 design preview is live on jsDelivr.** Opt-in via `?v3=1` query param: <https://www.indalkp.com/draw?v3=1> (after KPZ_VERSION is bumped) or directly via <https://cdn.jsdelivr.net/gh/indalkp/kpz-draw@v4.0.0-rc.1/bootstrap-embed.html?v3=1>. Default surface is unchanged on v3.19.0. See `V3-COMING-SOON.md` for the deferred-feature list.
 
 ---
 

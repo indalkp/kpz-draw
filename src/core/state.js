@@ -33,6 +33,10 @@ export const App = {
     //   curve=1   → exponent=4.0  (very firm: need more force for full size)
     // Magma's pressure-curve feature (Aug 2025 release) does the same thing.
     pressureCurve: 0.5,
+    // v4.0.0-rc.2: brush preset id. 'default' = v3.17 behaviour (no
+    // pressure-curve remap, no lift-off clamp). 'grass' = v3.19 behaviour
+    // (both on). See src/drawing/brush-presets.js for the registry.
+    preset: 'default',
   },
 
   // v3.16.0 Phase 7a: lazy-mouse position used to apply stabilization lag.

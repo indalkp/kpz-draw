@@ -1,0 +1,383 @@
+/* ============================================================================
+ * src/v3-theme.css
+ *
+ * v4.0.0-rc.1 — sketchy paper aesthetic.
+ *
+ * Scoped under `body[data-v3="1"]` so it activates ONLY when the v3 preview
+ * flag is on (`?v3=1` query param or `localStorage.kpzV3 === "1"`).
+ *
+ * The default v3.19.0 surface continues to render exactly as before when
+ * the flag is off.
+ *
+ * Loaded by src/ui/v3-shell.js as a stylesheet link injected into <head>
+ * the first time v3 mode is activated. The link is tag-pinned via the
+ * jsDelivr URL pattern so caching is immutable.
+ * ========================================================================= */
+
+/* ----- color tokens (mirrors wireframe vars) ------------------------------ */
+body[data-v3="1"] {
+  --v3-ink:        #1f1d1b;
+  --v3-ink-soft:   #4a4540;
+  --v3-ink-mute:   #8a857d;
+  --v3-paper:      #fdfcf9;
+  --v3-paper-2:    #f5f2ec;
+  --v3-paper-bg:   #f0eee9;
+  --v3-line:       #1f1d1b;
+  --v3-accent:     #ff7a45;       /* same KPZ orange */
+  --v3-accent-soft:#ffd9c5;
+  --v3-highlight:  #fff48a;
+  --v3-good:       #6fb56a;
+  --v3-warn:       #e0884a;
+  --v3-danger:     #d75555;
+}
+
+/* ----- when the flag is ON, swap the page background and font ------------- */
+body[data-v3="1"] {
+  background: var(--v3-paper-bg) !important;
+  /* fonts loaded via the Google Fonts <link> injected by v3-shell.js */
+  font-family: 'Kalam', 'Caveat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Topbar: paper colour, hand-drawn border bottom */
+body[data-v3="1"] #topbar {
+  background: var(--v3-paper);
+  border-bottom: 1.5px solid var(--v3-ink);
+}
+
+/* Brand stamp: Caveat hand font, slightly tilted */
+body[data-v3="1"] #topbar .brand {
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  letter-spacing: 0.5px;
+  color: var(--v3-ink);
+}
+body[data-v3="1"] #topbar .brand small {
+  font-family: 'Kalam', sans-serif;
+  color: var(--v3-ink-mute);
+  font-size: 11px;
+}
+
+/* Buttons: irregular border-radius for the hand-drawn feel */
+body[data-v3="1"] #topbar .btn,
+body[data-v3="1"] #topbar .skbtn {
+  background: var(--v3-paper);
+  border: 1.5px solid var(--v3-ink);
+  border-radius: 9px 6px 8px 7px / 7px 9px 6px 8px;
+  font-family: 'Kalam', sans-serif;
+  color: var(--v3-ink);
+}
+body[data-v3="1"] #topbar .btn:hover {
+  background: var(--v3-paper-2);
+}
+
+/* ----- Mode-toggle pill (injected by v3-shell.js) ------------------------- */
+.v3-mode-toggle {
+  display: none;
+  background: var(--v3-paper-2, #f5f2ec);
+  border: 1.5px solid var(--v3-ink, #1f1d1b);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 3px;
+  align-items: center;
+  flex-shrink: 0;
+}
+body[data-v3="1"] .v3-mode-toggle { display: inline-flex; }
+.v3-mode-toggle button {
+  background: transparent;
+  border: none;
+  color: var(--v3-ink, #1f1d1b);
+  font-family: 'Kalam', sans-serif;
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.v3-mode-toggle button.active {
+  background: var(--v3-ink, #1f1d1b);
+  color: var(--v3-paper, #fdfcf9);
+}
+
+/* ----- Script view (center pane in script-only mode) ---------------------- */
+#scriptView {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: #fffaf0;
+  padding: 32px 60px;
+  overflow: auto;
+  font-family: 'Kalam', sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--v3-ink, #1f1d1b);
+  z-index: 4;
+}
+body[data-v3="1"][data-v3-mode="script"] #scriptView { display: block; }
+body[data-v3="1"][data-v3-mode="script"] #workspace { visibility: hidden; }
+#scriptView .v3-script-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+#scriptView .v3-script-header h2 {
+  font-family: 'Caveat', cursive;
+  font-size: 32px;
+  margin: 0;
+  color: var(--v3-ink);
+}
+#scriptView .v3-beat {
+  padding: 10px 14px;
+  border-left: 3px solid transparent;
+  margin-bottom: 6px;
+  border-radius: 6px;
+}
+#scriptView .v3-beat.current {
+  background: var(--v3-highlight);
+  border-left-color: var(--v3-accent);
+}
+#scriptView .v3-beat .v3-beat-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-family: 'Kalam', sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--v3-ink-mute);
+}
+#scriptView .v3-beat-link {
+  width: 38px; height: 28px;
+  border: 1.2px solid var(--v3-ink);
+  background: #fdfcf9;
+  font-family: 'Kalam', sans-serif;
+  font-size: 9px;
+  display: inline-flex;
+  align-items: flex-start;
+  padding: 1px 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+#scriptView .v3-beat-empty {
+  color: var(--v3-ink-mute);
+  font-style: italic;
+  padding: 32px 0;
+  text-align: center;
+}
+
+/* ----- v3 modal shell (Project Gallery + Settings) ----------------------- */
+.v3-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(20,18,15,0.35);
+  backdrop-filter: blur(1px);
+  z-index: 90;
+  align-items: center;
+  justify-content: center;
+}
+.v3-modal.open { display: flex; }
+.v3-modal-shell {
+  background: var(--v3-paper);
+  width: 760px;
+  max-width: 92vw;
+  height: 520px;
+  max-height: 88vh;
+  border: 1.5px solid var(--v3-ink);
+  border-radius: 10px 7px 11px 8px / 8px 11px 7px 10px;
+  box-shadow: 4px 5px 0 rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.v3-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--v3-paper-2);
+  border-bottom: 1.5px solid var(--v3-ink);
+}
+.v3-modal-head h3 {
+  margin: 0;
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  color: var(--v3-ink);
+}
+.v3-modal-head .v3-modal-sub {
+  font-family: 'Kalam', sans-serif;
+  font-size: 11px;
+  color: var(--v3-ink-mute);
+}
+.v3-modal-body {
+  flex: 1;
+  overflow: auto;
+  padding: 14px 18px;
+}
+.v3-modal-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--v3-paper-2);
+  border-top: 1.5px solid var(--v3-ink);
+  gap: 8px;
+}
+.v3-btn {
+  background: var(--v3-paper);
+  border: 1.5px solid var(--v3-ink);
+  border-radius: 9px 6px 8px 7px / 7px 9px 6px 8px;
+  font-family: 'Kalam', sans-serif;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  color: var(--v3-ink);
+}
+.v3-btn:hover { background: var(--v3-paper-2); }
+.v3-btn.accent { background: var(--v3-accent); color: white; }
+.v3-btn.danger { border-color: var(--v3-danger); color: var(--v3-danger); }
+
+/* Project gallery grid */
+.v3-gallery-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.v3-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
+.v3-project-card {
+  background: var(--v3-paper);
+  border: 1.5px solid var(--v3-ink);
+  border-radius: 8px 5px 9px 6px / 6px 9px 5px 8px;
+  padding: 8px;
+  cursor: pointer;
+  transition: transform .12s;
+}
+.v3-project-card:hover { transform: translateY(-2px); }
+.v3-project-thumb {
+  aspect-ratio: 4/3;
+  background: #f5d8c0;
+  border: 1.5px solid var(--v3-ink);
+  border-radius: 6px 4px 7px 5px / 5px 7px 4px 6px;
+  margin-bottom: 6px;
+  position: relative;
+  overflow: hidden;
+}
+.v3-project-name {
+  font-family: 'Kalam', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--v3-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.v3-project-meta {
+  font-family: 'Kalam', sans-serif;
+  font-size: 11px;
+  color: var(--v3-ink-mute);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.v3-cloud-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.v3-cloud-dot.synced  { background: var(--v3-good); }
+.v3-cloud-dot.pending { background: var(--v3-warn); }
+.v3-cloud-dot.local   { background: var(--v3-ink-mute); }
+.v3-empty {
+  text-align: center;
+  padding: 40px 20px;
+  font-family: 'Kalam', sans-serif;
+  color: var(--v3-ink-mute);
+}
+
+/* Settings sections */
+.v3-settings-section {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--v3-ink-mute);
+}
+.v3-settings-section:last-child { border-bottom: none; }
+.v3-settings-section h4 {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  margin: 0 0 8px;
+  color: var(--v3-ink);
+}
+.v3-settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-family: 'Kalam', sans-serif;
+  font-size: 12px;
+  color: var(--v3-ink-soft);
+  gap: 10px;
+}
+.v3-settings-row label { flex: 1; }
+.v3-settings-row input[type="checkbox"] { cursor: pointer; }
+.v3-settings-row select,
+.v3-settings-row input[type="number"] {
+  background: var(--v3-paper);
+  border: 1.5px solid var(--v3-ink);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: 'Kalam', sans-serif;
+  font-size: 12px;
+  color: var(--v3-ink);
+}
+
+/* ----- Mobile bottom dock (v3) ------------------------------------------- */
+.v3-mobile-dock {
+  display: none;
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 0;
+  background: var(--v3-paper);
+  border-top: 1.5px solid var(--v3-ink);
+  padding: 5px 6px env(safe-area-inset-bottom, 5px);
+  justify-content: space-between;
+  z-index: 60;
+}
+@media (max-width: 1100px) {
+  body[data-v3="1"] .v3-mobile-dock { display: flex; }
+  body[data-v3="1"] #app { padding-bottom: 56px; box-sizing: border-box; }
+}
+.v3-mobile-dock-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  color: var(--v3-ink);
+  font-family: 'Kalam', sans-serif;
+}
+.v3-mobile-dock-btn.active {
+  background: var(--v3-ink);
+  color: var(--v3-paper);
+}
+.v3-mobile-dock-btn .v3-mobile-dock-icon { font-size: 16px; line-height: 1; }
+.v3-mobile-dock-btn .v3-mobile-dock-label { font-size: 9px; margin-top: 2px; }
+
+/* ----- v3 hint badge ------------------------------------------------------ */
+body[data-v3="1"] #topbar::after {
+  content: "v3 preview";
+  position: fixed;
+  top: 2px;
+  right: 2px;
+  background: var(--v3-accent-soft);
+  color: var(--v3-ink);
+  border: 1px solid var(--v3-ink);
+  border-radius: 8px;
+  padding: 1px 6px;
+  font-family: 'Kalam', sans-serif;
+  font-size: 9px;
+  z-index: 100;
+  pointer-events: none;
+}

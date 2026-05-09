@@ -17,7 +17,7 @@ export function buildAppDom(root) {
       back to the source. Hidden under 1100px to save space; the
       version badge stays.
     -->
-    <div class="brand">KPZ Draw <small>v3.19.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
+    <div class="brand">KPZ Draw <small>v4.0.0-rc.3</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -328,6 +328,7 @@ export function buildAppDom(root) {
       </div>
       <div class="tab-content" data-tab="brush">
         <div id="toolProps" style="border-bottom:none">
+          <div class="prop"><label>Preset</label><select id="brushPreset"><option value="default">Default (v3.17)</option><option value="grass">Grass Brush (v3.19)</option></select></div>
           <div class="prop"><label>Size <span id="sizeVal">8 px</span></label><input type="range" id="brushSize" min="1" max="200" value="8"></div>
           <div class="prop"><label>Opacity <span id="opacityVal">100%</span></label><input type="range" id="brushOpacity" min="1" max="100" value="100"></div>
           <div class="prop"><label>Hardness <span id="hardnessVal">80%</span></label><input type="range" id="brushHardness" min="0" max="100" value="80"></div>
@@ -547,6 +548,13 @@ export function buildAppDom(root) {
         <div class="bp-swatches" id="bpSwatches"></div>
       </div>
       <div class="bp-prop">
+        <label>Preset <span class="bp-val" id="bpPresetVal">Default</span></label>
+        <select id="bpPreset" style="width:100%;font-size:12px;padding:3px 6px">
+          <option value="default">Default (v3.17)</option>
+          <option value="grass">Grass Brush (v3.19)</option>
+        </select>
+      </div>
+      <div class="bp-section">
         <label>Size <span class="bp-val" id="bpSizeVal">8 px</span></label>
         <input type="range" id="bpSize" min="1" max="200" value="8">
       </div>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<!--
+  tests/v3-smoke.html
+
+  v4.0.0-rc.1 — local smoke test page.
+
+  Loads kpz-draw from the local sibling src/ directory rather than jsDelivr
+  so you can sanity-check changes before tagging. Activates v3 mode by
+  default via ?v3=1 in the URL.
+
+  How to run:
+    1. From repo root: `python3 -m http.server 8000` (or any static server).
+    2. Open http://localhost:8000/tests/v3-smoke.html in a browser.
+    3. Click around — mode toggle, profile menu → Settings, profile menu →
+       My projects (gallery). Confirm no console errors.
+
+  This page mirrors what bootstrap-embed.html does for production, minus
+  the postMessage version negotiation (we point at local files directly).
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>KPZ Draw — v3 smoke test</title>
+  <script src="https://unpkg.com/ag-psd@30.1.0/dist/bundle.js"></script>
+  <style>
+    html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#1a1a1a;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#e8e8e8}
+    #kpz-root{width:100vw;height:100vh}
+    .kpz-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ff7a45}
+  </style>
+</head>
+<body>
+<div id="kpz-root">
+  <div class="kpz-loading">Loading KPZ Draw v4.0.0-rc.1 — smoke test…</div>
+</div>
+<script type="module">
+  // Force v3 preview ON for this page so a contributor doesn't have to
+  // remember the query-param flag. Delete this line to see the default surface.
+  if (!new URLSearchParams(window.location.search).has('v3')) {
+    const u = new URL(window.location.href);
+    u.searchParams.set('v3', '1');
+    window.history.replaceState(null, '', u.toString());
+  }
+
+  // Local module load — no jsDelivr involved. baseUrl points at the sibling
+  // src/ directory so all relative imports inside main.js resolve correctly.
+  const BASE = '../src';
+  try {
+    const mod = await import(`${BASE}/main.js`);
+    if (typeof mod.init !== 'function') throw new Error('main.js does not export init()');
+    await mod.init('#kpz-root', { baseUrl: BASE, version: 'v4.0.0-rc.1-smoke' });
+    console.log('[smoke] init OK');
+  } catch (err) {
+    console.error('[smoke] init failed:', err);
+    document.getElementById('kpz-root').innerHTML =
+      '<div style="padding:40px;color:#fff;max-width:600px;font-family:monospace">' +
+      '<h2 style="color:#e55353">Smoke test failed</h2>' +
+      '<p>' + (err && err.message ? err.message : String(err)) + '</p>' +
+      '<p style="color:#9a9a9a;font-size:13px">' +
+      'Open the browser console for the full stack trace. Run from a static ' +
+      'server (file:// won\'t work — ES modules need http(s)).</p></div>';
+  }
+</script>
+</body>
+</html>

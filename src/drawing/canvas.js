@@ -27,6 +27,8 @@
 //   - Sub-pixel noise filter (<0.5px moves skipped).
 
 import { App } from '../core/state.js';
+// v4.0.0-rc.2: gate post-v3.17 pipeline stages on the active brush preset
+import { getActivePreset } from './brush-presets.js';
 import { curLayer, curPanel } from './panels.js';
 import { pushHistory } from './history.js';
 import { drawQuadSegment, drawSegment, drawDot } from './brush.js';
@@ -192,12 +194,22 @@ function ensureStrokeBuffer() {
   const w = layer.canvas.width;       // project coords
   const h = layer.canvas.height;
   // v3.19.0: stroke buffer renders at native screen resolution. The
-  // backing buffer is project × DPR, but stamping continues to use
+  // backing buffer is project × DPR; canvas.js#stamp() continues to use
   // project coords (we scale internally so call sites don't have to
   // change). After flushStrokeBuffer downsamples to the project-res
-  // layer canvas, a slight visible "snap" from crisp to soft happens
-  // at endStroke — Phase 7b vector storage will eliminate that.
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  // layer canvas, a low-quality bilinear filter on the layer ctx (Canvas 2D
+  // default is imageSmoothingQuality:'low') produces visible texture
+  // artefacts in the committed stroke for every input device including
+  // mouse — re-categorised at v4.0.0-rc.3 from fidelity-only to
+  // engine-affecting and gated on the active brush preset.
+  //
+  // Default preset (v3.17 feel): dpr=1, no DPR scaling, no setTransform,
+  // no downsample at flush — matches v3.17 byte-for-byte.
+  // Grass Brush preset (v3.19 bug-as-feature): dpr=devicePixelRatio,
+  // preserves the v3.19 grass effect.
+  const dpr = getActivePreset().flags.dprStrokeBuffer
+    ? Math.max(1, window.devicePixelRatio || 1)
+    : 1;
   const bufW = Math.round(w * dpr);
   const bufH = Math.round(h * dpr);
 
@@ -731,10 +743,16 @@ function moveStroke(e) {
     //     curve=1   → 4.0  (firm: more force needed for full size)
     //
     // Magma's pressure curve does the same thing (Aug 2025 release notes).
-    const _pc = App.brush.pressureCurve ?? 0.5;
-    if (_pc !== 0.5) {
-      const exponent = Math.pow(16, _pc) / 4;
-      raw.pressure = Math.pow(Math.max(0, Math.min(1, raw.pressure)), exponent);
+    // v4.0.0-rc.2: gate the v3.18.0 pressure-curve remap on the active preset.
+    // Default preset (v3.17 feel) leaves raw.pressure untouched. Grass Brush
+    // preset enables the remap; even then, at curve=0.5 the math is a no-op,
+    // so the slider only matters when the user moves it off linear.
+    if (getActivePreset().flags.pressureCurveRemap) {
+      const _pc = App.brush.pressureCurve ?? 0.5;
+      if (_pc !== 0.5) {
+        const exponent = Math.pow(16, _pc) / 4;
+        raw.pressure = Math.pow(Math.max(0, Math.min(1, raw.pressure)), exponent);
+      }
     }
 
     // v3.13.0 Phase 1: capture this real sample in the stroke data model.
@@ -953,8 +971,14 @@ function endStroke(e) {
   // than 10%, replace it with that average. Symmetric counterpart to
   // the v3.12.9 stroke-start ramp-up.
   if (App.strokeHasMoved && App.lastMid && App.lastPoint && strokeBufferCtx) {
+    // v4.0.0-rc.2: gate the v3.18.1 Apple Pencil lift-off clamp on the
+    // active preset. Default preset (v3.17 feel) draws the tail with the
+    // raw final-sample pressure — the lift-off spike is intact (this is
+    // the visible behavioural difference for stylus users). Grass Brush
+    // preset enables the clamp.
     let tailEnd = App.lastPoint;
-    if (App.activeStroke && App.activeStroke.points.length >= 4) {
+    if (getActivePreset().flags.liftOffClamp
+        && App.activeStroke && App.activeStroke.points.length >= 4) {
       const pts = App.activeStroke.points;
       const slice = pts.slice(-5, -1); // up to 4 samples before the final
       if (slice.length > 0) {
