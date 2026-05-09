@@ -1,0 +1,351 @@
+/* ============================================================
+   KPZ Draw — v3 Sketchy Paper Theme
+   ------------------------------------------------------------
+   First increment of the v3 design line. CSS-only overlay over
+   the v3.18.1 baseline stylesheet. Activates only when the
+   bootstrap reads ?v3=1 from the URL and sets:
+
+       <body data-v3="1">
+
+   See bootstrap-embed.html for the gating wiring. With no
+   ?v3=1, this stylesheet is never injected and the default
+   chrome from styles.css renders untouched.
+
+   Source of truth for tokens + treatments:
+     indalkp/kpz-draw-design  branch design-update-20260508
+     project/wireframes.html  (variable definitions)
+     project/wireframes-v3-shared.jsx  (component application)
+
+   Design intent (sketchy ≠ child-like):
+     - cream paper background  #f0eee9
+     - off-white panels        #fdfcf9 / #f5f2ec
+     - soft pencil ink         #1f1d1b at 1.5px, asymmetric radii
+     - hand-set Caveat/Kalam type for chrome labels
+     - subtle paper grain via a tiled SVG noise on the chrome
+     - the canvas surface itself stays CLEAN — sketchy paper
+       wraps the chrome, not the drawing area.
+
+   This file composes additively. Future v3 increments
+   (mode toggle, modals, mobile chrome polish) extend this
+   under the same body[data-v3="1"] gate.
+   ============================================================ */
+
+/* ---- Google Fonts: hand-set families used by chrome labels ---- */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Kalam:wght@400;700&family=Architects+Daughter&display=swap');
+
+/* ============================================================
+   1. Token overrides (scoped to data-v3="1")
+   ============================================================ */
+body[data-v3="1"]{
+  /* --- Paper / ink palette --- */
+  --v3-page:        #f0eee9;   /* cream page bg */
+  --v3-paper:       #fdfcf9;   /* primary panel paper */
+  --v3-paper-2:     #f5f2ec;   /* recessed paper */
+  --v3-ink:         #1f1d1b;   /* primary ink stroke */
+  --v3-ink-soft:    #4a4540;
+  --v3-ink-mute:    #8a857d;
+  --v3-accent:      #ff7a45;   /* keep KPZ orange */
+  --v3-accent-soft: #ffd9c5;
+  --v3-highlight:   #fff48a;
+  --v3-note:        #fef4a8;
+
+  /* --- Hand-set type stack --- */
+  --v3-font-display: 'Caveat', 'Architects Daughter', cursive;
+  --v3-font-hand:    'Kalam', 'Architects Daughter', cursive;
+
+  /* --- Soft pencil shadow (used in place of crisp 1px borders) --- */
+  --v3-pencil-shadow: 1px 2px 0 rgba(31,29,27,.10),
+                      0 0 0 1.5px rgba(31,29,27,.78);
+
+  /* --- Existing tokens we deliberately re-point so the rest of
+         the engine's paint passes pick the paper palette without
+         per-rule overrides. --- */
+  --bg:    var(--v3-page);
+  --panel: var(--v3-paper);
+  --panel2:var(--v3-paper-2);
+  --line:  var(--v3-ink);
+  --text:  var(--v3-ink);
+  --muted: var(--v3-ink-mute);
+  --accent2: #e6651f;
+}
+
+/* ============================================================
+   2. Page + body — cream paper, paper grain
+   ============================================================ */
+body[data-v3="1"]{
+  background: var(--v3-page);
+  color: var(--v3-ink);
+
+  /* Subtle paper grain tile — a tiny SVG noise pattern, ~2KB.
+     Sits behind everything. The canvas wrapper paints opaque
+     white over it so the drawing surface is never affected. */
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.11  0 0 0 0 0.10  0 0 0 0.045 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-repeat: repeat;
+}
+
+/* ============================================================
+   3. Topbar — soften, re-paper, hand-set the brand
+   ============================================================ */
+body[data-v3="1"] #topbar{
+  background: var(--v3-paper);
+  border-bottom: 1.5px solid var(--v3-ink);
+  /* very soft drop so the topbar feels lifted off the page */
+  box-shadow: 0 1px 0 rgba(31,29,27,.06), 0 2px 0 rgba(31,29,27,.03);
+}
+body[data-v3="1"] .brand{
+  font-family: var(--v3-font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0;
+  color: var(--v3-accent);
+  line-height: 1;
+}
+body[data-v3="1"] .brand small{
+  font-family: var(--v3-font-hand);
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--v3-ink-mute);
+  margin-left: 6px;
+}
+body[data-v3="1"] .brand-by{
+  font-family: var(--v3-font-hand);
+  color: var(--v3-ink-soft);
+}
+body[data-v3="1"] .tb-group{
+  border-right: 1px dashed rgba(31,29,27,.18);
+}
+body[data-v3="1"] .tb-group:last-child{ border-right: none; }
+
+/* ============================================================
+   4. Buttons — sketchy pill, asymmetric corners, hand label
+   ============================================================ */
+body[data-v3="1"] .btn{
+  font-family: var(--v3-font-hand);
+  color: var(--v3-ink);
+  background: transparent;
+  border: 1.5px solid transparent;
+  /* Slightly off-true corners — feels drawn, not stamped. */
+  border-radius: 7px 5px 8px 6px / 6px 8px 5px 7px;
+  transition: background .12s, border-color .12s;
+}
+body[data-v3="1"] .btn:hover{
+  background: var(--v3-paper-2);
+  border-color: rgba(31,29,27,.20);
+}
+body[data-v3="1"] .btn.active,
+body[data-v3="1"] .btn.primary{
+  background: var(--v3-accent);
+  color: #fff;
+  border-color: var(--v3-ink);
+}
+body[data-v3="1"] .btn.primary:hover{
+  background: #e6651f;
+}
+
+/* ============================================================
+   5. Auth box — paper pill, hand-set name
+   ============================================================ */
+body[data-v3="1"] #authBox{
+  background: var(--v3-paper-2);
+  border: 1.5px solid var(--v3-ink);
+  border-radius: 18px 14px 18px 16px / 16px 18px 14px 18px;
+}
+body[data-v3="1"] #authBox.logged-in{ border-color: #6fb56a; }
+body[data-v3="1"] #authBox.logged-out{ border-color: var(--v3-accent); }
+body[data-v3="1"] #authName{
+  font-family: var(--v3-font-hand);
+  font-size: 12px;
+  color: var(--v3-ink);
+}
+body[data-v3="1"] #authName.prompt{
+  color: var(--v3-accent);
+  font-weight: 700;
+}
+
+/* ============================================================
+   6. Side panels — paper, soft pencil edge instead of crisp 1px
+   ============================================================ */
+body[data-v3="1"] #leftPanel,
+body[data-v3="1"] #rightPanel{
+  background: var(--v3-paper);
+  border-right: none;
+  border-left: none;
+  /* Soft paper-shadow standing in for the crisp 1px divider. */
+  box-shadow: inset -1.5px 0 0 var(--v3-ink),
+              2px 0 0 rgba(31,29,27,.04);
+}
+body[data-v3="1"] #rightPanel{
+  box-shadow: inset 1.5px 0 0 var(--v3-ink),
+              -2px 0 0 rgba(31,29,27,.04);
+}
+body[data-v3="1"] .panel-header{
+  font-family: var(--v3-font-hand);
+  font-weight: 700;
+  letter-spacing: .8px;
+  color: var(--v3-ink-soft);
+  border-bottom: 1.2px dashed rgba(31,29,27,.25);
+  background: var(--v3-paper);
+}
+
+/* ============================================================
+   7. Tool rail — paper, sketchy toolboxes
+   ============================================================ */
+body[data-v3="1"] #toolRail{
+  background: var(--v3-paper);
+  box-shadow: inset -1.5px 0 0 var(--v3-ink);
+  border-right: none;
+}
+body[data-v3="1"] .tool-btn{
+  color: var(--v3-ink);
+  /* Hand-drawn-feel rounded square. */
+  border-radius: 8px 6px 9px 5px / 5px 8px 6px 9px;
+  border: 1.5px solid transparent;
+  transition: background .12s, border-color .12s;
+}
+body[data-v3="1"] .tool-btn:hover{
+  background: var(--v3-paper-2);
+  border-color: rgba(31,29,27,.18);
+}
+body[data-v3="1"] .tool-btn.active{
+  background: var(--v3-ink);
+  color: var(--v3-paper);
+  border-color: var(--v3-ink);
+}
+body[data-v3="1"] .tool-divider{
+  background: rgba(31,29,27,.20);
+}
+
+/* ============================================================
+   8. Canvas area — DELIBERATELY untouched chrome.
+   The drawing surface stays clean. The wrapper picks up
+   a soft paper-shadow rather than the harsh 0 0 0 1px #444.
+   ============================================================ */
+body[data-v3="1"] #canvasArea{
+  /* Cream page bg shows through around the canvas. */
+  background: var(--v3-page);
+}
+body[data-v3="1"] #canvasWrap{
+  /* Replace the crisp 1px outline with a soft paper-shadow.
+     The canvas itself remains white #fff, untouched. */
+  box-shadow:
+    0 0 0 1.5px var(--v3-ink),
+    2px 4px 0 rgba(31,29,27,.10),
+    0 12px 28px rgba(31,29,27,.18);
+}
+
+/* ============================================================
+   9. Layers + project cards — paper, hand label
+   ============================================================ */
+body[data-v3="1"] .layer-item{
+  background: var(--v3-paper-2);
+  border: 1.2px solid rgba(31,29,27,.18);
+  border-radius: 5px 7px 6px 8px / 8px 5px 7px 6px;
+}
+body[data-v3="1"] .layer-item.active{
+  background: var(--v3-accent-soft);
+  border-color: var(--v3-ink);
+}
+body[data-v3="1"] .layer-item .name{
+  font-family: var(--v3-font-hand);
+  font-size: 12px;
+  color: var(--v3-ink);
+}
+body[data-v3="1"] .layer-actions button{
+  font-family: var(--v3-font-hand);
+  background: var(--v3-paper);
+  border: 1.2px solid var(--v3-ink);
+  color: var(--v3-ink);
+  border-radius: 5px 7px 6px 8px / 8px 5px 7px 6px;
+}
+body[data-v3="1"] .layer-actions button:hover{
+  background: var(--v3-paper-2);
+}
+
+/* ============================================================
+  10. Tabs — sketchy underline-active, dashed dividers
+   ============================================================ */
+body[data-v3="1"] .tab-bar{
+  border-bottom: 1.5px solid var(--v3-ink);
+  background: var(--v3-paper);
+}
+body[data-v3="1"] .tab-bar button{
+  font-family: var(--v3-font-hand);
+  color: var(--v3-ink-mute);
+  border-bottom: 2px solid transparent;
+}
+body[data-v3="1"] .tab-bar button.active{
+  color: var(--v3-ink);
+  border-bottom-color: var(--v3-accent);
+}
+
+/* ============================================================
+  11. Bottom panel nav — paper bubble, sketchy thumbs
+   ============================================================ */
+body[data-v3="1"] #panelNav{
+  background: var(--v3-paper);
+  border: 1.5px solid var(--v3-ink);
+  border-radius: 24px 22px 26px 22px / 22px 26px 22px 24px;
+  box-shadow: 1px 2px 0 rgba(31,29,27,.10);
+  backdrop-filter: none;
+}
+body[data-v3="1"] #panelNav .panel-thumb{
+  border-radius: 4px 6px 5px 7px / 7px 5px 6px 4px;
+}
+body[data-v3="1"] #panelNav .panel-thumb.active{
+  border-color: var(--v3-accent);
+}
+body[data-v3="1"] #panelNav .panel-add-btn{
+  font-family: var(--v3-font-display);
+  background: var(--v3-paper-2);
+  border: 1.5px dashed var(--v3-ink);
+  color: var(--v3-accent);
+}
+body[data-v3="1"] #panelNav .panel-add-btn:hover{
+  background: var(--v3-accent);
+  color: #fff;
+  border-style: solid;
+}
+
+/* ============================================================
+  12. Fit presets / mobile toggles — paper bubble
+   ============================================================ */
+body[data-v3="1"] #fitPresets,
+body[data-v3="1"] #mobileToggles button{
+  background: var(--v3-paper);
+  border: 1.5px solid var(--v3-ink);
+  backdrop-filter: none;
+}
+body[data-v3="1"] #fitPresets{
+  border-radius: 8px 6px 9px 5px / 5px 8px 6px 9px;
+}
+body[data-v3="1"] #fitPresets button{
+  font-family: var(--v3-font-hand);
+  color: var(--v3-ink-soft);
+}
+body[data-v3="1"] #fitPresets button:hover{
+  background: var(--v3-paper-2);
+  color: var(--v3-ink);
+}
+
+/* ============================================================
+  13. Toast — paper note feel
+   ============================================================ */
+body[data-v3="1"] #toast{
+  background: var(--v3-note);
+  border: 1.5px solid var(--v3-ink);
+  color: var(--v3-ink);
+  font-family: var(--v3-font-hand);
+  border-radius: 22px 18px 24px 20px / 20px 24px 18px 22px;
+  box-shadow: 1px 2px 0 rgba(31,29,27,.18);
+}
+
+/* ============================================================
+  14. Scrollbars — keep, but tint to ink-mute on paper
+   ============================================================ */
+body[data-v3="1"] ::-webkit-scrollbar-thumb{
+  background: rgba(31,29,27,.22);
+}
+body[data-v3="1"] ::-webkit-scrollbar-thumb:hover{
+  background: rgba(31,29,27,.40);
+}

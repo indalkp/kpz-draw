@@ -21,6 +21,45 @@
       border-top-color:#ff7a45;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
     @keyframes spin{to{transform:rotate(360deg)}}
   </style>
+  <!--
+    v3.25.0 — v3 design preview gate.
+    ===============================================================
+    Reads `?v3=1` from this iframe's URL OR from the parent page's
+    URL (top.location.search; same-origin under indalkp.com).
+    When set, flips body[data-v3="1"] and injects v3-theme.css from
+    the same jsDelivr base used for main.js. With no ?v3=1 the
+    default chrome from styles.css renders untouched (v3.18.1
+    surface preserved bit-for-bit).
+
+    Why inline + early:
+      - Runs before the main module import so the data-attribute is
+        present when styles.css and v3-theme.css cascade.
+      - top.location.search read is wrapped in try/catch so that any
+        future cross-origin embed (e.g., previewing on a non-Wix
+        host) silently falls back to the iframe's own URL.
+
+    Future v3 increments compose under the same body[data-v3="1"]
+    selector. Do not duplicate this gate elsewhere.
+  -->
+  <script>
+    (function(){
+      try {
+        var qs = (location.search || '');
+        try { if (window.top && window.top !== window.self) {
+          // Same-origin parent (indalkp.com/draw) — sniff its query.
+          qs += '&' + (window.top.location.search || '').slice(1);
+        }} catch(_){ /* cross-origin parent — keep iframe-only qs */ }
+        var v3on = /[?&]v3=1\b/.test(qs);
+        if (v3on) {
+          document.documentElement.setAttribute('data-v3','1');
+          document.body && document.body.setAttribute('data-v3','1');
+          document.addEventListener('DOMContentLoaded', function(){
+            document.body.setAttribute('data-v3','1');
+          });
+        }
+      } catch(_){ /* never block the boot on theme detection */ }
+    })();
+  </script>
 </head>
 <body>
   <div id="kpz-root">
@@ -29,9 +68,20 @@
 
   <script type="module">
     // Version pin — change only when deploying a new release
-    const VERSION = 'v3.6.0';
+    const VERSION = 'v3.25.0';
     const REPO    = 'indalkp/kpz-draw';
     const BASE    = `https://cdn.jsdelivr.net/gh/${REPO}@${VERSION}/src`;
+
+    // v3.25.0: when ?v3=1 was detected by the inline gate above, also
+    // inject the v3 sketchy paper theme stylesheet from the same base.
+    // Loaded AFTER styles.css so its cascaded rules override the
+    // baseline tokens (--bg, --panel, etc.) for v3-flagged sessions.
+    if (document.body.getAttribute('data-v3') === '1') {
+      const link = document.createElement('link');
+      link.rel  = 'stylesheet';
+      link.href = `${BASE}/v3-theme.css`;
+      document.head.appendChild(link);
+    }
 
     try {
       const mod = await import(`${BASE}/main.js`);
