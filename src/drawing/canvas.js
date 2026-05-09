@@ -194,12 +194,22 @@ function ensureStrokeBuffer() {
   const w = layer.canvas.width;       // project coords
   const h = layer.canvas.height;
   // v3.19.0: stroke buffer renders at native screen resolution. The
-  // backing buffer is project × DPR, but stamping continues to use
+  // backing buffer is project × DPR; canvas.js#stamp() continues to use
   // project coords (we scale internally so call sites don't have to
   // change). After flushStrokeBuffer downsamples to the project-res
-  // layer canvas, a slight visible "snap" from crisp to soft happens
-  // at endStroke — Phase 7b vector storage will eliminate that.
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  // layer canvas, a low-quality bilinear filter on the layer ctx (Canvas 2D
+  // default is imageSmoothingQuality:'low') produces visible texture
+  // artefacts in the committed stroke for every input device including
+  // mouse — re-categorised at v4.0.0-rc.3 from fidelity-only to
+  // engine-affecting and gated on the active brush preset.
+  //
+  // Default preset (v3.17 feel): dpr=1, no DPR scaling, no setTransform,
+  // no downsample at flush — matches v3.17 byte-for-byte.
+  // Grass Brush preset (v3.19 bug-as-feature): dpr=devicePixelRatio,
+  // preserves the v3.19 grass effect.
+  const dpr = getActivePreset().flags.dprStrokeBuffer
+    ? Math.max(1, window.devicePixelRatio || 1)
+    : 1;
   const bufW = Math.round(w * dpr);
   const bufH = Math.round(h * dpr);
 
