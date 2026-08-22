@@ -1,4 +1,4 @@
-﻿<!--
+<!--
   KPZ Draw — Wix HTML Embed shim — v3.9.24
   ==========================================================================
   Paste this ENTIRE file ONCE into the HTML Embed component on indalkp.com/draw,
@@ -74,8 +74,8 @@
   //  and run `wix publish --source remote -y`. No Wix Editor edits needed.
   // ==========================================================================
   const REPO              = 'indalkp/kpz-draw';
-  const FALLBACK_VERSION  = 'main';  // used if Velo doesn't reply in time
-  const VERSION_TIMEOUT   = 5000;    // ms
+  const FALLBACK_VERSION  = 'v3.18.1';  // stable fallback baseline
+  const VERSION_TIMEOUT   = 5000;       // ms
 
   /**
    * Ask the parent Wix page for the pinned version. Resolves with the
@@ -118,8 +118,16 @@
   let VERSION = FALLBACK_VERSION;
   try {
     VERSION = await getVersionFromVelo();
-    const BASE = `https://cdn.jsdelivr.net/gh/${REPO}@${VERSION}/src`;
-    const mod = await import(`${BASE}/main.js`);
+    let BASE = `https://cdn.jsdelivr.net/gh/${REPO}@${VERSION}/src`;
+    let mod;
+    try {
+      mod = await import(`${BASE}/main.js`);
+    } catch (importErr) {
+      console.warn(`[KPZ] Failed to load @${VERSION}, falling back to @${FALLBACK_VERSION}:`, importErr);
+      VERSION = FALLBACK_VERSION;
+      BASE = `https://cdn.jsdelivr.net/gh/${REPO}@${VERSION}/src`;
+      mod = await import(`${BASE}/main.js`);
+    }
     if (typeof mod.init !== 'function') {
       throw new Error('main.js does not export an init() function');
     }
