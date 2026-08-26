@@ -879,13 +879,23 @@ function moveStroke(e) {
       // predicted point. Use the same pressure as the last real
       // sample (predicted points don't have meaningful pressure
       // dynamics — they're trajectory extrapolation).
+      // v3.31.1 FIX: temporarily deactivate the GL brush so stamps route
+      // to the Canvas 2D predCtx instead of the GL stroke buffer.
+      // When activeGLBrush is set, brush.js stamp() ignores the ctx
+      // parameter and queues into the GL canvas — which is the MAIN
+      // stroke buffer, not the predicted overlay. This caused predicted
+      // points to permanently accumulate in the stroke, producing
+      // scattered "grass-like" artefacts along the stroke edges.
       let prev = App.lastPoint;
       if (prev && predictedPoints.length > 0) {
+        setActiveGLBrush(null);  // route stamps to Canvas 2D predCtx
         for (const pred of predictedPoints) {
           const sp = { x: pred.x, y: pred.y, pressure: prev.pressure };
           drawSegment(predCtx, prev, sp);
           prev = sp;
         }
+        // Restore GL brush for subsequent real stamps
+        if (useGLBrush && glBrush) setActiveGLBrush(glBrush);
       }
     }
   }
