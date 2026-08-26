@@ -35,9 +35,17 @@ export function initFormatToolbar() {
     renderFloatingToolbar();
   }
 
-  // Global keydown handler for Ctrl+1..7
+  // Global keydown handler for Ctrl+1..7 and Escape modal dismiss
   document.removeEventListener('keydown', handleGlobalShortcuts);
   document.addEventListener('keydown', handleGlobalShortcuts);
+
+  // Dismiss toolbar on scroll
+  window.addEventListener('scroll', hideFloatingToolbar, { passive: true });
+  document.addEventListener('scroll', (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains('sm-content-area')) {
+      hideFloatingToolbar();
+    }
+  }, { passive: true, capture: true });
 
   // Dismiss dropdowns on outside click
   document.addEventListener('mousedown', (e) => {
@@ -52,6 +60,26 @@ export function initFormatToolbar() {
 }
 
 function handleGlobalShortcuts(e) {
+  // Global Escape key: close any open modal or drawer
+  if (e.key === 'Escape') {
+    hideFloatingToolbar();
+    const modals = [
+      '#kpzBeatModal',
+      '#kpzElementModal',
+      '#kpzPromptsModal',
+      '#kpzProjectsModal',
+      '#kpzStoryPathDrawer',
+      '#kpzAIConfigModal'
+    ];
+    modals.forEach(sel => {
+      const el = document.querySelector(sel);
+      if (el && !el.classList.contains('hidden')) {
+        el.classList.add('hidden');
+      }
+    });
+    return;
+  }
+
   if (!(e.ctrlKey || e.metaKey)) return;
 
   // Handle Ctrl+1..7
