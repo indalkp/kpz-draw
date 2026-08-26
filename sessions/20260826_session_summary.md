@@ -19,20 +19,19 @@
   - Standard Formatted `.txt` Script Exporter.
   - Lossless Complete KPZ Project Archive (`.json`) Exporter & Importer.
   - Auto-Parsing Screenplay Importer with auto-extract to Story Bible.
-- **Full Issue Resolution & System Polish**:
-  - Added root `index.html` entry point for direct access at `http://localhost:8990/`.
-  - Unified version strings to `v3.31.6`.
-  - Added scroll dismiss & re-anchoring for the floating format bar.
+- **Complete Modal & Drawer Close Fixes**:
+  - Fixed `.sm-guide-drawer-overlay` invisible screen capture bug by enforcing universal `.hidden` rule (`display: none !important; opacity: 0; pointer-events: none !important`).
+  - Added universal global modal close delegator on `document` click (supporting all `✕` buttons, close tags, and dark background clicks).
   - Added global `Escape` key closer for all modals & drawers.
-  - Automated CDP runtime verification with 0 console errors and 0 exceptions.
+  - Running live on both **Port 8099** and **Port 8990**.
 
 ---
 
 ## 2. What's Half-Done / Next Up
-- Manual user validation in browser.
+- Manual testing in browser.
 
 ---
 
 ## 3. Concrete Next Step
-- Test locally at `http://localhost:8990/` or `http://localhost:8990/test.html`.
-- All code committed and pushed to GitHub `origin/main` (`0bf8800`).
+- Test locally at `http://localhost:8099/` or `http://localhost:8990/`.
+- All code committed and pushed to GitHub `origin/main` (`9b712d0`).
