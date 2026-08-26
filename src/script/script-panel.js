@@ -7,6 +7,8 @@ import { App } from '../core/state.js';
 import { $ } from '../utils/dom-helpers.js';
 import { ScriptState } from './script-state.js';
 import { setWorkspaceMode } from './script-editor.js';
+import { aiContinueDialogue, aiPolishAction } from './script-inbox.js';
+import { toast } from '../ui/toast.js';
 
 let _container = null;
 
@@ -84,13 +86,19 @@ export function renderScriptSidePanel() {
       </div>
 
       <div class="side-script-card">
-        <div class="side-card-h">💬 Dialogue / Caption (Synced)</div>
+        <div class="side-card-h" style="display:flex;justify-content:space-between;align-items:center">
+          <span>💬 Dialogue / Caption (Synced)</span>
+          <button class="sm-btn" id="btnSideAIContinue" style="padding:1px 6px;font-size:10px">✦ AI Continue</button>
+        </div>
         <textarea class="side-script-textarea dialogue-input" id="sideDialogueInput" rows="2"
                   placeholder="Dialogue line for this panel…">${escapeHtml(dialogueBlock.text || '')}</textarea>
       </div>
 
       <div class="side-script-card">
-        <div class="side-card-h">📝 Action / Visual Notes</div>
+        <div class="side-card-h" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📝 Action / Visual Notes</span>
+          <button class="sm-btn" id="btnSideAIPolish" style="padding:1px 6px;font-size:10px">✦ AI Polish</button>
+        </div>
         <textarea class="side-script-textarea action-input" id="sideActionInput" rows="3"
                   placeholder="Visual action, lighting, camera movement…">${escapeHtml(actionBlock.text || '')}</textarea>
       </div>
@@ -163,6 +171,41 @@ export function renderScriptSidePanel() {
   $('btnSideFullScript')?.addEventListener('click', () => setWorkspaceMode('script'));
   $('btnSideSyncCaption')?.addEventListener('click', () => {
     if (dialogueInput) mirrorCaption(dialogueInput.value);
+  });
+
+  // AI Continue in side panel
+  $('btnSideAIContinue')?.addEventListener('click', async () => {
+    const context = `${sceneInput?.value || ''}\n${charInput?.value || ''}\n${dialogueInput?.value || ''}`;
+    toast('✦ AI drafting dialogue…', 'info');
+    try {
+      const completion = await aiContinueDialogue(context);
+      if (completion && dialogueInput) {
+        dialogueInput.value = (dialogueInput.value ? `${dialogueInput.value} ` : '') + completion;
+        dialogueInput.dispatchEvent(new Event('input'));
+        toast('✦ Dialogue generated!', 'ok');
+      }
+    } catch (err) {
+      toast(`AI Error: ${err.message}`, 'error');
+    }
+  });
+
+  // AI Polish in side panel
+  $('btnSideAIPolish')?.addEventListener('click', async () => {
+    if (!actionInput || !actionInput.value.trim()) {
+      toast('Type some action notes first.', 'info');
+      return;
+    }
+    toast('✦ Polishing action…', 'info');
+    try {
+      const polished = await aiPolishAction(actionInput.value);
+      if (polished) {
+        actionInput.value = polished;
+        actionInput.dispatchEvent(new Event('input'));
+        toast('✦ Action polished!', 'ok');
+      }
+    } catch (err) {
+      toast(`AI Error: ${err.message}`, 'error');
+    }
   });
 }
 
