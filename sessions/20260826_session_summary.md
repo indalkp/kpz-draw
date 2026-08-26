@@ -19,15 +19,17 @@
   - Standard Formatted `.txt` Script Exporter.
   - Lossless Complete KPZ Project Archive (`.json`) Exporter & Importer.
   - Auto-Parsing Screenplay Importer with auto-extract to Story Bible.
-- **Comprehensive Feature Audit**: Ran 11-step automated CDP test suite with 100% verification rate across all visual and logical components.
+- **Automated CDP Audit Suite**: 11 visual & logical verification passes completed with 100% success.
+- **Tracked Test Server Entry**: Committed `test.html` and verified active listening on port 8990.
 
 ---
 
 ## 2. What's Half-Done / Next Up
-- Real-time Voice-to-Script live audio transcription integration for screenplay blocks.
+- Manual user interaction & testing in the browser.
+- Voice-to-Script dictation for hands-free screenplay typing.
 
 ---
 
 ## 3. Concrete Next Step
-- Integrate Web Speech / Whisper voice-to-script dictation directly into screenplay blocks.
-- Server running on `http://localhost:8990/test.html` (Commit: `ecc19ee`).
+- Test the application in your browser at `http://localhost:8990/test.html`.
+- All code pushed to GitHub `origin/main` (`9d84c8f`).
