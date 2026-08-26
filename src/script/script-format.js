@@ -47,6 +47,20 @@ export function initFormatToolbar() {
     }
   }, { passive: true, capture: true });
 
+  // Universal Modal & Drawer Dismissal Delegator
+  document.addEventListener('click', (e) => {
+    // 1. Close button clicked
+    const closeBtn = e.target.closest('#emClose, #btnCloseBeatModal, #btnCloseGuideDrawer, #btnClosePromptsModal, #btnCloseProjectModal, #btnCloseAIModal, [data-close-modal], .sm-modal-close-btn');
+    if (closeBtn) {
+      closeAllOpenModalsAndDrawers();
+      return;
+    }
+    // 2. Overlay backdrop clicked (outside modal card / drawer)
+    if (e.target.classList && (e.target.classList.contains('sm-modal-overlay') || e.target.classList.contains('sm-guide-drawer-overlay'))) {
+      closeAllOpenModalsAndDrawers();
+    }
+  });
+
   // Dismiss dropdowns on outside click
   document.addEventListener('mousedown', (e) => {
     if (!e.target.closest('#kpzFmtBar') && !e.target.closest('.sm-block')) {
@@ -59,24 +73,27 @@ export function initFormatToolbar() {
   });
 }
 
+export function closeAllOpenModalsAndDrawers() {
+  hideFloatingToolbar();
+  const modals = [
+    '#kpzBeatModal',
+    '#kpzElementModal',
+    '#kpzPromptsModal',
+    '#kpzProjectsModal',
+    '#kpzStoryPathDrawer',
+    '#kpzAIConfigModal'
+  ];
+  modals.forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el) el.classList.add('hidden');
+  });
+  import('./script-guide.js').then(({ closeStoryPathDrawer }) => closeStoryPathDrawer()).catch(() => {});
+}
+
 function handleGlobalShortcuts(e) {
   // Global Escape key: close any open modal or drawer
-  if (e.key === 'Escape') {
-    hideFloatingToolbar();
-    const modals = [
-      '#kpzBeatModal',
-      '#kpzElementModal',
-      '#kpzPromptsModal',
-      '#kpzProjectsModal',
-      '#kpzStoryPathDrawer',
-      '#kpzAIConfigModal'
-    ];
-    modals.forEach(sel => {
-      const el = document.querySelector(sel);
-      if (el && !el.classList.contains('hidden')) {
-        el.classList.add('hidden');
-      }
-    });
+  if (e.key === 'Escape' || e.key === 'Esc') {
+    closeAllOpenModalsAndDrawers();
     return;
   }
 

@@ -19,6 +19,18 @@
   --sm-split-ratio: 50%;
 }
 
+/* Universal Hidden Rule — prevents hidden modals & drawers from blocking clicks */
+.hidden,
+.sm-modal-overlay.hidden,
+.sm-guide-drawer-overlay.hidden,
+.sm-fmt-bar.hidden,
+[hidden] {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
 /* ==========================================================================
    Workspace Split Wrap inside #canvasArea
    ========================================================================== */

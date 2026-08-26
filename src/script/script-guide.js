@@ -98,9 +98,14 @@ let isGuideOpen = false;
 /**
  * Open or toggle the Story Path Roadmap Drawer
  */
-export function toggleStoryPathDrawer(force = null) {
-  isGuideOpen = (force !== null) ? !!force : !isGuideOpen;
+export function closeStoryPathDrawer() {
+  isGuideOpen = false;
+  const drawer = document.getElementById('kpzStoryPathDrawer');
+  if (drawer) drawer.classList.add('hidden');
+}
 
+export function openStoryPathDrawer() {
+  isGuideOpen = true;
   let drawer = document.getElementById('kpzStoryPathDrawer');
   if (!drawer) {
     drawer = document.createElement('div');
@@ -108,13 +113,15 @@ export function toggleStoryPathDrawer(force = null) {
     drawer.className = 'sm-guide-drawer-overlay hidden';
     document.body.appendChild(drawer);
   }
+  drawer.classList.remove('hidden');
+  renderStoryPathContent();
+}
 
-  if (isGuideOpen) {
-    drawer.classList.remove('hidden');
-    renderStoryPathContent();
-  } else {
-    drawer.classList.add('hidden');
-  }
+export function toggleStoryPathDrawer(force = null) {
+  if (force === true) openStoryPathDrawer();
+  else if (force === false) closeStoryPathDrawer();
+  else if (isGuideOpen) closeStoryPathDrawer();
+  else openStoryPathDrawer();
 }
 
 function renderStoryPathContent() {
