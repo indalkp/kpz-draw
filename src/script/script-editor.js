@@ -11,6 +11,7 @@ import { renderBibleOverview } from './script-bible.js';
 import { renderBoardView } from './script-board.js';
 import { toggleStoryPathDrawer } from './script-guide.js';
 import { openPromptLibraryModal } from './script-prompts.js';
+import { initFormatToolbar, attachFormatToolbarToBlock, hideFloatingToolbar, setBlockType } from './script-format.js';
 import { toast } from '../ui/toast.js';
 
 let _activeBlockId = null;
@@ -25,6 +26,8 @@ export function initScriptMode() {
   _appRoot = document.getElementById('app') || document.body;
   _scriptContainer = document.getElementById('scriptContainer');
   _splitGrip = document.getElementById('splitGrip');
+
+  initFormatToolbar();
 
   if (!_scriptContainer) {
     console.warn('[ScriptEditor] Script container element not found.');
@@ -411,15 +414,33 @@ function renderScreenplayView(contentArea) {
 
     textarea.addEventListener('input', () => {
       autoResizeTextarea(textarea);
-      ScriptState.updateBlock(b.id, { text: textarea.value });
+      const val = textarea.value;
+
+      // Smart Fountain Auto-Detection
+      if (b.type !== 'scene' && /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(val.trim())) {
+        setBlockType(b.id, 'scene', blockEl, textarea);
+      } else if (b.type !== 'parenthetical' && /^\([a-zA-Z0-9\s,\.]+\)$/.test(val.trim())) {
+        setBlockType(b.id, 'parenthetical', blockEl, textarea);
+      } else if (b.type !== 'transition' && /^(FADE IN:|FADE OUT\.|CUT TO:|DISSOLVE TO:|JUMP CUT TO:)$/i.test(val.trim())) {
+        setBlockType(b.id, 'transition', blockEl, textarea);
+      }
+
+      ScriptState.updateBlock(b.id, { text: val });
       if (b.type === 'dialogue' || b.type === 'action') {
-        mirrorToCaptionInput(textarea.value);
+        mirrorToCaptionInput(val);
       }
     });
 
     textarea.addEventListener('focus', () => {
       _activeBlockId = b.id;
       blockEl.classList.add('focused');
+      attachFormatToolbarToBlock(blockEl, b.id, textarea);
+    });
+
+    textarea.addEventListener('mouseup', () => {
+      if (textarea.selectionStart !== textarea.selectionEnd) {
+        attachFormatToolbarToBlock(blockEl, b.id, textarea);
+      }
     });
 
     textarea.addEventListener('blur', () => {
@@ -439,14 +460,22 @@ function renderScreenplayView(contentArea) {
 }
 
 function handleBlockKeydown(e, block, blockEl, textarea) {
+  // Handle Ctrl+1..7 element conversion
+  if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '7') {
+    e.preventDefault();
+    const typeMap = { '1': 'scene', '2': 'action', '3': 'character', '4': 'parenthetical', '5': 'dialogue', '6': 'shot', '7': 'transition' };
+    const targetType = typeMap[e.key];
+    if (targetType) {
+      setBlockType(block.id, targetType, blockEl, textarea);
+    }
+    return;
+  }
+
   if (e.key === 'Tab') {
     e.preventDefault();
-    const types = ['scene', 'action', 'character', 'dialogue', 'parenthetical', 'transition'];
+    const types = ['scene', 'action', 'character', 'parenthetical', 'dialogue', 'shot', 'transition'];
     const nextType = types[(types.indexOf(block.type) + (e.shiftKey ? -1 : 1) + types.length) % types.length];
-    blockEl.setAttribute('data-type', nextType);
-    const select = blockEl.querySelector('.sm-block-type-select');
-    if (select) select.value = nextType;
-    ScriptState.updateBlock(block.id, { type: nextType });
+    setBlockType(block.id, nextType, blockEl, textarea);
     return;
   }
 
@@ -457,6 +486,7 @@ function handleBlockKeydown(e, block, blockEl, textarea) {
     else if (block.type === 'character') nextType = 'dialogue';
     else if (block.type === 'parenthetical') nextType = 'dialogue';
     else if (block.type === 'dialogue') nextType = 'action';
+    else if (block.type === 'shot') nextType = 'action';
     else if (block.type === 'transition') nextType = 'scene';
 
     const activeIdx = (App.project && typeof App.activePanelIdx === 'number') ? App.activePanelIdx : 0;
@@ -474,6 +504,7 @@ function handleBlockKeydown(e, block, blockEl, textarea) {
     e.preventDefault();
     const prevBlockEl = blockEl.previousElementSibling;
     ScriptState.deleteBlock(block.id);
+    hideFloatingToolbar();
     renderActiveView();
     if (prevBlockEl) {
       const prevId = prevBlockEl.getAttribute('data-id');

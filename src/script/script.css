@@ -2764,6 +2764,156 @@
   overflow-y: auto;
 }
 
+/* ==========================================================================
+   Floating Quick-Format Toolbar & Fountain Shortcuts
+   ========================================================================== */
+.sm-fmt-bar {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: #1c1917;
+  border: 1px solid var(--sm-border);
+  border-radius: 10px;
+  padding: 4px 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75), 0 2px 8px rgba(0,0,0,0.5);
+  animation: popIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.sm-fmt-dropdown-wrap {
+  position: relative;
+}
+
+.sm-fmt-btn {
+  background: transparent;
+  border: none;
+  color: var(--sm-text-muted);
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.1s ease;
+}
+
+.sm-fmt-btn:hover {
+  background: var(--sm-surface-3);
+  color: var(--sm-text);
+}
+
+.sm-fmt-btn.type-btn {
+  font-weight: 600;
+  color: var(--sm-accent);
+  background: rgba(249, 115, 22, 0.1);
+  padding: 4px 10px;
+}
+
+.sm-fmt-btn.type-btn:hover {
+  background: rgba(249, 115, 22, 0.2);
+}
+
+.sm-fmt-arrow {
+  font-size: 9px;
+  opacity: 0.8;
+}
+
+.sm-fmt-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--sm-border-subtle);
+  margin: 0 3px;
+}
+
+.sm-fmt-btn.action-btn {
+  font-family: var(--sm-font-mono);
+  font-size: 11px;
+  color: var(--sm-text);
+}
+
+.sm-fmt-btn.danger-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Floating Dropdown Element Menu */
+.sm-fmt-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 220px;
+  background: #1c1917;
+  border: 1px solid var(--sm-border);
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.85);
+  z-index: 10001;
+}
+
+.sm-fmt-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--sm-text-muted);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.sm-fmt-menu-item:hover {
+  background: var(--sm-surface-3);
+  color: var(--sm-text);
+}
+
+.sm-fmi-icon {
+  font-size: 13px;
+  width: 18px;
+  text-align: center;
+}
+
+.sm-fmi-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.sm-fmi-key {
+  font-family: var(--sm-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--sm-text-dim);
+  background: var(--sm-surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.sm-fmt-menu-divider {
+  height: 1px;
+  background: var(--sm-border-subtle);
+  margin: 4px 0;
+}
+
+/* Shot block formatting */
+.sm-block[data-type="shot"] .sm-block-input {
+  font-family: var(--sm-font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #A855F7;
+}
+
+
 
 
 
