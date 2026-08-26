@@ -186,6 +186,9 @@ export const ScriptState = {
     templates: {}
   },
 
+  // Multi-lane Beats Board & Mind Map state
+  board: null,
+
   /**
    * Storage persistence (IndexedDB + LocalStorage backup).
    */
@@ -196,6 +199,7 @@ export const ScriptState = {
         blocks: this.blocks,
         characters: this.characters,
         bible: this.bible,
+        board: this.board,
         splitRatio: this.splitRatio,
         mode: this.mode,
         updatedAt: Date.now()
@@ -214,6 +218,7 @@ export const ScriptState = {
         if (Array.isArray(data.blocks)) this.blocks = data.blocks;
         if (Array.isArray(data.characters)) this.characters = data.characters;
         if (data.bible && typeof data.bible === 'object') this.bible = data.bible;
+        if (data.board && typeof data.board === 'object') this.board = data.board;
         if (typeof data.splitRatio === 'number') this.splitRatio = data.splitRatio;
         if (data.mode) this.mode = data.mode;
       }

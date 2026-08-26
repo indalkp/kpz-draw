@@ -8,6 +8,7 @@ import { fitView } from '../drawing/view.js';
 import { InboxState, aiDevelopIdea, aiContinueDialogue, aiPolishAction } from './script-inbox.js';
 import { AIConfig, testConnection } from './script-ai.js';
 import { renderBibleOverview } from './script-bible.js';
+import { renderBoardView } from './script-board.js';
 import { toast } from '../ui/toast.js';
 
 let _activeBlockId = null;
@@ -464,40 +465,10 @@ function handleBlockKeydown(e, block, blockEl, textarea) {
 }
 
 /**
- * Render Beats / Visual Cards View
+ * Render Beats / Visual Cards View (Multi-Lane Kanban, Mind Map, Story Arc)
  */
 function renderBeatsView(contentArea) {
-  const panels = (App.project && App.project.panels) || [];
-  let html = '<div class="sm-beats-wrap">';
-
-  panels.forEach((p, idx) => {
-    const sceneBlocks = ScriptState.blocks.filter(b => b.panelIndex === idx);
-    const sceneHeading = sceneBlocks.find(b => b.type === 'scene')?.text || `SCENE ${idx + 1}`;
-    const dialogueOrAction = sceneBlocks.find(b => b.type === 'dialogue')?.text || sceneBlocks.find(b => b.type === 'action')?.text || p.caption || 'No action/dialogue yet';
-
-    html += `
-      <div class="sm-beat-card" data-idx="${idx}">
-        <div class="sm-beat-header">
-          <span>PANEL ${idx + 1}</span>
-          <span style="color:var(--sm-text-dim)">#${idx + 1}</span>
-        </div>
-        <div class="sm-beat-title">${escapeHtml(sceneHeading)}</div>
-        <div class="sm-beat-desc">${escapeHtml(dialogueOrAction)}</div>
-      </div>
-    `;
-  });
-
-  html += '</div>';
-  contentArea.innerHTML = html;
-
-  contentArea.querySelectorAll('.sm-beat-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const idx = parseInt(card.getAttribute('data-idx'), 10);
-      if (typeof idx === 'number' && App.project) {
-        import('../ui/panel-nav.js').then(({ switchPanel }) => switchPanel(idx));
-      }
-    });
-  });
+  renderBoardView(contentArea);
 }
 
 /**
