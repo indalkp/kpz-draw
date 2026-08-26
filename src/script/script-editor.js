@@ -7,6 +7,7 @@ import { App } from '../core/state.js';
 import { fitView } from '../drawing/view.js';
 import { InboxState, aiDevelopIdea, aiContinueDialogue, aiPolishAction } from './script-inbox.js';
 import { AIConfig, testConnection } from './script-ai.js';
+import { renderBibleOverview } from './script-bible.js';
 import { toast } from '../ui/toast.js';
 
 let _activeBlockId = null;
@@ -503,46 +504,7 @@ function renderBeatsView(contentArea) {
  * Render Story Bible View
  */
 function renderBibleView(contentArea) {
-  contentArea.innerHTML = `
-    <div class="sm-bible-wrap">
-      <div class="sm-bible-section">
-        <div class="sm-bible-h">
-          <span>👥 Characters & Cast</span>
-          <button class="sm-btn" id="btnAddChar">+ Add Character</button>
-        </div>
-        <div id="smCharList" style="display:flex;flex-direction:column;gap:8px">
-          ${renderCharactersHtml()}
-        </div>
-      </div>
-
-      <div class="sm-bible-section">
-        <div class="sm-bible-h">
-          <span>🗺 World & Locations</span>
-        </div>
-        <textarea class="sm-block-input" rows="4" placeholder="Describe world rules, environment, recurring visual motifs..." style="background:var(--sm-surface-2);padding:10px;border-radius:6px;border:1px solid var(--sm-border)"></textarea>
-      </div>
-    </div>
-  `;
-
-  document.getElementById('btnAddChar')?.addEventListener('click', () => {
-    const name = prompt('Character Name:');
-    if (name && name.trim()) {
-      ScriptState.characters.push({ name: name.trim(), role: 'Lead / Supporting', bio: '' });
-      ScriptState.saveToStorage();
-      renderActiveView();
-    }
-  });
-
-  contentArea.querySelectorAll('[data-del-char]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = parseInt(btn.getAttribute('data-del-char'), 10);
-      if (!Number.isNaN(idx)) {
-        ScriptState.characters.splice(idx, 1);
-        ScriptState.saveToStorage();
-        renderActiveView();
-      }
-    });
-  });
+  renderBibleOverview(contentArea);
 }
 
 /**

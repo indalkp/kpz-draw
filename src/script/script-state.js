@@ -176,6 +176,16 @@ export const ScriptState = {
     }
   },
 
+  // Story Bible registry (Characters, Locations, Props, Moods, References, Templates)
+  bible: {
+    Characters: [],
+    Locations: [],
+    Props: [],
+    Moods: [],
+    References: [],
+    templates: {}
+  },
+
   /**
    * Storage persistence (IndexedDB + LocalStorage backup).
    */
@@ -185,6 +195,7 @@ export const ScriptState = {
       localStorage.setItem(key, JSON.stringify({
         blocks: this.blocks,
         characters: this.characters,
+        bible: this.bible,
         splitRatio: this.splitRatio,
         mode: this.mode,
         updatedAt: Date.now()
@@ -202,8 +213,33 @@ export const ScriptState = {
         const data = JSON.parse(raw);
         if (Array.isArray(data.blocks)) this.blocks = data.blocks;
         if (Array.isArray(data.characters)) this.characters = data.characters;
+        if (data.bible && typeof data.bible === 'object') this.bible = data.bible;
         if (typeof data.splitRatio === 'number') this.splitRatio = data.splitRatio;
         if (data.mode) this.mode = data.mode;
+      }
+      
+      // Ensure bible structure exists
+      if (!this.bible) {
+        this.bible = { Characters: [], Locations: [], Props: [], Moods: [], References: [], templates: {} };
+      }
+      ['Characters', 'Locations', 'Props', 'Moods', 'References'].forEach(k => {
+        if (!Array.isArray(this.bible[k])) this.bible[k] = [];
+      });
+      if (!this.bible.templates) this.bible.templates = {};
+
+      // Auto-migrate legacy characters array into bible.Characters if needed
+      if (this.characters && this.characters.length > 0 && this.bible.Characters.length === 0) {
+        this.characters.forEach(c => {
+          this.bible.Characters.push({
+            id: `char_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+            name: c.name || 'Character',
+            role: c.role || '',
+            color: '#F97316',
+            fields: { goal: '', motivation: '', conflict: '', appearance: '', backstory: '', arc: '', notes: c.bio || '' },
+            traits: { strengths: [], flaws: [] },
+            rels: []
+          });
+        });
       }
     } catch (e) {
       console.warn('[ScriptState] Storage load failed:', e);
