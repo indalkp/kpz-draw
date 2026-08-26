@@ -19,17 +19,20 @@
   - Standard Formatted `.txt` Script Exporter.
   - Lossless Complete KPZ Project Archive (`.json`) Exporter & Importer.
   - Auto-Parsing Screenplay Importer with auto-extract to Story Bible.
-- **Automated CDP Audit Suite**: 11 visual & logical verification passes completed with 100% success.
-- **Tracked Test Server Entry**: Committed `test.html` and verified active listening on port 8990.
+- **Full Issue Resolution & System Polish**:
+  - Added root `index.html` entry point for direct access at `http://localhost:8990/`.
+  - Unified version strings to `v3.31.6`.
+  - Added scroll dismiss & re-anchoring for the floating format bar.
+  - Added global `Escape` key closer for all modals & drawers.
+  - Automated CDP runtime verification with 0 console errors and 0 exceptions.
 
 ---
 
 ## 2. What's Half-Done / Next Up
-- Manual user interaction & testing in the browser.
-- Voice-to-Script dictation for hands-free screenplay typing.
+- Manual user validation in browser.
 
 ---
 
 ## 3. Concrete Next Step
-- Test the application in your browser at `http://localhost:8990/test.html`.
-- All code pushed to GitHub `origin/main` (`9d84c8f`).
+- Test locally at `http://localhost:8990/` or `http://localhost:8990/test.html`.
+- All code committed and pushed to GitHub `origin/main` (`0bf8800`).
