@@ -14,16 +14,20 @@
   - `Ctrl+1` through `Ctrl+7` element conversion hotkeys.
   - Floating Quick-Format Toolbar (`#kpzFmtBar`) with B/I/U/Aa formatters and `◆ Beat` / `✦ AI` converters.
   - Smart Fountain auto-syntax detection.
-- **Comprehensive Feature Audit**: Ran 9-step automated CDP test suite with 100% verification rate.
+- **Screenplay Multi-Project Dashboard & Exporters (v3.31.6)**:
+  - Clean & Annotated `.fountain` Exporters.
+  - Standard Formatted `.txt` Script Exporter.
+  - Lossless Complete KPZ Project Archive (`.json`) Exporter & Importer.
+  - Auto-Parsing Screenplay Importer with auto-extract to Story Bible.
+- **Comprehensive Feature Audit**: Ran 11-step automated CDP test suite with 100% verification rate across all visual and logical components.
 
 ---
 
 ## 2. What's Half-Done / Next Up
-- Multi-project save/export dashboard (exporting script to `.fountain`, `.txt`, and `.json` project backups).
-- Live Voice Dictation auto-transcribe integration for screenplay blocks.
+- Real-time Voice-to-Script live audio transcription integration for screenplay blocks.
 
 ---
 
 ## 3. Concrete Next Step
-- Integrate Multi-Project Save, Export & Import Dashboard (`.fountain` / `.json` export and import).
-- Server running on `http://localhost:8990/test.html` (Commit: `bccef21`).
+- Integrate Web Speech / Whisper voice-to-script dictation directly into screenplay blocks.
+- Server running on `http://localhost:8990/test.html` (Commit: `ecc19ee`).
