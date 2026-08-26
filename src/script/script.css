@@ -1,0 +1,363 @@
+/* src/script/script.css */
+/* Modern KP Studio Script Mode & Dual-Pane Split Styles */
+
+:root {
+  --script-bg: #141312;
+  --script-card: #1c1a19;
+  --script-card-hover: #262322;
+  --script-border: #332f2c;
+  --script-accent: #f97316;
+  --script-accent-hover: #fb923c;
+  --script-text: #f5f5f4;
+  --script-muted: #a8a29e;
+  --script-font-mono: "Courier Prime", "JetBrains Mono", monospace;
+  --script-font-ui: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ==========================================================================
+   Split Container & Layout Modes
+   ========================================================================== */
+#main.mode-canvas #scriptContainer,
+#main.mode-canvas #splitGrip {
+  display: none !important;
+}
+
+#main.mode-script #canvasArea,
+#main.mode-script #toolRail,
+#main.mode-script #splitGrip,
+#main.mode-script #leftPanel,
+#main.mode-script #resizeLeft {
+  display: none !important;
+}
+
+#main.mode-both #canvasArea {
+  flex: 0 0 auto;
+  border-right: none;
+}
+
+#main.mode-both #scriptContainer {
+  flex: 1 1 0%;
+  min-width: 320px;
+  display: flex !important;
+}
+
+#main.mode-script #scriptContainer {
+  flex: 1;
+  display: flex !important;
+  width: 100%;
+}
+
+/* Draggable Split Grip (Browser Tab Split View inspired) */
+#splitGrip {
+  width: 8px;
+  background: #1e1e1e;
+  border-left: 1px solid #2d2d2d;
+  border-right: 1px solid #2d2d2d;
+  cursor: col-resize;
+  position: relative;
+  transition: background 0.15s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+#splitGrip:hover,
+#splitGrip.dragging {
+  background: var(--script-accent);
+}
+
+#splitGrip::after {
+  content: "";
+  width: 2px;
+  height: 24px;
+  border-left: 1px dotted rgba(255, 255, 255, 0.4);
+  border-right: 1px dotted rgba(255, 255, 255, 0.4);
+}
+
+/* ==========================================================================
+   Script Mode Container & Chrome
+   ========================================================================== */
+#scriptContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--script-bg);
+  color: var(--script-text);
+  font-family: var(--script-font-ui);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Script Header / Toolbar */
+.script-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #191817;
+  border-bottom: 1px solid var(--script-border);
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.script-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.script-tab-pills {
+  display: flex;
+  background: #262322;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.script-pill-btn {
+  background: transparent;
+  border: none;
+  color: var(--script-muted);
+  padding: 5px 11px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.script-pill-btn:hover {
+  color: var(--script-text);
+}
+
+.script-pill-btn.active {
+  background: #383330;
+  color: var(--script-text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.script-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.script-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: #2a2522;
+  border: 1px solid var(--script-border);
+  border-radius: 4px;
+  color: var(--script-accent);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Sub-toolbar (Quick Element Insert & Format) */
+.script-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #1e1c1a;
+  border-bottom: 1px solid #2e2a28;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.script-tool-btn {
+  background: #292523;
+  border: 1px solid #383330;
+  color: #e5e5e4;
+  padding: 4px 9px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.12s;
+}
+
+.script-tool-btn:hover {
+  background: #383330;
+  border-color: #4f4743;
+}
+
+.script-tool-btn.primary {
+  background: var(--script-accent);
+  color: #0c0a09;
+  border-color: var(--script-accent);
+  font-weight: 600;
+}
+
+.script-tool-btn.primary:hover {
+  background: var(--script-accent-hover);
+}
+
+/* ==========================================================================
+   Screenplay Block Editor
+   ========================================================================== */
+.script-editor-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 30px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #141312;
+}
+
+.screenplay-page {
+  width: 100%;
+  max-width: 720px;
+  background: #1b1918;
+  border: 1px solid #2d2927;
+  border-radius: 8px;
+  padding: 40px 50px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  font-family: var(--script-font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 500px;
+}
+
+/* Screenplay Blocks */
+.script-block {
+  position: relative;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+
+.script-block:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.script-block.focused {
+  background: rgba(249, 115, 22, 0.05);
+}
+
+.script-block-handle {
+  position: absolute;
+  left: -32px;
+  top: 4px;
+  display: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.script-block:hover .script-block-handle {
+  display: flex;
+}
+
+.script-type-select {
+  background: #292523;
+  border: 1px solid #443e3a;
+  color: var(--script-accent);
+  font-size: 10px;
+  font-family: var(--script-font-ui);
+  border-radius: 3px;
+  padding: 1px 3px;
+  cursor: pointer;
+}
+
+.script-block-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--script-font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--script-text);
+  resize: none;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Block Types Formatting */
+.script-block[data-type="scene"] .script-block-input {
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #fb923c;
+  letter-spacing: 0.5px;
+  margin-top: 18px;
+  margin-bottom: 6px;
+}
+
+.script-block[data-type="character"] .script-block-input {
+  text-align: center;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #e2e8f0;
+  width: 60%;
+  margin: 12px auto 0 auto;
+  display: block;
+}
+
+.script-block[data-type="parenthetical"] .script-block-input {
+  text-align: center;
+  color: #a8a29e;
+  font-style: italic;
+  width: 50%;
+  margin: 0 auto;
+  display: block;
+}
+
+.script-block[data-type="dialogue"] .script-block-input {
+  width: 75%;
+  margin: 0 auto 10px auto;
+  display: block;
+  color: #f5f5f4;
+}
+
+.script-block[data-type="transition"] .script-block-input {
+  text-align: right;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #a8a29e;
+}
+
+.script-block[data-type="action"] .script-block-input {
+  color: #d6d3d1;
+}
+
+/* Topbar Mode Switcher Segmented Control */
+.mode-switcher-group {
+  display: inline-flex !important;
+  background: #252220;
+  border-radius: 6px;
+  padding: 2px;
+  border: 1px solid #383330;
+  gap: 2px;
+}
+
+.mode-btn {
+  background: transparent !important;
+  border: none !important;
+  color: #a8a29e !important;
+  padding: 4px 10px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.mode-btn:hover {
+  color: #ffffff !important;
+  background: #332e2b !important;
+}
+
+.mode-btn.active {
+  background: var(--script-accent) !important;
+  color: #0c0a09 !important;
+  font-weight: 600 !important;
+}

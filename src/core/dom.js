@@ -17,7 +17,7 @@ export function buildAppDom(root) {
       back to the source. Hidden under 1100px to save space; the
       version badge stays.
     -->
-    <div class="brand">KPZ Draw <small>v3.25.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
+    <div class="brand">KPZ Draw <small>v3.28.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -47,6 +47,11 @@ export function buildAppDom(root) {
     <div class="tb-group">
       <button class="btn" id="btnAddPanel" title="Add storyboard panel">+ Panel</button>
       <button class="btn" id="btnDelPanel" title="Delete current panel">− Panel</button>
+    </div>
+    <div class="tb-group mode-switcher-group" id="modeSwitcherGroup">
+      <button class="btn mode-btn active" id="btnModeCanvas" title="Canvas only (Alt+1)">🎨 Canvas</button>
+      <button class="btn mode-btn" id="btnModeBoth" title="Split view — Canvas + Script (Alt+2)">⚡ Both</button>
+      <button class="btn mode-btn" id="btnModeScript" title="Script only (Alt+3)">📝 Script</button>
     </div>
     <!--
       v3.9.10: animatic playback. Auto-advances through panels at the chosen
@@ -301,6 +306,12 @@ export function buildAppDom(root) {
       <div id="stripContainer" aria-hidden="true"></div>
       <div id="panelBackdrop"></div>
     </div>
+
+    <!-- DRAGGABLE SPLITTER (Browser dual-tab split view style) -->
+    <div id="splitGrip" title="Drag to adjust split view balance, double-click to reset 50/50"></div>
+
+    <!-- SCRIPT MODE CONTAINER -->
+    <div id="scriptContainer"></div>
 
     <div class="resize-handle" id="resizeRight" title="Drag to resize"></div>
 

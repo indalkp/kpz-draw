@@ -445,6 +445,7 @@ export function switchPanel(i) {
   renderDisplay(); renderLayersUI(); renderPanelNav();
   scrollActiveThumbIntoView();
   syncCaptionInput();             // v3.9.11
+  window.dispatchEvent(new CustomEvent('kpz:panel-changed', { detail: { panelIndex: i } }));
 }
 
 /**

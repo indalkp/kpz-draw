@@ -38,6 +38,7 @@ import { initMobileChrome, updateMobileTopbar } from './ui/mobile-chrome.js';
 // v3.10.0: strip-mode initializes its DOM hooks but stays inactive until the
 // user clicks the toolbar toggle. Safe to wire on every load.
 import { initStripMode } from './ui/strip-mode.js';
+import { initScriptMode } from './script/script-editor.js';
 
 import { initWixBridge } from './storage/wix-bridge.js';
 import { tryRestoreAutosave } from './storage/autosave.js';
@@ -83,6 +84,7 @@ export async function init(rootSelector, opts = {}) {
   initMobileChrome();
   initStripMode();   // v3.10.0
   wireGlobalEvents();
+  initScriptMode();
 
   // 4. Restore or create project
   const restored = await tryRestoreAutosave();
