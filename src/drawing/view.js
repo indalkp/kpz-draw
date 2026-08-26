@@ -164,10 +164,11 @@ export function applyView() {
 
 export function fitView(mode) {
   ensureDom();
+  const targetContainer = $('canvasPane') || canvasArea;
   const pad = 40;
-  const aw = canvasArea.clientWidth - pad * 2;
-  const ah = canvasArea.clientHeight - pad * 2;
-  // v3.8.1: Guard against zero/negative canvasArea sizes (happens on mobile
+  const aw = targetContainer.clientWidth - pad * 2;
+  const ah = targetContainer.clientHeight - pad * 2;
+  // v3.8.1: Guard against zero/negative container sizes (happens on mobile
   // when fitView is called before the layout stabilizes, e.g. before the
   // address bar settles or before 100dvh resolves). Without this guard,
   // scale collapses to the 0.05 floor and the canvas renders ~64px wide,
@@ -189,7 +190,8 @@ export function setZoom(s, cx, cy) {
   const old = App.view.scale;
   App.view.scale = Math.max(0.05, Math.min(16, s));
   if (cx != null && cy != null) {
-    const rect = canvasArea.getBoundingClientRect();
+    const targetContainer = $('canvasPane') || canvasArea;
+    const rect = targetContainer.getBoundingClientRect();
     const dx = cx - rect.width / 2 - App.view.x;
     const dy = cy - rect.height / 2 - App.view.y;
     const ratio = App.view.scale / old;

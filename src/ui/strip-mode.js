@@ -81,9 +81,10 @@ export function enableStripMode() {
 
 export function disableStripMode() {
   if (App.viewMode === 'single') return;
-  // Move #canvasWrap back to #canvasArea before tearing down the strip
-  if (canvasWrap.parentElement !== canvasArea) {
-    canvasArea.appendChild(canvasWrap);
+  const targetParent = $('canvasPane') || canvasArea;
+  // Move #canvasWrap back to #canvasPane before tearing down the strip
+  if (canvasWrap.parentElement !== targetParent) {
+    targetParent.insertBefore(canvasWrap, targetParent.firstChild);
   }
   // Clear strip slots
   stripContainer.innerHTML = '';

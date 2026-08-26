@@ -1,332 +1,477 @@
 /* src/script/script.css */
-/* Modern KP Studio Script Mode & Dual-Pane Split Styles */
+/* Modern KP Studio Script Mode & Browser-style Split View for KPZ Draw */
 
 :root {
-  --script-bg: #141312;
-  --script-card: #1c1a19;
-  --script-card-hover: #262322;
-  --script-border: #332f2c;
-  --script-accent: #f97316;
-  --script-accent-hover: #fb923c;
-  --script-text: #f5f5f4;
-  --script-muted: #a8a29e;
-  --script-font-mono: "Courier Prime", "JetBrains Mono", monospace;
-  --script-font-ui: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --sm-bg: #121212;
+  --sm-surface: #1a1a1a;
+  --sm-surface-2: #242424;
+  --sm-surface-3: #2e2e2e;
+  --sm-border: #333333;
+  --sm-border-subtle: #262626;
+  --sm-accent: #f97316;
+  --sm-accent-hover: #fb923c;
+  --sm-accent-glow: rgba(249, 115, 22, 0.15);
+  --sm-text: #f5f5f4;
+  --sm-text-muted: #a8a29e;
+  --sm-text-dim: #78716c;
+  --sm-font-mono: "Courier Prime", "JetBrains Mono", monospace;
+  --sm-font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --sm-split-ratio: 50%;
 }
 
 /* ==========================================================================
-   Split Container & Layout Modes
+   Workspace Split Wrap inside #canvasArea
    ========================================================================== */
-#main.mode-canvas #scriptContainer,
-#main.mode-canvas #splitGrip {
+#workspaceSplitWrap {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+}
+
+/* Canvas Pane default positioning */
+#canvasPane {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0e0e0e;
+  touch-action: none;
+}
+
+/* Mode: Draw (Default) */
+#app.mode-draw #canvasPane {
+  display: block !important;
+  width: 100% !important;
+  flex: 1 1 auto !important;
+}
+#app.mode-draw #splitGrip,
+#app.mode-draw #scriptContainer {
   display: none !important;
 }
 
-#main.mode-script #canvasArea,
-#main.mode-script #toolRail,
-#main.mode-script #splitGrip,
-#main.mode-script #leftPanel,
-#main.mode-script #resizeLeft {
+/* Mode: Script */
+#app.mode-script #canvasPane,
+#app.mode-script #splitGrip {
   display: none !important;
 }
+#app.mode-script #scriptContainer {
+  display: flex !important;
+  width: 100% !important;
+  height: 100% !important;
+  flex: 1 1 auto !important;
+}
 
-#main.mode-both #canvasArea {
-  flex: 0 0 auto;
+/* Mode: Split View (Draw + Script side-by-side) */
+#app.mode-split #workspaceSplitWrap {
+  display: flex !important;
+  flex-direction: row !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+#app.mode-split #canvasPane {
+  display: block !important;
+  position: relative !important;
+  flex: 0 0 var(--sm-split-ratio, 50%) !important;
+  height: 100% !important;
+  overflow: hidden !important;
   border-right: none;
 }
-
-#main.mode-both #scriptContainer {
-  flex: 1 1 0%;
-  min-width: 320px;
+#app.mode-split #splitGrip {
   display: flex !important;
-}
-
-#main.mode-script #scriptContainer {
-  flex: 1;
-  display: flex !important;
-  width: 100%;
-}
-
-/* Draggable Split Grip (Browser Tab Split View inspired) */
-#splitGrip {
   width: 8px;
   background: #1e1e1e;
   border-left: 1px solid #2d2d2d;
   border-right: 1px solid #2d2d2d;
   cursor: col-resize;
   position: relative;
-  transition: background 0.15s ease;
-  z-index: 10;
-  display: flex;
+  z-index: 25;
+  user-select: none;
   align-items: center;
   justify-content: center;
-  user-select: none;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
 }
-
-#splitGrip:hover,
-#splitGrip.dragging {
-  background: var(--script-accent);
+#app.mode-split #splitGrip:hover,
+#app.mode-split #splitGrip.dragging {
+  background: var(--sm-accent);
 }
-
-#splitGrip::after {
+#app.mode-split #splitGrip::after {
   content: "";
   width: 2px;
   height: 24px;
   border-left: 1px dotted rgba(255, 255, 255, 0.4);
   border-right: 1px dotted rgba(255, 255, 255, 0.4);
 }
+#app.mode-split #scriptContainer {
+  display: flex !important;
+  flex: 1 1 0% !important;
+  min-width: 300px;
+  height: 100%;
+}
 
 /* ==========================================================================
-   Script Mode Container & Chrome
+   Script Mode Container & Shell
    ========================================================================== */
 #scriptContainer {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--script-bg);
-  color: var(--script-text);
-  font-family: var(--script-font-ui);
+  width: 100%;
+  background: var(--sm-bg);
+  color: var(--sm-text);
+  font-family: var(--sm-font-ui);
   overflow: hidden;
   position: relative;
 }
 
-/* Script Header / Toolbar */
-.script-header {
+/* Top Header Bar */
+.sm-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 14px;
-  background: #191817;
-  border-bottom: 1px solid var(--script-border);
-  gap: 10px;
+  padding: 8px 16px;
+  background: var(--sm-surface);
+  border-bottom: 1px solid var(--sm-border);
+  gap: 12px;
   flex-shrink: 0;
+  height: 44px;
 }
 
-.script-header-left {
+.sm-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sm-view-tabs {
+  display: flex;
+  background: var(--sm-surface-2);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--sm-border-subtle);
+}
+
+.sm-view-tab {
+  background: transparent;
+  border: none;
+  color: var(--sm-text-muted);
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.sm-view-tab:hover {
+  color: var(--sm-text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sm-view-tab.active {
+  background: var(--sm-surface-3);
+  color: var(--sm-text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  font-weight: 600;
+}
+
+.sm-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  border-radius: 4px;
+  color: var(--sm-accent);
+  font-weight: 600;
+  font-family: var(--sm-font-mono);
+}
+
+.sm-header-right {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.script-tab-pills {
-  display: flex;
-  background: #262322;
+.sm-btn {
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  color: var(--sm-text);
+  padding: 5px 10px;
   border-radius: 6px;
-  padding: 2px;
-  gap: 2px;
-}
-
-.script-pill-btn {
-  background: transparent;
-  border: none;
-  color: var(--script-muted);
-  padding: 5px 11px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.script-pill-btn:hover {
-  color: var(--script-text);
-}
-
-.script-pill-btn.active {
-  background: #383330;
-  color: var(--script-text);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
-
-.script-header-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.script-badge {
-  font-size: 11px;
-  padding: 3px 8px;
-  background: #2a2522;
-  border: 1px solid var(--script-border);
-  border-radius: 4px;
-  color: var(--script-accent);
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-/* Sub-toolbar (Quick Element Insert & Format) */
-.script-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: #1e1c1a;
-  border-bottom: 1px solid #2e2a28;
-  flex-wrap: wrap;
-  font-size: 12px;
-}
-
-.script-tool-btn {
-  background: #292523;
-  border: 1px solid #383330;
-  color: #e5e5e4;
-  padding: 4px 9px;
-  border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  transition: all 0.12s;
+  gap: 5px;
+  transition: all 0.12s ease;
 }
 
-.script-tool-btn:hover {
-  background: #383330;
-  border-color: #4f4743;
+.sm-btn:hover {
+  background: var(--sm-surface-3);
+  border-color: var(--sm-accent);
 }
 
-.script-tool-btn.primary {
-  background: var(--script-accent);
+.sm-btn.primary {
+  background: var(--sm-accent);
   color: #0c0a09;
-  border-color: var(--script-accent);
+  border-color: var(--sm-accent);
   font-weight: 600;
 }
 
-.script-tool-btn.primary:hover {
-  background: var(--script-accent-hover);
+.sm-btn.primary:hover {
+  background: var(--sm-accent-hover);
+}
+
+/* Secondary Action / Insertion Toolbar */
+.sm-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: var(--sm-surface-2);
+  border-bottom: 1px solid var(--sm-border-subtle);
+  flex-wrap: wrap;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.sm-insert-btn {
+  background: var(--sm-surface-3);
+  border: 1px solid var(--sm-border);
+  color: var(--sm-text-muted);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.sm-insert-btn:hover {
+  color: var(--sm-text);
+  border-color: var(--sm-accent);
 }
 
 /* ==========================================================================
-   Screenplay Block Editor
+   Main Script Body & Views
    ========================================================================== */
-.script-editor-body {
+.sm-content-area {
   flex: 1;
   overflow-y: auto;
-  padding: 30px 40px;
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  background: #141312;
 }
 
-.screenplay-page {
+/* View: Screenplay Editor */
+.sm-screenplay-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.sm-screenplay-page {
   width: 100%;
-  max-width: 720px;
-  background: #1b1918;
-  border: 1px solid #2d2927;
+  max-width: 680px;
+  background: var(--sm-surface);
+  border: 1px solid var(--sm-border);
   border-radius: 8px;
-  padding: 40px 50px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-  font-family: var(--script-font-mono);
+  padding: 36px 44px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  font-family: var(--sm-font-mono);
   font-size: 14px;
   line-height: 1.6;
   min-height: 500px;
 }
 
-/* Screenplay Blocks */
-.script-block {
+.sm-block {
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   border-radius: 4px;
+  padding: 2px 6px;
   transition: background 0.12s;
 }
 
-.script-block:hover {
-  background: rgba(255, 255, 255, 0.02);
+.sm-block:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.script-block.focused {
-  background: rgba(249, 115, 22, 0.05);
+.sm-block.focused {
+  background: var(--sm-accent-glow);
 }
 
-.script-block-handle {
+.sm-block-handle {
   position: absolute;
-  left: -32px;
+  left: -48px;
   top: 4px;
   display: none;
   align-items: center;
   gap: 2px;
 }
 
-.script-block:hover .script-block-handle {
+.sm-block:hover .sm-block-handle {
   display: flex;
 }
 
-.script-type-select {
-  background: #292523;
-  border: 1px solid #443e3a;
-  color: var(--script-accent);
+.sm-block-type-select {
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  color: var(--sm-accent);
   font-size: 10px;
-  font-family: var(--script-font-ui);
+  font-family: var(--sm-font-ui);
   border-radius: 3px;
-  padding: 1px 3px;
+  padding: 2px 4px;
   cursor: pointer;
 }
 
-.script-block-input {
+.sm-block-input {
   width: 100%;
   background: transparent;
   border: none;
   outline: none;
-  font-family: var(--script-font-mono);
+  font-family: var(--sm-font-mono);
   font-size: 14px;
   line-height: 1.6;
-  color: var(--script-text);
+  color: var(--sm-text);
   resize: none;
   overflow: hidden;
   box-sizing: border-box;
 }
 
 /* Block Types Formatting */
-.script-block[data-type="scene"] .script-block-input {
+.sm-block[data-type="scene"] .sm-block-input {
   font-weight: 700;
   text-transform: uppercase;
   color: #fb923c;
   letter-spacing: 0.5px;
-  margin-top: 18px;
-  margin-bottom: 6px;
+  margin-top: 14px;
+  margin-bottom: 4px;
 }
 
-.script-block[data-type="character"] .script-block-input {
+.sm-block[data-type="character"] .sm-block-input {
   text-align: center;
   font-weight: 700;
   text-transform: uppercase;
   color: #e2e8f0;
   width: 60%;
-  margin: 12px auto 0 auto;
+  margin: 10px auto 0 auto;
   display: block;
 }
 
-.script-block[data-type="parenthetical"] .script-block-input {
+.sm-block[data-type="parenthetical"] .sm-block-input {
   text-align: center;
-  color: #a8a29e;
+  color: var(--sm-text-muted);
   font-style: italic;
   width: 50%;
   margin: 0 auto;
   display: block;
 }
 
-.script-block[data-type="dialogue"] .script-block-input {
+.sm-block[data-type="dialogue"] .sm-block-input {
   width: 75%;
-  margin: 0 auto 10px auto;
+  margin: 0 auto 8px auto;
   display: block;
-  color: #f5f5f4;
+  color: var(--sm-text);
 }
 
-.script-block[data-type="transition"] .script-block-input {
+.sm-block[data-type="transition"] .sm-block-input {
   text-align: right;
   font-weight: 700;
   text-transform: uppercase;
-  color: #a8a29e;
+  color: var(--sm-text-muted);
 }
 
-.script-block[data-type="action"] .script-block-input {
+.sm-block[data-type="action"] .sm-block-input {
   color: #d6d3d1;
 }
 
-/* Topbar Mode Switcher Segmented Control */
+/* View: Beats / Board Cards */
+.sm-beats-wrap {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  align-content: start;
+}
+
+.sm-beat-card {
+  background: var(--sm-surface);
+  border: 1px solid var(--sm-border);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.sm-beat-card:hover {
+  border-color: var(--sm-accent);
+  transform: translateY(-2px);
+}
+
+.sm-beat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sm-accent);
+}
+
+.sm-beat-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--sm-text);
+}
+
+.sm-beat-desc {
+  font-size: 12px;
+  color: var(--sm-text-muted);
+  line-height: 1.4;
+}
+
+/* View: Story Bible */
+.sm-bible-wrap {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.sm-bible-section {
+  margin-bottom: 24px;
+  background: var(--sm-surface);
+  border: 1px solid var(--sm-border);
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.sm-bible-h {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sm-accent);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ==========================================================================
+   Topbar Mode Switcher Styling
+   ========================================================================== */
 .mode-switcher-group {
   display: inline-flex !important;
   background: #252220;
@@ -340,8 +485,8 @@
   background: transparent !important;
   border: none !important;
   color: #a8a29e !important;
-  padding: 4px 10px !important;
-  font-size: 12px !important;
+  padding: 3px 8px !important;
+  font-size: 11px !important;
   font-weight: 500 !important;
   border-radius: 4px !important;
   cursor: pointer;
@@ -357,7 +502,7 @@
 }
 
 .mode-btn.active {
-  background: var(--script-accent) !important;
+  background: var(--sm-accent) !important;
   color: #0c0a09 !important;
   font-weight: 600 !important;
 }
