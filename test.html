@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>KPZ Draw — Local Test (Script Mode)</title>
+  <script src="https://unpkg.com/ag-psd@30.1.0/dist/bundle.js"></script>
+  <style>
+    html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#1a1a1a;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#e8e8e8;
+      touch-action:none;user-select:none;}
+    #kpz-root{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center}
+  </style>
+</head>
+<body>
+  <div id="kpz-root">
+    <div style="color:#ff7a45">Loading KPZ Draw…</div>
+  </div>
+  <script type="module">
+    import { init } from './src/main.js';
+    init('#kpz-root', { baseUrl: './src', version: 'v3.28.0' });
+  </script>
+</body>
+</html>
