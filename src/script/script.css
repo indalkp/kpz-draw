@@ -2913,6 +2913,222 @@
   color: #A855F7;
 }
 
+/* ==========================================================================
+   Screenplay Projects Dashboard & Export / Import Styles
+   ========================================================================== */
+.sm-pmodal-card {
+  background: var(--sm-surface);
+  border: 1px solid var(--sm-border);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.85);
+  color: var(--sm-text);
+}
+
+.sm-pmodal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--sm-border);
+  background: var(--sm-surface-2);
+}
+
+.sm-pmodal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--sm-text);
+}
+
+.sm-pmodal-sub {
+  font-size: 11px;
+  color: var(--sm-text-muted);
+  margin-top: 2px;
+}
+
+.sm-pmodal-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--sm-border);
+  background: var(--sm-surface-2);
+}
+
+.sm-pmodal-tab {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sm-text-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.sm-pmodal-tab.on {
+  color: var(--sm-accent);
+  border-bottom-color: var(--sm-accent);
+  font-weight: 600;
+}
+
+.sm-pmodal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Export Tab Grid */
+.sm-pexport-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sm-pexp-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  transition: all 0.12s;
+}
+
+.sm-pexp-card:hover {
+  border-color: var(--sm-border-subtle);
+  transform: translateY(-1px);
+}
+
+.sm-pexp-card.highlight {
+  border: 1px solid var(--sm-accent);
+  background: rgba(249, 115, 22, 0.06);
+}
+
+.sm-pexp-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.sm-pexp-info {
+  flex: 1;
+}
+
+.sm-pexp-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sm-text);
+}
+
+.sm-pexp-desc {
+  font-size: 11px;
+  color: var(--sm-text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* Import Tab */
+.sm-pimport-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.sm-pimport-dropzone {
+  border: 2px dashed var(--sm-border);
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  background: var(--sm-surface-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.sm-pidz-icon {
+  font-size: 28px;
+}
+
+.sm-pidz-msg {
+  font-size: 12px;
+  color: var(--sm-text-muted);
+}
+
+.sm-pimport-textarea {
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--sm-font-mono);
+  font-size: 11.5px;
+  color: var(--sm-text);
+  outline: none;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.sm-pimport-textarea:focus {
+  border-color: var(--sm-accent);
+}
+
+.sm-pimport-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+/* Saved Projects Tab */
+.sm-pprojects-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.sm-pprojects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sm-pproj-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.sm-pproj-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sm-accent);
+  flex-shrink: 0;
+}
+
+.sm-pproj-info {
+  flex: 1;
+}
+
+.sm-pproj-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sm-text);
+}
+
+.sm-pproj-meta {
+  font-size: 10.5px;
+  color: var(--sm-text-dim);
+}
+
+
 
 
 

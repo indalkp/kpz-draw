@@ -12,6 +12,7 @@ import { renderBoardView } from './script-board.js';
 import { toggleStoryPathDrawer } from './script-guide.js';
 import { openPromptLibraryModal } from './script-prompts.js';
 import { initFormatToolbar, attachFormatToolbarToBlock, hideFloatingToolbar, setBlockType } from './script-format.js';
+import { openProjectDashboardModal } from './script-projects.js';
 import { toast } from '../ui/toast.js';
 
 let _activeBlockId = null;
@@ -326,12 +327,7 @@ function wireScriptHeaderControls() {
   const btnExport = document.getElementById('btnExportScript');
   if (btnExport) {
     btnExport.addEventListener('click', () => {
-      const fountainText = ScriptState.exportFountain();
-      const blob = new Blob([fountainText], { type: 'text/plain;charset=utf-8' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${(App.project && App.project.name) || 'screenplay'}.fountain`;
-      a.click();
+      openProjectDashboardModal('export');
     });
   }
 
