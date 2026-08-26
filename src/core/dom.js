@@ -17,7 +17,7 @@ export function buildAppDom(root) {
       back to the source. Hidden under 1100px to save space; the
       version badge stays.
     -->
-    <div class="brand">KPZ Draw <small>v3.29.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
+    <div class="brand">KPZ Draw <small>v3.30.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -326,7 +326,7 @@ export function buildAppDom(root) {
         <button class="tab-btn active" data-tab="layers">Layers</button>
         <button class="tab-btn" data-tab="brush">Brush</button>
         <button class="tab-btn" data-tab="projects">My Work</button>
-        <button class="tab-btn" data-tab="docs">Script</button>
+        <button class="tab-btn" data-tab="script">Script</button>
       </div>
       <div class="tab-content active" data-tab="layers">
         <div id="toolProps">
@@ -361,25 +361,15 @@ export function buildAppDom(root) {
           <button class="btn" id="btnRefreshProjects" style="margin-top:8px;display:none">Refresh</button>
         </div>
       </div>
-      <div class="tab-content" data-tab="docs">
-        <div id="docsPanel">
-          <div class="docs-controls">
-            <button class="btn primary" id="btnDocAdd" style="flex:1">+ Add Script</button>
-            <button class="expand-btn" id="btnDocExpand" title="Expand/collapse panel">
-              <svg viewBox="0 0 24 24"><path d="M10 21v-2H6.41l4.5-4.5-1.41-1.41L5 17.59V14H3v7h7zm4-18v2h3.59l-4.5 4.5 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
-            </button>
-          </div>
-          <div id="scriptList"></div>
-          <div class="docs-controls">
-            <button class="zoom-btn" id="btnDocZoomOut" title="Smaller text">A−</button>
-            <span class="zoom-val" id="docZoomVal">100%</span>
-            <button class="zoom-btn" id="btnDocZoomIn" title="Larger text">A+</button>
-            <button class="zoom-btn" id="btnDocZoomReset" title="Reset zoom" style="width:auto;padding:0 10px">Reset</button>
-          </div>
-          <div id="docsIframeWrap">
-            <iframe id="docFrame" src="about:blank"></iframe>
+      <div class="tab-content" data-tab="script" id="scriptSidePanel">
+        <div class="panel-header">
+          <span id="sidePanelBadge">Panel 1 / 1</span>
+          <div class="ref-header-actions">
+            <button class="btn icon-btn" id="btnSideSplit" title="Open Split Screen (Draw + Script side-by-side)">◫</button>
+            <button class="btn icon-btn" id="btnSideExpand" title="Open full screenplay workspace">↗</button>
           </div>
         </div>
+        <div class="panel-body" id="scriptSideBody"></div>
       </div>
     </div>
   </div>

@@ -506,3 +506,107 @@
   color: #0c0a09 !important;
   font-weight: 600 !important;
 }
+
+/* ==========================================================================
+   Right Panel Script Tab (Side Panel)
+   ========================================================================== */
+#scriptSidePanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--sm-surface);
+  color: var(--sm-text);
+  overflow-y: auto;
+}
+
+.side-script-wrap {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.side-script-banner {
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--sm-text-muted);
+}
+
+.side-script-card {
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.side-card-h {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--sm-accent);
+  font-weight: 600;
+}
+
+.side-script-input,
+.side-script-textarea {
+  background: #141414;
+  border: 1px solid var(--sm-border);
+  border-radius: 4px;
+  color: var(--sm-text);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: var(--sm-font-ui);
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.side-script-input:focus,
+.side-script-textarea:focus {
+  border-color: var(--sm-accent);
+}
+
+.side-script-input.scene-input {
+  font-family: var(--sm-font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #fb923c;
+}
+
+.side-script-input.char-input {
+  font-family: var(--sm-font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.side-script-textarea.dialogue-input {
+  font-family: var(--sm-font-mono);
+  resize: vertical;
+  min-height: 48px;
+}
+
+.side-script-textarea.action-input {
+  font-family: var(--sm-font-mono);
+  resize: vertical;
+  min-height: 60px;
+}
+
+.side-script-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.side-script-actions .sm-btn {
+  flex: 1;
+  justify-content: center;
+}
