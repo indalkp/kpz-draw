@@ -9,6 +9,8 @@ import { InboxState, aiDevelopIdea, aiContinueDialogue, aiPolishAction } from '.
 import { AIConfig, testConnection } from './script-ai.js';
 import { renderBibleOverview } from './script-bible.js';
 import { renderBoardView } from './script-board.js';
+import { toggleStoryPathDrawer } from './script-guide.js';
+import { openPromptLibraryModal } from './script-prompts.js';
 import { toast } from '../ui/toast.js';
 
 let _activeBlockId = null;
@@ -192,6 +194,12 @@ function renderScriptContainer() {
         <span class="sm-badge" id="smPanelBadge">Panel ${currentPanel} / ${totalPanels}</span>
       </div>
       <div class="sm-header-right">
+        <button class="sm-btn" id="btnOpenStoryPath" title="7-Phase guided story roadmap">
+          ⛰ Story Path
+        </button>
+        <button class="sm-btn" id="btnOpenPromptLibrary" title="AI Prompt Collection & Writing Copilot">
+          ✦ Prompts
+        </button>
         <button class="sm-btn" id="btnScopeToggle" title="Toggle between current panel scene and full story">
           ${ScriptState.viewScope === 'full' ? '📖 Full Story' : '🔗 Panel Synced'}
         </button>
@@ -238,6 +246,16 @@ function wireScriptHeaderControls() {
       renderActiveView();
     });
   });
+
+  const btnStoryPath = document.getElementById('btnOpenStoryPath');
+  if (btnStoryPath) {
+    btnStoryPath.addEventListener('click', () => toggleStoryPathDrawer());
+  }
+
+  const btnPromptLib = document.getElementById('btnOpenPromptLibrary');
+  if (btnPromptLib) {
+    btnPromptLib.addEventListener('click', () => openPromptLibraryModal());
+  }
 
   const btnScope = document.getElementById('btnScopeToggle');
   if (btnScope) {

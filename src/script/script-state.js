@@ -189,6 +189,12 @@ export const ScriptState = {
   // Multi-lane Beats Board & Mind Map state
   board: null,
 
+  // Story Logline & Premise
+  logline: '',
+
+  // User Custom Prompts
+  userPrompts: [],
+
   /**
    * Storage persistence (IndexedDB + LocalStorage backup).
    */
@@ -200,6 +206,8 @@ export const ScriptState = {
         characters: this.characters,
         bible: this.bible,
         board: this.board,
+        logline: this.logline,
+        userPrompts: this.userPrompts,
         splitRatio: this.splitRatio,
         mode: this.mode,
         updatedAt: Date.now()
@@ -219,6 +227,8 @@ export const ScriptState = {
         if (Array.isArray(data.characters)) this.characters = data.characters;
         if (data.bible && typeof data.bible === 'object') this.bible = data.bible;
         if (data.board && typeof data.board === 'object') this.board = data.board;
+        if (typeof data.logline === 'string') this.logline = data.logline;
+        if (Array.isArray(data.userPrompts)) this.userPrompts = data.userPrompts;
         if (typeof data.splitRatio === 'number') this.splitRatio = data.splitRatio;
         if (data.mode) this.mode = data.mode;
       }

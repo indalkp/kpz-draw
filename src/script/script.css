@@ -2311,5 +2311,459 @@
   border-color: var(--sm-accent);
 }
 
+/* ==========================================================================
+   ⛰ Story Path 7-Phase Roadmap Drawer Styles
+   ========================================================================== */
+.sm-guide-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.sm-guide-drawer {
+  width: 460px;
+  max-width: 90vw;
+  height: 100%;
+  background: var(--sm-bg);
+  border-left: 1px solid var(--sm-border);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.8);
+  animation: slideInRight 0.2s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.sm-guide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--sm-border);
+  background: var(--sm-surface);
+}
+
+.sm-guide-progbar-wrap {
+  padding: 10px 20px;
+  background: var(--sm-surface-2);
+  border-bottom: 1px solid var(--sm-border);
+}
+
+.sm-guide-progbar {
+  height: 6px;
+  background: var(--sm-surface-3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.sm-guide-progbar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #F97316, #10B981);
+  transition: width 0.3s ease;
+}
+
+.sm-guide-phases {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sm-guide-card {
+  background: var(--sm-surface);
+  border: 1px solid var(--sm-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.15s;
+}
+
+.sm-guide-card.active {
+  border-color: var(--sm-accent);
+  box-shadow: 0 2px 12px var(--sm-accent-glow);
+}
+
+.sm-guide-card.done {
+  border-color: #10B981;
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.sm-gcard-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sm-gcard-no {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  color: var(--sm-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--sm-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.sm-guide-card.done .sm-gcard-no {
+  background: #10B981;
+  color: #fff;
+  border-color: #10B981;
+}
+
+.sm-gcard-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sm-text);
+  flex: 1;
+}
+
+.sm-gcard-pct {
+  font-family: var(--sm-font-mono);
+  font-size: 11px;
+  color: var(--sm-text-muted);
+  font-weight: 600;
+}
+
+.sm-gcard-goal {
+  font-size: 11.5px;
+  color: var(--sm-text-muted);
+  line-height: 1.4;
+}
+
+.sm-gcard-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--sm-text-dim);
+  border-top: 1px solid var(--sm-border-subtle);
+  padding-top: 6px;
+}
+
+.sm-gcard-logline-box {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.sm-gcard-logline-input {
+  flex: 1;
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  color: var(--sm-text);
+  outline: none;
+}
+
+.sm-gcard-logline-input:focus {
+  border-color: var(--sm-accent);
+}
+
+.sm-gcard-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ==========================================================================
+   ✦ AI Prompt Collection Library Styles
+   ========================================================================== */
+.pc-card {
+  background: var(--sm-surface);
+  border: 1px solid var(--sm-border);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 860px;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.85);
+  color: var(--sm-text);
+}
+
+.pc-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--sm-border);
+  background: var(--sm-surface-2);
+}
+
+.pc-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--sm-text);
+}
+
+.pc-sub {
+  font-size: 11px;
+  color: var(--sm-text-muted);
+}
+
+.pc-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.pc-side {
+  width: 280px;
+  border-right: 1px solid var(--sm-border);
+  display: flex;
+  flex-direction: column;
+  background: var(--sm-surface-2);
+}
+
+.pc-sidetop {
+  padding: 10px;
+  border-bottom: 1px solid var(--sm-border);
+}
+
+.pc-search {
+  width: 100%;
+  background: var(--sm-surface-3);
+  border: 1px solid var(--sm-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  color: var(--sm-text);
+  outline: none;
+}
+
+.pc-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pc-group-h {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--sm-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sm-text-muted);
+  padding: 4px 6px;
+}
+
+.pc-gn {
+  color: var(--sm-accent);
+}
+
+.pc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--sm-text-muted);
+  transition: all 0.1s;
+}
+
+.pc-row:hover {
+  background: var(--sm-surface-3);
+  color: var(--sm-text);
+}
+
+.pc-row.on {
+  background: var(--sm-accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.pc-rdot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3B82F6;
+  flex-shrink: 0;
+}
+
+.pc-rdot.mine {
+  background: #10B981;
+}
+
+.pc-rname {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-tag {
+  font-family: var(--sm-font-mono);
+  font-size: 8.5px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.pc-editor {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pc-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  color: #93C5FD;
+}
+
+.pc-i {
+  font-weight: 700;
+  background: #3B82F6;
+  color: #fff;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+.pc-l {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--sm-text-muted);
+}
+
+.pc-name {
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sm-text);
+  outline: none;
+}
+
+.pc-name.sm {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.pc-msg {
+  display: flex;
+  flex-direction: column;
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pc-msg-h {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--sm-surface-3);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--sm-text-muted);
+  border-bottom: 1px solid var(--sm-border);
+}
+
+.pc-role {
+  font-family: var(--sm-font-mono);
+  color: var(--sm-accent);
+}
+
+.pc-code {
+  background: transparent;
+  border: none;
+  padding: 10px 12px;
+  font-family: var(--sm-font-ui);
+  font-size: 12px;
+  color: var(--sm-text);
+  outline: none;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.pc-vars {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--sm-text-dim);
+}
+
+.pc-vchip {
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  color: var(--sm-accent);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--sm-font-mono);
+  font-size: 10px;
+}
+
+.pc-acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pc-output-area {
+  margin-top: 14px;
+  border-top: 1px solid var(--sm-border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pc-output-box {
+  background: var(--sm-surface-2);
+  border: 1px solid var(--sm-border);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sm-text);
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+
 
 
