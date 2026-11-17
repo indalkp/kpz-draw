@@ -140,36 +140,83 @@ export function buildAppDom(root) {
     -->
     <div id="leftPanel" class="cast-compact">
       <div class="panel-header">
-        <div class="cast-tabstrip" id="castTabstrip">
-          <button class="cast-tab active" id="castTabCast">Cast</button>
-          <button class="cast-tab" id="castTabRefs">Refs</button>
+        <div class="cast-selector-wrap" id="castSelectorWrap">
+          <select class="cast-view-select" id="castViewSelect" aria-label="Asset Category">
+            <option id="castOptRefs" value="refs" selected>References (0)</option>
+            <option id="castOptCast" value="cast">Cast (0)</option>
+            <option id="castOptLoc" value="loc">Locations (0)</option>
+            <option id="castOptProps" value="props">Props (0)</option>
+            <option id="castOptMood" value="mood">Moodboard (0)</option>
+          </select>
+          <span class="cast-select-arrow" aria-hidden="true">▾</span>
         </div>
-        <div class="cast-header-actions">
-          <button class="btn icon-btn" id="castDensityToggle" title="Switch to comfy view">⚏</button>
-          <button class="btn" id="btnAddChar" title="Add a character">+ Char</button>
+        <div class="cast-header-actions" style="display:none">
+          <button class="btn icon-btn" id="castSearchToggle" title="Search assets">🔍</button>
+          <button class="btn icon-btn" id="castDensityToggle" title="Switch view density">⚏</button>
+          <button class="btn" id="btnAddWorldItem" title="Add item">+ Add</button>
         </div>
-        <div class="ref-header-actions" style="display:none">
+        <div class="ref-header-actions">
           <button class="btn icon-btn" id="btnRefLibrary" title="Import refs from past projects">📁</button>
           <button class="btn icon-btn" id="btnImportRefs" title="Import refs from file">↓</button>
           <button class="btn icon-btn" id="btnExportRefs" title="Export refs to file">↑</button>
           <button class="btn" id="btnAddRef">+ Add</button>
         </div>
       </div>
-      <div class="ref-size-row" style="display:none">
+      <div class="cast-search-row" id="castSearchRow" style="display:none">
+        <input type="text" id="castSearchInput" placeholder="Search cast, locations, props, mood…">
+        <button class="btn icon-btn" id="castSearchClear" title="Clear search">×</button>
+      </div>
+      <div class="cast-zoom-row" id="castZoomRow" style="display:none">
+        <span class="cz-label">Size</span>
+        <span class="cz-icon">⊖</span>
+        <input type="range" id="castMasterZoom" min="60" max="300" value="110" step="10">
+        <span class="cz-icon">⊕</span>
+        <span class="cz-val" id="castMasterZoomVal">110px</span>
+      </div>
+      <div class="ref-size-row">
         <label>Size</label>
         <input type="range" id="refSize" min="100" max="480" value="220" step="20">
       </div>
       <div class="panel-body">
         <!-- Cast body -->
-        <div id="castList"></div>
-        <div id="castEmpty">
+        <div id="castList" style="display:none"></div>
+        <div id="castEmpty" style="display:none">
           No characters yet.<br>
-          Click <b>+ Char</b> to add one and group your refs by character.
+          Click <b>+ Add</b> to add a character and set their final thumbnail / poses.
         </div>
-        <!-- Refs body — same DOM as before, just hidden when Cast is active -->
-        <div id="refList" style="display:none"></div>
-        <div id="refEmpty" style="display:none">No references yet.<br>Click <b>+ Add</b> or drag images here.</div>
+
+        <!-- Locations body -->
+        <div id="locList" style="display:none"></div>
+        <div id="locEmpty" style="display:none">
+          No locations yet.<br>
+          Click <b>+ Add</b> to add environments, interiors, or exterior sets.
+        </div>
+
+        <!-- Props body -->
+        <div id="propsList" style="display:none"></div>
+        <div id="propsEmpty" style="display:none">
+          No props yet.<br>
+          Click <b>+ Add</b> to catalog story items, weapons, vehicles, and key props.
+        </div>
+
+        <!-- Moodboard body -->
+        <div id="moodList" style="display:none"></div>
+        <div id="moodEmpty" style="display:none">
+          No moodboard images yet.<br>
+          Click <b>+ Add</b> or drag image files here to build your aesthetic board.
+        </div>
+
+        <!-- Refs body — existing flat list -->
+        <div id="refList"></div>
+        <div id="refEmpty">No references yet.<br>Click <b>+ Add</b> or drag images here.</div>
       </div>
+
+      <!-- Hidden file inputs for direct uploads -->
+      <input type="file" id="castAvatarInput" accept="image/*" style="display:none">
+      <input type="file" id="castDirectRefInput" accept="image/*" multiple style="display:none">
+      <input type="file" id="locImageInput" accept="image/*" style="display:none">
+      <input type="file" id="propImageInput" accept="image/*" style="display:none">
+      <input type="file" id="moodImageInput" accept="image/*" multiple style="display:none">
     </div>
 
     <div class="resize-handle" id="resizeLeft" title="Drag to resize"></div>

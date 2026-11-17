@@ -159,6 +159,7 @@ export async function init(rootSelector, opts = {}) {
   });
 
   console.log(`KPZ Draw ${opts.version || ''} ready.`);
+  window.__KPZ_APP = App;
 }
 
 function loadStylesheet(href) {

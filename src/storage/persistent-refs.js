@@ -29,6 +29,7 @@ const REFS_PREFIX = 'kpz_refs::';
 // v3.9.0: characters bucket — parallel to refs, scoped per-project.
 // Stored in IDB only; not serialized into .kpz or Wix CMS in v3.9.0.
 const CHARS_PREFIX = 'kpz_chars::';
+const WORLD_PREFIX = 'kpz_world::';
 export const LEGACY_BUCKET = 'legacy-library';
 
 /**
@@ -41,13 +42,20 @@ export function currentRefsKey() {
 }
 
 /**
- * v3.9.0: returns the IndexedDB key where the CURRENT project's characters
- * are stored. Same project key resolution as currentRefsKey() so refs and
- * characters move together when a project is loaded/saved.
+ * Returns the IndexedDB key where the CURRENT project's characters are stored.
  */
 export function currentCharsKey() {
   const projectKey = App.currentProjectId || 'local';
   return CHARS_PREFIX + projectKey;
+}
+
+/**
+ * Returns the IndexedDB key where the CURRENT project's full world data
+ * (characters with final thumbnails, locations, props, moodboard) is stored.
+ */
+export function currentWorldKey() {
+  const projectKey = App.currentProjectId || 'local';
+  return WORLD_PREFIX + projectKey;
 }
 
 /**
@@ -171,34 +179,70 @@ export async function restorePersistentRefs() {
 }
 
 /**
- * v3.9.0: restore the current project's characters from IndexedDB.
- * Mirrors restorePersistentRefs() but for characters. Called from main.js
- * during app init, after the project has been created/restored.
+ * Restore the current project's world data (characters with avatars,
+ * locations, props, moodboard) from IndexedDB.
  */
-export async function restorePersistentCharacters() {
+export async function restorePersistentWorldData() {
   if (!App.project) return;
-  // Don't overwrite characters that were populated by autosave/in-memory creation.
-  if (App.project.characters && App.project.characters.length > 0) return;
+  App.project.characters = App.project.characters || [];
+  App.project.locations  = App.project.locations || [];
+  App.project.props      = App.project.props || [];
+  App.project.moodboard  = App.project.moodboard || { images: [], palette: [] };
+
   try {
-    const saved = await idbGet(currentCharsKey());
-    if (Array.isArray(saved)) {
-      App.project.characters = saved;
+    const saved = await idbGet(currentWorldKey());
+    if (saved && typeof saved === 'object') {
+      if (Array.isArray(saved.characters) && App.project.characters.length === 0) {
+        App.project.characters = saved.characters;
+      }
+      if (Array.isArray(saved.locations) && App.project.locations.length === 0) {
+        App.project.locations = saved.locations;
+      }
+      if (Array.isArray(saved.props) && App.project.props.length === 0) {
+        App.project.props = saved.props;
+      }
+      if (saved.moodboard && App.project.moodboard.images.length === 0) {
+        App.project.moodboard = saved.moodboard;
+      }
+    } else {
+      // Fallback: check old characters key
+      const oldChars = await idbGet(currentCharsKey());
+      if (Array.isArray(oldChars) && App.project.characters.length === 0) {
+        App.project.characters = oldChars;
+      }
     }
   } catch (err) {
-    console.warn('restorePersistentCharacters failed:', err);
+    console.warn('restorePersistentWorldData failed:', err);
   }
 }
 
 /**
- * v3.9.0: persist the current project's characters to IndexedDB.
- * Called after any add / edit / delete of a character. Cheap (a few KB),
- * so we don't debounce.
+ * Persist the current project's full world data to IndexedDB.
  */
-export async function persistCharacters() {
+export async function persistWorldData() {
   if (!App.project) return;
   try {
+    const data = {
+      characters: App.project.characters || [],
+      locations:  App.project.locations || [],
+      props:      App.project.props || [],
+      moodboard:  App.project.moodboard || { images: [], palette: [] },
+    };
+    await idbSet(currentWorldKey(), data);
+    // Keep legacy characters key updated too
     await idbSet(currentCharsKey(), App.project.characters || []);
   } catch (err) {
-    console.warn('persistCharacters failed:', err);
+    console.warn('persistWorldData failed:', err);
   }
+}
+
+/**
+ * Backward compatibility alias for characters
+ */
+export async function restorePersistentCharacters() {
+  return restorePersistentWorldData();
+}
+
+export async function persistCharacters() {
+  return persistWorldData();
 }

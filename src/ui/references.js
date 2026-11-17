@@ -113,7 +113,7 @@ export function importRefsFromLibrary(refs) {
   return added;
 }
 
-function compressImageFile(file, maxEdge, quality) {
+export function compressImageFile(file, maxEdge = 1600, quality = 0.85) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {

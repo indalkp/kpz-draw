@@ -50,10 +50,34 @@ export function initRefViewer() {
   });
 }
 
-export function openRefViewer(idx) {
-  App.refViewerIdx = idx;
-  showRef(idx);
+export function openRefViewer(target, customTitle = '') {
+  if (typeof target === 'number') {
+    App.refViewerIdx = target;
+    showRef(target);
+  } else if (typeof target === 'string') {
+    showCustomRef(target, customTitle || 'Reference');
+  } else if (target && typeof target === 'object') {
+    showCustomRef(target.src || target.data, target.name || target.title || customTitle || 'Reference');
+  }
   $('refViewer')?.classList.add('open');
+}
+
+export function showCustomRef(src, title) {
+  if (!src) return;
+  const img = $('refViewerImg');
+  if (img) {
+    img.onload = () => {
+      App.refView.naturalW = img.naturalWidth;
+      App.refView.naturalH = img.naturalHeight;
+      fitRefViewer();
+    };
+    img.src = src;
+  }
+  const counter = $('refCounter');
+  if (counter) counter.textContent = title || 'Preview';
+  const prev = $('refPrev'), next = $('refNext');
+  if (prev) prev.style.visibility = 'hidden';
+  if (next) next.style.visibility = 'hidden';
 }
 
 export function showRef(idx) {
