@@ -27,7 +27,7 @@ import { initReferences, renderRefs } from './ui/references.js';
 import { initRefViewer } from './ui/ref-viewer.js';
 // v3.9.0: Cast & References — character cards, density toggle, per-card zoom
 import { initCastPanel, renderCast } from './ui/cast-panel.js';
-import { initScriptPanel } from './script/script-panel.js';
+import { initDocsPanel } from './ui/docs-panel.js';
 import { initPanelNav, renderPanelNav } from './ui/panel-nav.js';
 import { initModals } from './ui/modals.js';
 import { initLibraryModal } from './ui/library-modal.js';
@@ -38,7 +38,6 @@ import { initMobileChrome, updateMobileTopbar } from './ui/mobile-chrome.js';
 // v3.10.0: strip-mode initializes its DOM hooks but stays inactive until the
 // user clicks the toolbar toggle. Safe to wire on every load.
 import { initStripMode } from './ui/strip-mode.js';
-import { initScriptMode } from './script/script-editor.js';
 
 import { initWixBridge } from './storage/wix-bridge.js';
 import { tryRestoreAutosave } from './storage/autosave.js';
@@ -72,7 +71,7 @@ export async function init(rootSelector, opts = {}) {
   // Init AFTER initReferences so the refs DOM and listeners are wired first.
   initCastPanel();
   initRefViewer();
-  initScriptPanel();
+  initDocsPanel();
   initPanelNav();
   initModals();
   initLibraryModal();
@@ -84,7 +83,6 @@ export async function init(rootSelector, opts = {}) {
   initMobileChrome();
   initStripMode();   // v3.10.0
   wireGlobalEvents();
-  initScriptMode();
 
   // 4. Restore or create project
   const restored = await tryRestoreAutosave();
@@ -106,7 +104,15 @@ export async function init(rootSelector, opts = {}) {
   renderRefs();
   renderCast();
 
-  // 6. Initial canvas fit
+  // 6. Restore persisted UI state
+  const lastDoc = localStorage.getItem('kpz_doc_url');
+  if (lastDoc) {
+    const input = document.getElementById('docUrl');
+    if (input) input.value = lastDoc;
+    document.getElementById('docUrl')?.dispatchEvent(new Event('change'));
+  }
+
+  // 7. Initial canvas fit
   updateBrushUI();
   updateMobileTopbar();  // v3.8.0: populate project name / layer count in mobile topbar
   // v3.8.4: poll for canvasArea to reach a real size before running the

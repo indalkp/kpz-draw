@@ -164,11 +164,10 @@ export function applyView() {
 
 export function fitView(mode) {
   ensureDom();
-  const targetContainer = $('canvasPane') || canvasArea;
   const pad = 40;
-  const aw = targetContainer.clientWidth - pad * 2;
-  const ah = targetContainer.clientHeight - pad * 2;
-  // v3.8.1: Guard against zero/negative container sizes (happens on mobile
+  const aw = canvasArea.clientWidth - pad * 2;
+  const ah = canvasArea.clientHeight - pad * 2;
+  // v3.8.1: Guard against zero/negative canvasArea sizes (happens on mobile
   // when fitView is called before the layout stabilizes, e.g. before the
   // address bar settles or before 100dvh resolves). Without this guard,
   // scale collapses to the 0.05 floor and the canvas renders ~64px wide,
@@ -190,8 +189,7 @@ export function setZoom(s, cx, cy) {
   const old = App.view.scale;
   App.view.scale = Math.max(0.05, Math.min(16, s));
   if (cx != null && cy != null) {
-    const targetContainer = $('canvasPane') || canvasArea;
-    const rect = targetContainer.getBoundingClientRect();
+    const rect = canvasArea.getBoundingClientRect();
     const dx = cx - rect.width / 2 - App.view.x;
     const dy = cy - rect.height / 2 - App.view.y;
     const ratio = App.view.scale / old;
@@ -289,8 +287,6 @@ export function renderDisplay() {
         dctx.globalAlpha = activeLayer.opacity * App.brush.opacity;
         dctx.globalCompositeOperation = 'source-over';
         dctx.drawImage(strokeBuf, 0, 0);
-        const predictedBuf = window.__KPZ_predictedBuffer && window.__KPZ_predictedBuffer();
-        if (predictedBuf) dctx.drawImage(predictedBuf, 0, 0);
       }
     }
 
@@ -398,16 +394,6 @@ export function renderDisplay() {
       dctx.globalAlpha = layer.opacity * App.brush.opacity;
       dctx.globalCompositeOperation = 'source-over';
       dctx.drawImage(strokeBuf, 0, 0);
-
-      // v3.13.2 Phase 2: speculative-tip overlay. Renders predicted
-      // samples 1-3 frames ahead of the actual pen position to mask
-      // browser input → display latency. Composited at the same
-      // alpha as the real stroke buffer so visually it's seamless.
-      // Cleared and re-rasterized in canvas.js#moveStroke each event.
-      const predictedBuf = window.__KPZ_predictedBuffer && window.__KPZ_predictedBuffer();
-      if (predictedBuf) {
-        dctx.drawImage(predictedBuf, 0, 0);
-      }
     }
   }
 

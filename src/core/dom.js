@@ -17,7 +17,7 @@ export function buildAppDom(root) {
       back to the source. Hidden under 1100px to save space; the
       version badge stays.
     -->
-    <div class="brand">KPZ Draw <small>v3.31.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
+    <div class="brand">KPZ Draw <small>v3.32.0</small><span class="brand-by">by <a href="https://www.indalkp.com" target="_top" rel="noopener">Indal KP</a></span></div>
     <div class="tb-group">
       <button class="btn" id="btnNew" title="New (Ctrl+N)">New</button>
       <button class="btn" id="btnOpen" title="Open file (Ctrl+O)">Open</button>
@@ -47,11 +47,6 @@ export function buildAppDom(root) {
     <div class="tb-group">
       <button class="btn" id="btnAddPanel" title="Add storyboard panel">+ Panel</button>
       <button class="btn" id="btnDelPanel" title="Delete current panel">− Panel</button>
-    </div>
-    <div class="tb-group mode-switcher-group" id="modeSwitcherGroup">
-      <button class="btn mode-btn active" id="btnModeDraw" title="Draw Mode (Alt+1)">🎨 Draw</button>
-      <button class="btn mode-btn" id="btnModeScript" title="Script Mode (Alt+2)">📝 Script</button>
-      <button class="btn mode-btn" id="btnSplitToggle" title="Split View — Draw + Script side-by-side (Alt+S)">◫ Split</button>
     </div>
     <!--
       v3.9.10: animatic playback. Auto-advances through panels at the chosen
@@ -207,115 +202,104 @@ export function buildAppDom(root) {
 
     <!-- CANVAS AREA -->
     <div id="canvasArea">
-      <div id="workspaceSplitWrap">
-        <!-- Canvas Workspace Pane -->
-        <div id="canvasPane">
-          <div id="canvasWrap">
-            <canvas id="displayCanvas"></canvas>
-          </div>
-          <div id="cursorOverlay"></div>
-
-          <!-- v3.8.0: mobile brush dock — vertical size/opacity sliders on left edge -->
-          <div id="brushDock" aria-hidden="true">
-            <div class="bd-track" data-kind="size">
-              <span class="bd-label">size</span>
-              <div class="bd-fill"></div>
-              <div class="bd-thumb">8</div>
-            </div>
-            <div class="bd-track" data-kind="opacity">
-              <span class="bd-label">opacity</span>
-              <div class="bd-fill"></div>
-              <div class="bd-thumb">100</div>
-            </div>
-          </div>
-
-          <!--
-            v3.9.11: caption strip. Shows the current panel's caption / line of
-            dialogue and lets the user edit it inline. Sits just above the
-            filmstrip so the user can read it AND see which panel it belongs
-            to during playback. Auto-updates as panels cycle.
-          -->
-          <div id="captionStrip" title="Caption / dialogue for this panel">
-            <span class="cs-label" aria-hidden="true">CAPTION</span>
-            <input id="captionInput" type="text" maxlength="240"
-                   placeholder="Add a caption / line of dialogue for this panel…"
-                   aria-label="Panel caption">
-            <!--
-              v3.9.17: per-panel voice-over. Originally a single mic button
-              that opened a file picker.
-              v3.9.20: split into TWO buttons. Mic icon now means "record
-              voice-over right here" (more natural mapping); the new folder
-              icon means "upload an audio file." When audio is already
-              attached, both buttons are replaced by a single solid speaker
-              + remove button via JS.
-            -->
-            <button id="captionRecordBtn" class="cs-audio-btn cs-record-btn" type="button"
-                    title="Record voice-over for this panel"
-                    aria-label="Record voice-over">
-              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                <path fill="currentColor"
-                      d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
-              </svg>
-            </button>
-            <button id="captionAudioBtn" class="cs-audio-btn cs-upload-btn" type="button"
-                    title="Upload an audio file"
-                    aria-label="Upload audio file">
-              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                <path fill="currentColor"
-                      d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2zm-1 11h2v-3h2.5L11 9.5 7.5 13H10v3z"/>
-              </svg>
-            </button>
-            <input type="file" id="captionAudioFileInput" accept="audio/*" hidden
-                   aria-label="Audio file picker">
-            <!--
-              v3.9.25: manual per-panel duration override. Hold the panel for
-              at least N seconds during playback / export. 0 = auto (use audio
-              length if present, else 1/fps). Useful for silent dramatic pauses.
-            -->
-            <label class="cs-duration" title="Hold panel for at least N seconds (0 = auto)">
-              <input id="captionDurationInput" type="number" min="0" max="60" step="0.1"
-                     value="0" aria-label="Panel hold duration in seconds">
-              <span class="cs-duration-unit">s</span>
-            </label>
-          </div>
-          <div id="panelNav"></div>
-          <div id="mobileToggles">
-            <button id="toggleLeft" title="References">
-              <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-            </button>
-            <button id="toggleRight" title="Layers">
-              <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
-            </button>
-          </div>
-          <div id="fitPresets">
-            <button data-fit="fit" title="Fit to screen">Fit</button>
-            <button data-fit="width" title="Fit width">Width</button>
-            <button data-fit="100" title="100%">100%</button>
-            <!--
-              v3.10.0: Strip mode toggle. Switches the canvas area between the
-              classic single-panel editor and a vertical-scroll comic-strip
-              layout where all panels are visible stacked. Click any panel in
-              strip mode to make it the active editable one.
-            -->
-            <button id="btnStripMode" data-fit="strip" title="Strip mode (vertical-scroll comic-strip layout)" aria-pressed="false">Strip</button>
-          </div>
-          <!--
-            v3.10.0: Strip-mode container. Hidden by default; shown only when
-            #app has class .strip-mode. Each panel is rendered as a child
-            .strip-panel div with its own canvas. The active panel's slot
-            receives #canvasWrap (DOM-relocated from the canvasArea) so the
-            existing brush/event pipeline works unchanged.
-          -->
-          <div id="stripContainer" aria-hidden="true"></div>
-          <div id="panelBackdrop"></div>
-        </div>
-
-        <!-- Draggable Splitter (Browser Split Screen style) -->
-        <div id="splitGrip" title="Drag to adjust split view balance, double-click to reset 50/50"></div>
-
-        <!-- Script Workspace Pane -->
-        <div id="scriptContainer"></div>
+      <div id="canvasWrap">
+        <canvas id="displayCanvas"></canvas>
       </div>
+      <div id="cursorOverlay"></div>
+
+      <!-- v3.8.0: mobile brush dock — vertical size/opacity sliders on left edge -->
+      <div id="brushDock" aria-hidden="true">
+        <div class="bd-track" data-kind="size">
+          <span class="bd-label">size</span>
+          <div class="bd-fill"></div>
+          <div class="bd-thumb">8</div>
+        </div>
+        <div class="bd-track" data-kind="opacity">
+          <span class="bd-label">opacity</span>
+          <div class="bd-fill"></div>
+          <div class="bd-thumb">100</div>
+        </div>
+      </div>
+
+      <!--
+        v3.9.11: caption strip. Shows the current panel's caption / line of
+        dialogue and lets the user edit it inline. Sits just above the
+        filmstrip so the user can read it AND see which panel it belongs
+        to during playback. Auto-updates as panels cycle.
+      -->
+      <div id="captionStrip" title="Caption / dialogue for this panel">
+        <span class="cs-label" aria-hidden="true">CAPTION</span>
+        <input id="captionInput" type="text" maxlength="240"
+               placeholder="Add a caption / line of dialogue for this panel…"
+               aria-label="Panel caption">
+        <!--
+          v3.9.17: per-panel voice-over. Originally a single mic button
+          that opened a file picker.
+          v3.9.20: split into TWO buttons. Mic icon now means "record
+          voice-over right here" (more natural mapping); the new folder
+          icon means "upload an audio file." When audio is already
+          attached, both buttons are replaced by a single solid speaker
+          + remove button via JS.
+        -->
+        <button id="captionRecordBtn" class="cs-audio-btn cs-record-btn" type="button"
+                title="Record voice-over for this panel"
+                aria-label="Record voice-over">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <path fill="currentColor"
+                  d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
+          </svg>
+        </button>
+        <button id="captionAudioBtn" class="cs-audio-btn cs-upload-btn" type="button"
+                title="Upload an audio file"
+                aria-label="Upload audio file">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <path fill="currentColor"
+                  d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2zm-1 11h2v-3h2.5L11 9.5 7.5 13H10v3z"/>
+          </svg>
+        </button>
+        <input type="file" id="captionAudioFileInput" accept="audio/*" hidden
+               aria-label="Audio file picker">
+        <!--
+          v3.9.25: manual per-panel duration override. Hold the panel for
+          at least N seconds during playback / export. 0 = auto (use audio
+          length if present, else 1/fps). Useful for silent dramatic pauses.
+        -->
+        <label class="cs-duration" title="Hold panel for at least N seconds (0 = auto)">
+          <input id="captionDurationInput" type="number" min="0" max="60" step="0.1"
+                 value="0" aria-label="Panel hold duration in seconds">
+          <span class="cs-duration-unit">s</span>
+        </label>
+      </div>
+      <div id="panelNav"></div>
+      <div id="mobileToggles">
+        <button id="toggleLeft" title="References">
+          <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        </button>
+        <button id="toggleRight" title="Layers">
+          <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+      </div>
+      <div id="fitPresets">
+        <button data-fit="fit" title="Fit to screen">Fit</button>
+        <button data-fit="width" title="Fit width">Width</button>
+        <button data-fit="100" title="100%">100%</button>
+        <!--
+          v3.10.0: Strip mode toggle. Switches the canvas area between the
+          classic single-panel editor and a vertical-scroll comic-strip
+          layout where all panels are visible stacked. Click any panel in
+          strip mode to make it the active editable one.
+        -->
+        <button id="btnStripMode" data-fit="strip" title="Strip mode (vertical-scroll comic-strip layout)" aria-pressed="false">Strip</button>
+      </div>
+      <!--
+        v3.10.0: Strip-mode container. Hidden by default; shown only when
+        #app has class .strip-mode. Each panel is rendered as a child
+        .strip-panel div with its own canvas. The active panel's slot
+        receives #canvasWrap (DOM-relocated from the canvasArea) so the
+        existing brush/event pipeline works unchanged.
+      -->
+      <div id="stripContainer" aria-hidden="true"></div>
+      <div id="panelBackdrop"></div>
     </div>
 
     <div class="resize-handle" id="resizeRight" title="Drag to resize"></div>
@@ -326,7 +310,7 @@ export function buildAppDom(root) {
         <button class="tab-btn active" data-tab="layers">Layers</button>
         <button class="tab-btn" data-tab="brush">Brush</button>
         <button class="tab-btn" data-tab="projects">My Work</button>
-        <button class="tab-btn" data-tab="script">Script</button>
+        <button class="tab-btn" data-tab="docs">Script</button>
       </div>
       <div class="tab-content active" data-tab="layers">
         <div id="toolProps">
@@ -344,6 +328,12 @@ export function buildAppDom(root) {
       </div>
       <div class="tab-content" data-tab="brush">
         <div id="toolProps" style="border-bottom:none">
+          <div class="brush-presets-row" id="brushPresetsRow">
+            <button type="button" class="preset-pill active" data-preset="pen" title="Crisp inking pen">Pen</button>
+            <button type="button" class="preset-pill" data-preset="brush" title="Soft round brush">Brush</button>
+            <button type="button" class="preset-pill" data-preset="pencil" title="Sketching pencil">Pencil</button>
+            <button type="button" class="preset-pill" data-preset="marker" title="Fixed width marker">Marker</button>
+          </div>
           <div class="prop"><label>Size <span id="sizeVal">8 px</span></label><input type="range" id="brushSize" min="1" max="200" value="8"></div>
           <div class="prop"><label>Opacity <span id="opacityVal">100%</span></label><input type="range" id="brushOpacity" min="1" max="100" value="100"></div>
           <div class="prop"><label>Hardness <span id="hardnessVal">80%</span></label><input type="range" id="brushHardness" min="0" max="100" value="80"></div>
@@ -361,15 +351,25 @@ export function buildAppDom(root) {
           <button class="btn" id="btnRefreshProjects" style="margin-top:8px;display:none">Refresh</button>
         </div>
       </div>
-      <div class="tab-content" data-tab="script" id="scriptSidePanel">
-        <div class="panel-header">
-          <span id="sidePanelBadge">Panel 1 / 1</span>
-          <div class="ref-header-actions">
-            <button class="btn icon-btn" id="btnSideSplit" title="Open Split Screen (Draw + Script side-by-side)">◫</button>
-            <button class="btn icon-btn" id="btnSideExpand" title="Open full screenplay workspace">↗</button>
+      <div class="tab-content" data-tab="docs">
+        <div id="docsPanel">
+          <div class="docs-controls">
+            <button class="btn primary" id="btnDocAdd" style="flex:1">+ Add Script</button>
+            <button class="expand-btn" id="btnDocExpand" title="Expand/collapse panel">
+              <svg viewBox="0 0 24 24"><path d="M10 21v-2H6.41l4.5-4.5-1.41-1.41L5 17.59V14H3v7h7zm4-18v2h3.59l-4.5 4.5 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+            </button>
+          </div>
+          <div id="scriptList"></div>
+          <div class="docs-controls">
+            <button class="zoom-btn" id="btnDocZoomOut" title="Smaller text">A−</button>
+            <span class="zoom-val" id="docZoomVal">100%</span>
+            <button class="zoom-btn" id="btnDocZoomIn" title="Larger text">A+</button>
+            <button class="zoom-btn" id="btnDocZoomReset" title="Reset zoom" style="width:auto;padding:0 10px">Reset</button>
+          </div>
+          <div id="docsIframeWrap">
+            <iframe id="docFrame" src="about:blank"></iframe>
           </div>
         </div>
-        <div class="panel-body" id="scriptSideBody"></div>
       </div>
     </div>
   </div>
@@ -551,6 +551,12 @@ export function buildAppDom(root) {
       <div class="bp-color-row">
         <input type="color" id="bpColorPicker" value="#1a1a1a" title="Pick color">
         <div class="bp-swatches" id="bpSwatches"></div>
+      </div>
+      <div class="brush-presets-row" id="bpPresetsRow">
+        <button type="button" class="preset-pill active" data-preset="pen" title="Crisp inking pen">Pen</button>
+        <button type="button" class="preset-pill" data-preset="brush" title="Soft round brush">Brush</button>
+        <button type="button" class="preset-pill" data-preset="pencil" title="Sketching pencil">Pencil</button>
+        <button type="button" class="preset-pill" data-preset="marker" title="Fixed width marker">Marker</button>
       </div>
       <div class="bp-prop">
         <label>Size <span class="bp-val" id="bpSizeVal">8 px</span></label>

@@ -22,6 +22,19 @@
 import { App } from '../core/state.js';
 import { $, $$ } from '../utils/dom-helpers.js';
 import { updateBrushDock } from './brush-dock.js';   // v3.8.0
+import { BRUSH_PRESETS } from '../drawing/brush.js';
+
+export function applyBrushPreset(presetKey) {
+  const p = BRUSH_PRESETS[presetKey];
+  if (!p) return;
+  if (p.hardness != null) App.brush.hardness = p.hardness;
+  if (p.presSize != null) App.brush.presSize = p.presSize;
+  if (p.presOp != null) App.brush.presOp = p.presOp;
+  if (p.smoothing != null) App.brush.smoothing = p.smoothing;
+  if (p.stabilization != null) App.brush.stabilization = p.stabilization;
+  if (p.pressureCurve != null) App.brush.pressureCurve = p.pressureCurve;
+  updateBrushUI();
+}
 
 const SWATCH_COLORS = [
   '#000000','#1a1a1a','#4a4a4a','#888888','#cccccc','#ffffff','#ff7a45','#ffb088',
@@ -76,6 +89,14 @@ export function initBrushPanel() {
   $('colorPicker')?.addEventListener('input', e => setBrushColor(e.target.value));
 
   renderSwatches();
+
+  // Preset pills in both right panel and popover
+  $$('.preset-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.dataset.preset;
+      if (preset) applyBrushPreset(preset);
+    });
+  });
 
   // v3.9.1: anchored brush popover wiring. Uses parallel IDs (bp*) so both
   // the right-panel tab and the popover can coexist — both drive the same
@@ -228,7 +249,7 @@ export function updateBrushUI() {
   const set = (id, val) => { const el = $(id); if (el) el.textContent = val; };
   const setVal = (id, val) => { const el = $(id); if (el && document.activeElement !== el) el.value = val; };
 
-  // Right-panel tab labels
+  // Right-panel tab labels & slider positions
   set('sizeVal', App.brush.size + ' px');
   set('opacityVal', Math.round(App.brush.opacity * 100) + '%');
   set('hardnessVal', Math.round(App.brush.hardness * 100) + '%');
@@ -237,6 +258,28 @@ export function updateBrushUI() {
   set('pressureCurveVal', pressureCurveLabel(App.brush.pressureCurve));
   set('presSizeVal', Math.round(App.brush.presSize * 100) + '%');
   set('presOpVal', Math.round(App.brush.presOp * 100) + '%');
+  setVal('brushSize', App.brush.size);
+  setVal('brushOpacity', Math.round(App.brush.opacity * 100));
+  setVal('brushHardness', Math.round(App.brush.hardness * 100));
+  setVal('brushSmoothing', Math.round(App.brush.smoothing * 100));
+  setVal('brushStabilization', Math.round((App.brush.stabilization || 0) * 100));
+  setVal('brushPressureCurve', Math.round((App.brush.pressureCurve ?? 0.5) * 100));
+  setVal('presSize', Math.round(App.brush.presSize * 100));
+  setVal('presOp', Math.round(App.brush.presOp * 100));
+
+  // Active preset highlight
+  const curHardness = App.brush.hardness;
+  const curPresSize = App.brush.presSize;
+  const curPresOp = App.brush.presOp;
+  let activePreset = null;
+  if (curHardness >= 0.98 && curPresSize >= 0.8 && curPresOp <= 0.1) activePreset = 'pen';
+  else if (curHardness >= 0.95 && curPresSize <= 0.1) activePreset = 'marker';
+  else if (curHardness >= 0.8 && curPresOp >= 0.4) activePreset = 'pencil';
+  else if (curHardness < 0.8) activePreset = 'brush';
+
+  $$('.preset-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.preset === activePreset);
+  });
 
   // v3.9.1: brush chip in topbar — small live readout
   const chipSize = $('brushChipSize');
